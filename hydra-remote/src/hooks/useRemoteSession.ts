@@ -1,3 +1,4 @@
+import type { RemoteTaskSummary } from '../../../shared/remoteTasks'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { initializeApp, FirebaseApp } from 'firebase/app'
 import { getAuth, getIdTokenResult, signInWithCustomToken, Auth } from 'firebase/auth'
@@ -117,6 +118,7 @@ export function useRemoteSession() {
   const [restoringSession, setRestoringSession] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [agents, setAgents] = useState<AgentSummary[]>([])
+  const [tasks, setTasks] = useState<RemoteTaskSummary[]>([])
   const [messages, setMessages] = useState<OutboxMessage[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
 
@@ -155,6 +157,7 @@ export function useRemoteSession() {
     setConnected(false)
     setSessionId(null)
     setAgents([])
+    setTasks([])
     setMessages([])
     setError(nextError)
     clearStoredSessionPayload()
@@ -221,10 +224,15 @@ export function useRemoteSession() {
       const stateRef = collection(firestore, 'sessions', payload.sessionId, 'state')
       const stateUnsub = onSnapshot(stateRef, (snapshot) => {
         const agentList: AgentSummary[] = []
+        const taskList: RemoteTaskSummary[] = []
         snapshot.forEach((doc) => {
-          agentList.push(doc.data() as AgentSummary)
+          const data = doc.data()
+          if (data.kind === 'task') {
+            if (typeof data.taskId === 'string' && typeof data.title === 'string' && typeof data.phase === 'string' && typeof data.summary === 'string' && Array.isArray(data.providers)) taskList.push(data as RemoteTaskSummary)
+          } else if (typeof data.agentId === 'string') agentList.push(data as AgentSummary)
         })
         setAgents(agentList)
+        setTasks(taskList.sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)))
       })
 
       // Listen to outbox (latest 100 messages)
@@ -318,6 +326,7 @@ export function useRemoteSession() {
     restoringSession,
     error,
     agents,
+    tasks,
     messages,
     sessionId,
     connect,

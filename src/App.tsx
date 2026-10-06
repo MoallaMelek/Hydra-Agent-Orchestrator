@@ -35,6 +35,7 @@ import {
 import { SIDEBAR_SEARCH_FOCUS_EVENT } from './components/Sidebar/SearchBar'
 import { ShortcutsOverlay } from './components/Shortcuts/ShortcutsOverlay'
 import styles from './App.module.css'
+import { TaskWorkspace } from './components/Tasks/TaskWorkspace'
 
 interface PersistedWorkspaceUiState {
   selectedProject: string | null
@@ -97,6 +98,34 @@ function writeWorkspaceUiState(state: PersistedWorkspaceUiState): void {
 }
 
 export default function App() {
+  const [surface, setSurface] = useState<'tasks' | 'agents' | 'settings'>('tasks')
+  // Compatibility for older preload hosts; current desktop always has the task bridge.
+  if (!window.hydra?.listTasks) return <LegacyApp />
+  return <>{surface === 'tasks' ? <TaskWorkspace onAgents={() => setSurface('agents')} onSettings={() => setSurface('settings')} /> : surface === 'settings' ? <TaskSettings onClose={() => setSurface('tasks')} /> : <><button style={{ position: 'fixed', right: 16, bottom: 12, zIndex: 100, background: '#272a32', color: '#fff', padding: '8px 14px', borderRadius: 8 }} onClick={() => setSurface('tasks')}>← Task chat</button><LegacyApp /></>}<WorkspaceQuitConfirmation /></>
+}
+
+function TaskSettings({ onClose }: { onClose: () => void }) {
+  const { config, updateConfig } = useConfig()
+  const { keybindings, keybindingsPath } = useKeybindings()
+  return <SettingsPanel config={config} keybindings={keybindings} keybindingsPath={keybindingsPath} onUpdate={updateConfig} onClose={onClose} globalYolo={false} onToggleGlobalYolo={() => { void window.hydra.toggleGlobalYolo(false) }} />
+}
+
+export function WorkspaceQuitConfirmation() {
+  const [count, setCount] = useState<number | null>(null)
+  const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
+  useEffect(() => window.hydra.onConfirmQuit(value => { setCount(value); setError('') }), [])
+  const quit = async (background: boolean) => {
+    setPending(true)
+    try { await (background ? window.hydra.quitBackground() : window.hydra.confirmQuit()); setCount(null) }
+    catch (err) { setError((err as Error).message) }
+    finally { setPending(false) }
+  }
+  if (count === null) return null
+  return <div className={styles.confirmOverlay}><section className={styles.confirmDialog} role="dialog" aria-modal="true" aria-labelledby="workspace-quit-title"><h2 id="workspace-quit-title">{count} tasks or agents are still running</h2><p>Keep work running in the local daemon, or stop all processes before closing Hydra.</p>{error && <p role="alert">{error}</p>}<div className={styles.confirmActions}><button className={styles.cancelBtn} disabled={pending} onClick={() => setCount(null)}>Cancel</button><button className={styles.primaryBtn} disabled={pending} onClick={() => { void quit(true) }}>Keep Running</button><button className={styles.dangerBtn} disabled={pending} onClick={() => { void quit(false) }}>Stop All & Quit</button></div></section></div>
+}
+
+function LegacyApp({ initialSettings = false }: { initialSettings?: boolean }) {
   const persistedUi = useMemo(() => readWorkspaceUiState(), [])
   const { config, updateConfig } = useConfig()
   const { keybindings, keybindingsPath } = useKeybindings()
@@ -141,7 +170,7 @@ export default function App() {
 
   const [sidebarWidth, setSidebarWidth] = useState(persistedUi.sidebarWidth ?? 260)
 
-  const [showSettings, setShowSettings] = useState(false)
+  const [showSettings, setShowSettings] = useState(initialSettings)
   const [showNewAgent, setShowNewAgent] = useState(false)
   const [newAgentPrefillDir, setNewAgentPrefillDir] = useState<string | null>(null)
   const [showHeadless, setShowHeadless] = useState(false)
@@ -204,6 +233,7 @@ export default function App() {
   }, [runPreflightCheck])
 
   useEffect(() => {
+    if (typeof window.hydra.listTasks === 'function') return
     return window.hydra.onConfirmQuit((runningCount) => {
       setQuitConfirmRunningCount(runningCount)
     })

@@ -29,6 +29,7 @@ const STATUS_OPTIONS: Array<HeadlessRunStatus | 'all'> = [
 
 export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel, onClose }: HeadlessPanelProps) {
   const [prompt, setPrompt] = useState('')
+  const [allowProjectWrites, setAllowProjectWrites] = useState(false)
   const [projectDir, setProjectDir] = useState(defaultProjectDir)
   const [provider, setProvider] = useState<ProviderId>(defaultProvider)
   const [model, setModel] = useState<ModelId>(defaultModel)
@@ -158,7 +159,8 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
         provider,
         model: effectiveModel,
         reasoningEffort: provider === 'codex' && reasoningEffort ? reasoningEffort : undefined,
-        resumeSessionId: resumeSessionId.trim() || null
+        resumeSessionId: resumeSessionId.trim() || null,
+        accessMode: allowProjectWrites ? 'project-write' : 'read-only'
       })
       setPrompt('')
       setRuns((prev) => [created, ...prev])
@@ -188,7 +190,8 @@ export function HeadlessPanel({ defaultProjectDir, defaultProvider, defaultModel
             onChange={(e) => setProjectDir(e.target.value)}
             placeholder="Project directory"
           />
-          <textarea
+          <label style={{display:"block",fontSize:12,marginBottom:10}}><input type="checkbox" checked={allowProjectWrites} onChange={event => setAllowProjectWrites(event.target.checked)} /> Authorize project writes for this run (Claude: restricted file tools; Codex: project sandbox). No bypass or external scope.</label>
+            <textarea
             className={styles.prompt}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}

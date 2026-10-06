@@ -1,0 +1,5 @@
+import type { RemoteTaskSummary } from '../../../shared/remoteTasks'
+export function TaskList({ tasks }: { tasks: RemoteTaskSummary[] }) {
+  if (!tasks.length) return null
+  return <section style={{ padding: '16px 18px', borderBottom: '1px solid #343640', color: '#dce0e9' }} aria-label="Hydra tasks"><h2 style={{ fontSize: 15, marginBottom: 12 }}>Tasks</h2><p style={{ fontSize: 11, opacity: .65, marginBottom: 12 }}>Read-only task history. Resolve approvals on the desktop.</p>{tasks.map(task => <details key={task.taskId} style={{ padding: 12, background: '#20232b', borderRadius: 8, marginBottom: 8 }}><summary style={{ cursor: 'pointer' }}>{task.title}<small style={{ display: 'block', opacity: .7 }}>{task.projectName} · {task.phase.replace(/_/g, ' ')} · {task.providers.join(' + ')}</small></summary>{task.approvalRequired && <p role="alert">Approval required on desktop — task is paused.</p>}{task.error && <p role="alert">{task.error}</p>}<p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 13, marginTop: 12 }}>{task.summary || 'Hydra is working. Final response will appear here.'}</p></details>)}</section>
+}

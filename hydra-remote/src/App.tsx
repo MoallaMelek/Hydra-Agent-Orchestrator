@@ -1,3 +1,4 @@
+import { TaskList } from './components/TaskList'
 import { useState, useCallback, useEffect } from 'react'
 import { Scanner } from './components/Scanner'
 import { AgentList } from './components/AgentList'
@@ -14,6 +15,7 @@ export default function App() {
     restoringSession,
     error,
     agents,
+    tasks,
     messages,
     sessionId,
     connect,
@@ -265,6 +267,7 @@ export default function App() {
         />
       )}
 
+      <TaskList tasks={tasks} />
       <AgentList
         agents={agents}
         onSelect={handleSelectAgent}
