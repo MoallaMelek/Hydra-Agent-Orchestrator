@@ -13,3 +13,6 @@ scripts/deploy-local.sh
 
 # Firebase CLI logs
 firepit-log.txt
+
+# Local validation output and generated build configuration
+.ai/validation/

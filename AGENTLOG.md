@@ -750,3 +750,22 @@ Mistakes, gotchas, and lessons learned during development. Check here before sta
 **Context**: A temporary Hosting config under `.baseline/` used `hydra-remote/dist` as its public directory. Firebase resolved that beneath `.baseline/`, so the deploy stopped before uploading any files.
 
 **Fix**: Resolve `hosting.public` relative to the config file itself (`../hydra-remote/dist` in this layout), not the shell working directory.
+# Task route insertion context
+When adding routes to DaemonServer, anchor patches on handleRequest rather than a generic try block. A first typecheck caught task routes inserted into persistWorkspace; moved them into the authenticated request handler before continuing.
+# Restricted Windows config bundling
+Native esbuild could not enumerate parent directories while bundling vitest.config.ts in this session. Use the equivalent in-process Vitest configuration in scripts/test-local.mjs for validation in this restricted filesystem; do not request sandbox bypass. Keep shared renderer contracts in shared/, never import backend modules into shared/types.ts.
+# Windows durable file flushing
+fsync on a read-only descriptor returns EPERM on Windows. Open the completed temporary metadata file with r+ before fsync, close it, then atomically rename. The new coordinator persistence tests caught this before live use. UI suites using jest-dom assertions must import @testing-library/jest-dom/vitest explicitly.
+
+# Shell quoting for source edits
+Avoid embedding Python strings containing JSX quotes in a PowerShell double-quoted command. Pipe a literal PowerShell here-string into Python instead.
+
+
+### 2026-10-06 — CLI sandbox flags and stale daemon verification
+The current Codex CLI starts read-only with --ignore-user-config even alongside a workspace-write request. Preserve normal authentication/deny policies and pass explicit -s, disable ambient external tools per invocation, and prove writes with a disposable fixture. A persisted daemon can keep old code after rebuilding the renderer; check protocol version and upgrade only idle daemons. Do not treat a provider assertion as verification evidence.
+
+### 2026-10-06 — Cancellation ownership and verification parsing
+Check AbortSignal after every asynchronous pre-spawn step. Preserve process-group escalation after the direct CLI closes, and wait for termination before emitting a canceled terminal run. Writer guards must cover both launch orders for interactive, headless and coordinated work. Parse quoted shell paths before matching exact planned check commands.
+
+### 2026-10-06 — Windows protected sandbox descendants
+An isolated daemon crash-cleanup probe hit Windows taskkill errors for protected Codex sandbox descendants. A nonzero taskkill status must remain a cancellation failure even if the direct CLI exits. Surface failure instead of claiming Stopped and keep failed project-write runs in writer exclusion. Native Job Object supervision and a user-facing reconciliation flow remain follow-up work.
