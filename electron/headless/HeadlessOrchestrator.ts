@@ -10,8 +10,11 @@ import {
 } from 'fs'
 import { basename, join } from 'path'
 import { randomUUID } from 'crypto'
-import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'
+import { type ChildProcess } from 'child_process'
 import { getProvider } from '../agents/providers'
+import { spawnResolvedCli, terminateProcessTree } from '../agents/cliExecution'
+import { atomicWriteJson } from '../tasks/atomicStore'
+import { consumeProviderLine, emptySemanticResult } from '../tasks/semanticResults'
 import type {
   HeadlessRun,
   HeadlessRunStatus,
@@ -24,11 +27,14 @@ import type {
 
 interface ManagedHeadlessRun {
   state: HeadlessRun
-  process: ChildProcessWithoutNullStreams | null
+  process: ChildProcess | null
   logPath: string
   metaPath: string
   stdoutBuffer: string
   stderrBuffer: string
+  timer?: ReturnType<typeof setTimeout>
+  cancelRequested?: boolean
+  termination?: Promise<void>
 }
 
 interface PersistedHeadlessRunFile {
@@ -69,7 +75,8 @@ export class HeadlessOrchestrator extends EventEmitter {
       startedAt,
       endedAt: null,
       sessionId: payload.resumeSessionId ?? null,
-      error: null
+      error: null,
+      result: emptySemanticResult(), accessMode: payload.accessMode ?? 'read-only', sandbox: payload.sandbox ?? 'read-only'
     }
 
     const managed: ManagedHeadlessRun = {
@@ -86,12 +93,18 @@ export class HeadlessOrchestrator extends EventEmitter {
 
     const provider = getProvider(payload.provider)
     const args = provider.buildHeadlessArgs(payload.model, payload.prompt, payload.resumeSessionId ?? null, payload.reasoningEffort)
+    if (payload.provider === 'claude' && payload.accessMode !== 'context-only') {
+      args[args.indexOf('--tools') + 1] = payload.accessMode === 'project-write' ? 'Read,Glob,Grep,Write,Edit' : 'Read,Glob,Grep'
+      args[args.indexOf('--permission-mode') + 1] = payload.accessMode === 'project-write' ? 'acceptEdits' : 'dontAsk'
+    }
+    if (payload.provider === 'codex' && payload.sandbox === 'workspace-write') {
+      const index = args.indexOf('-s') + 1
+      if (index > 0) args[index] = 'workspace-write'
+    }
 
     try {
-      // On Windows, CLI tools may be .cmd wrappers — spawn through cmd.exe
-      const spawnCmd = process.platform === 'win32' ? 'cmd.exe' : provider.command
-      const spawnArgs = process.platform === 'win32' ? ['/c', provider.command, ...args] : args
-      const child = spawn(spawnCmd, spawnArgs, {
+      // Direct native executable; prompt is never parsed by a shell.
+      const child = spawnResolvedCli(provider.command, args, {
         cwd: payload.projectDir,
         env: {
           ...process.env,
@@ -99,26 +112,35 @@ export class HeadlessOrchestrator extends EventEmitter {
         }
       })
       managed.process = child
+      child.stdin!.on('error', () => { /* close/error determines terminal status */ })
+      if (payload.provider !== 'opencode') child.stdin!.end(payload.prompt)
+      managed.timer = setTimeout(() => {
+        managed.state.error = 'Execution timed out'
+        this.cancel(runId)
+      }, Math.min(payload.timeoutMs ?? 10 * 60_000, 30 * 60_000))
+      managed.timer.unref()
 
-      child.stdout.on('data', (chunk: Buffer | string) => {
+      child.stdout!.on('data', (chunk: Buffer | string) => {
         this.handleStdout(managed, chunk.toString('utf-8'))
       })
 
-      child.stderr.on('data', (chunk: Buffer | string) => {
+      child.stderr!.on('data', (chunk: Buffer | string) => {
         const text = chunk.toString('utf-8')
-        managed.stderrBuffer += text
+        managed.stderrBuffer = (managed.stderrBuffer + text).slice(-12000)
+        this.appendLog(managed, JSON.stringify({ type: 'stderr', text }))
         this.emitRunEvent({ runId, data: text })
       })
 
-      child.on('exit', (code) => {
-        if (managed.state.status === 'canceled') {
-          this.finalizeRun(managed, 'canceled', null)
+      child.on('close', (code) => {
+        if (managed.stdoutBuffer.trim()) this.handleStdout(managed, '\n')
+        if (managed.cancelRequested) {
+          void (managed.termination ?? Promise.resolve()).then(() => this.finalizeRun(managed, managed.state.error ? 'errored' : 'canceled', managed.state.error))
           return
         }
-        if (code === 0) {
+        if (code === 0 && !managed.state.result?.failed && (payload.provider === 'opencode' || managed.state.result?.terminal)) {
           this.finalizeRun(managed, 'completed', null)
         } else {
-          this.finalizeRun(managed, 'errored', `CLI exited with code ${code ?? -1}`)
+          this.finalizeRun(managed, 'errored', managed.state.result?.error || `CLI exited without successful semantic completion (code ${code ?? -1})`)
         }
       })
 
@@ -211,22 +233,25 @@ export class HeadlessOrchestrator extends EventEmitter {
   cancel(runId: string): boolean {
     const managed = this.runs.get(runId)
     if (!managed || !managed.process) return false
-    managed.state.status = 'canceled'
-    this.persistRun(managed)
-    try {
-      if (process.platform === 'win32') {
-        managed.process.kill()
-      } else {
-        managed.process.kill('SIGTERM')
-      }
-      return true
-    } catch {
-      return false
-    }
+    if (managed.cancelRequested) return true
+    managed.cancelRequested = true
+    managed.termination = terminateProcessTree(managed.process).catch(err => {
+      managed.state.error = `Cancellation failed: ${(err as Error).message}`
+      this.persistRun(managed)
+      this.emitRunEvent({ runId, data: managed.state.error })
+    })
+    return true
   }
+
+  shutdown(): void { for (const run of this.runs.values()) if (run.process) this.cancel(run.state.id) }
 
   private handleStdout(managed: ManagedHeadlessRun, data: string): void {
     managed.stdoutBuffer += data
+    if (managed.stdoutBuffer.length > 2_000_000) {
+      managed.state.error = 'Provider output exceeded line limit'
+      this.cancel(managed.state.id)
+      managed.stdoutBuffer = managed.stdoutBuffer.slice(-120000)
+    }
     const lines = managed.stdoutBuffer.split('\n')
     managed.stdoutBuffer = lines.pop() || ''
 
@@ -234,6 +259,12 @@ export class HeadlessOrchestrator extends EventEmitter {
       if (!line.trim()) continue
       this.appendLog(managed, line)
       this.captureSessionId(managed, line)
+      if (managed.state.result) {
+        const previousText = managed.state.result.text
+        consumeProviderLine(managed.state.provider, line, managed.state.result, managed.state.id)
+        if (managed.state.result.text !== previousText) this.emit('text', { runId: managed.state.id, text: managed.state.result.text })
+        if (managed.state.result.sessionId) managed.state.sessionId = managed.state.result.sessionId
+      }
       this.emitRunEvent({ runId: managed.state.id, data: line })
     }
   }
@@ -267,11 +298,15 @@ export class HeadlessOrchestrator extends EventEmitter {
     status: HeadlessRunStatus,
     error: string | null
   ): void {
+    if (managed.state.endedAt) return
+    if (managed.timer) clearTimeout(managed.timer)
     managed.process = null
     managed.state.status = status
     managed.state.error = error
     managed.state.endedAt = new Date().toISOString()
     this.persistRun(managed)
+    this.emit('terminal', { ...managed.state })
+    this.emitRunEvent({ runId: managed.state.id, data: JSON.stringify({ type: 'hydra.terminal', status, error }) })
   }
 
   private emitRunEvent(payload: HeadlessRunEventPayload): void {
@@ -293,6 +328,10 @@ export class HeadlessOrchestrator extends EventEmitter {
         if (!run || !this.isHeadlessRun(run)) continue
 
         if (!run.provider) run.provider = 'claude'
+        if (run.status === 'running') {
+          run.status = 'errored'; run.error = 'Interrupted by daemon restart'; run.endedAt = new Date().toISOString()
+          atomicWriteJson(metaPath, { schemaVersion: META_SCHEMA_VERSION, run })
+        }
         const logPath = join(this.baseDir, `${run.id}${LOG_EXTENSION}`)
         this.runs.set(run.id, {
           state: run,
@@ -373,7 +412,7 @@ export class HeadlessOrchestrator extends EventEmitter {
       run: managed.state
     }
     try {
-      writeFileSync(managed.metaPath, JSON.stringify(payload, null, 2), 'utf-8')
+      atomicWriteJson(managed.metaPath, payload)
     } catch {
       // Best effort persistence.
     }

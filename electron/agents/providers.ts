@@ -2,6 +2,7 @@ import { PROVIDER_MODELS, type AgentState, type ProviderId, type ModelId } from 
 import { execFileSync } from 'child_process'
 import { existsSync } from 'fs'
 import { join } from 'path'
+import { resolveCliExecutable, codexTaskIsolationArgs } from './cliExecution'
 
 export interface ProviderConfig {
   id: ProviderId
@@ -34,6 +35,8 @@ interface ProviderPreflightResult {
 }
 
 function resolveCommandPath(command: string): string | null {
+  const native = resolveCliExecutable(command)
+  if (native) return native
   // Prefer the official user-level npm wrapper on Windows. `where` can return
   // an extensionless POSIX shim or an editor-bundled executable depending on
   // inherited PATH order, which makes authentication and model support change
@@ -57,7 +60,7 @@ function resolveCommandPath(command: string): string | null {
 }
 
 function readVersion(commandPath: string, command: string): string | null {
-  const targets = commandPath === command ? [commandPath] : [command, commandPath]
+  const targets = [commandPath]
   for (const target of targets) {
     try {
       const isWindowsWrapper = process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(target)
@@ -112,7 +115,7 @@ const claudeProvider: ProviderConfig = {
   },
 
   buildHeadlessArgs(model: ModelId, prompt: string, resumeSessionId: string | null, _reasoningEffort?: string): string[] {
-    const args = ['-p', prompt, '--output-format', 'stream-json', '--model', model]
+    const args = ['-p', '--verbose', '--include-partial-messages', '--output-format', 'stream-json', '--model', model, '--permission-mode', 'dontAsk', '--restricted', '--safe-mode', '--tools', '', '--strict-mcp-config', '--setting-sources', '']
     if (resumeSessionId) args.push('--resume', resumeSessionId)
     return args
   },
@@ -144,10 +147,12 @@ const codexProvider: ProviderConfig = {
   },
 
   buildHeadlessArgs(model: ModelId, prompt: string, _resumeSessionId: string | null, reasoningEffort?: string): string[] {
-    const args = ['--model', model, '-q', prompt]
+    const args = ['exec', '--json', '--model', model, ...codexTaskIsolationArgs(), '-s', 'read-only', '-c', 'approval_policy="never"', '-c', 'sandbox_workspace_write.network_access=false', '-c', 'sandbox_workspace_write.exclude_tmpdir_env_var=true', '-c', 'sandbox_workspace_write.exclude_slash_tmp=true']
     if (reasoningEffort) {
       args.push('-c', `model_reasoning_effort="${reasoningEffort}"`)
     }
+    if (_resumeSessionId) args.push('resume', _resumeSessionId)
+    args.push('-')
     return args
   },
 

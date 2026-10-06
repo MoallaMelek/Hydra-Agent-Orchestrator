@@ -18,6 +18,11 @@ const mockState = vi.hoisted(() => ({
   connectMock: vi.fn(),
   healthMock: vi.fn(),
   shutdownMock: vi.fn(),
+  listMock: vi.fn(),
+  runsMock: vi.fn(),
+  tasksMock: vi.fn(),
+  upgradeMock: vi.fn(),
+  disconnectMock: vi.fn(),
   daemonClientConstructedSockets: [] as string[]
 }))
 
@@ -40,6 +45,11 @@ vi.mock('./DaemonClient', () => ({
     constructor(public readonly socketPath: string, _authToken: string) {
       mockState.daemonClientConstructedSockets.push(socketPath)
     }
+    list() { return mockState.listMock() }
+    listHeadlessRuns() { return mockState.runsMock() }
+    listTasks() { return mockState.tasksMock() }
+    requireTaskUpgrade(message: string) { mockState.upgradeMock(message) }
+    disconnect() { mockState.disconnectMock() }
     connect(): Promise<void> {
       return mockState.connectMock(this.socketPath)
     }
@@ -83,6 +93,11 @@ describe('daemon lifecycle', () => {
     mockState.connectMock.mockReset()
     mockState.healthMock.mockReset()
     mockState.shutdownMock.mockReset()
+    mockState.listMock.mockReset().mockResolvedValue([])
+    mockState.runsMock.mockReset().mockResolvedValue([])
+    mockState.tasksMock.mockReset().mockResolvedValue([])
+    mockState.upgradeMock.mockReset()
+    mockState.disconnectMock.mockReset()
     mockState.daemonClientConstructedSockets.length = 0
 
     mockState.spawnMock.mockImplementation(() => buildChildProcessMock())
@@ -142,6 +157,30 @@ describe('daemon lifecycle', () => {
     expect(mockState.connectMock).toHaveBeenCalledWith('/tmp/existing.sock')
     expect(mockState.spawnMock).not.toHaveBeenCalled()
     expect(mockState.removeLockFileMock).not.toHaveBeenCalled()
+  })
+
+  it('upgrades an idle old daemon without replaying work', async () => {
+    mockState.readLockFileMock.mockReturnValue({pid:1234,socketPath:'/tmp/old.sock',startedAt:'2026-02-28T00:00:00Z',authToken:'a'.repeat(64)})
+    mockState.healthMock.mockResolvedValue({version:'1.0.0'})
+    const {ensureDaemon,getDaemonPaths}=await import('./lifecycle')
+    const promise=ensureDaemon(getDaemonPaths('/tmp/upgrade'))
+    await vi.advanceTimersByTimeAsync(700)
+    await expect(promise).resolves.toBeDefined()
+    expect(mockState.shutdownMock).toHaveBeenCalledOnce();expect(mockState.spawnMock).toHaveBeenCalledOnce()
+  })
+  it('preserves an old daemon with active headless work and requires task upgrade', async () => {
+    mockState.readLockFileMock.mockReturnValue({pid:1234,socketPath:'/tmp/old.sock',startedAt:'2026-02-28T00:00:00Z',authToken:'a'.repeat(64)})
+    mockState.healthMock.mockResolvedValue({version:'1.0.0'});mockState.runsMock.mockResolvedValue([{id:'active'}])
+    const {ensureDaemon,getDaemonPaths}=await import('./lifecycle')
+    await ensureDaemon(getDaemonPaths('/tmp/upgrade'))
+    expect(mockState.upgradeMock).toHaveBeenCalledOnce();expect(mockState.shutdownMock).not.toHaveBeenCalled();expect(mockState.spawnMock).not.toHaveBeenCalled()
+  })
+  it('does not replace a responsive daemon when upgrade inspection fails', async () => {
+    mockState.readLockFileMock.mockReturnValue({pid:1234,socketPath:'/tmp/old.sock',startedAt:'2026-02-28T00:00:00Z',authToken:'a'.repeat(64)})
+    mockState.healthMock.mockResolvedValue({version:'1.0.0'});mockState.listMock.mockRejectedValue(new Error('Inspection unavailable'))
+    const {ensureDaemon,getDaemonPaths}=await import('./lifecycle')
+    await expect(ensureDaemon(getDaemonPaths('/tmp/upgrade'))).rejects.toThrow('Cannot safely upgrade')
+    expect(mockState.removeLockFileMock).not.toHaveBeenCalled();expect(mockState.spawnMock).not.toHaveBeenCalled()
   })
 
   it('respawns daemon when lock file is stale and sets node-mode env flag', async () => {

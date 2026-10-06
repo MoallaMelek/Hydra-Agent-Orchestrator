@@ -18,6 +18,8 @@ import { readTranscriptHistory } from '../sessions/TranscriptReader'
 import { canonicalProjectRoot, resolveContainedExistingPath } from '../security/pathPolicy'
 import type { WsServerMessage } from './protocol'
 import { z, ZodError } from 'zod'
+import type { TaskCoordinator } from '../tasks/TaskCoordinator'
+import { createTaskSchema, taskCommandSchema } from '../tasks/taskSchemas'
 import {
   broadcastSchema,
   configPatchSchema,
@@ -90,6 +92,7 @@ interface DaemonServerOptions {
   sessionCatalog: SessionCatalog
   codexSessionCatalog: CodexSessionCatalog
   headlessOrchestrator: HeadlessOrchestrator
+  taskCoordinator?: TaskCoordinator
   workspaceStore: WorkspaceStore
   notificationService: DaemonNotificationService
   mcpServer: HydraMcpServer | null
@@ -148,7 +151,13 @@ export class DaemonServer {
     this.skillScanner = options.skillScanner
     this.authToken = options.authToken
     this.onShutdown = options.onShutdown
+    options.taskCoordinator?.on('changed', payload => this.broadcast({ type: 'task:changed', payload }))
+    options.taskCoordinator?.on('activity', payload => this.broadcast({ type: 'task:activity', payload }))
+    options.taskCoordinator?.on('text', payload => this.broadcast({ type: 'task:text', payload }))
+    this.taskCoordinator = options.taskCoordinator
   }
+
+  private readonly taskCoordinator?: TaskCoordinator
 
   async start(): Promise<void> {
     // Remove stale socket file (not needed for Windows named pipes)
@@ -448,6 +457,15 @@ export class DaemonServer {
     }
 
     try {
+      if (path === '/tasks' && this.taskCoordinator) {
+        if (method === 'GET') return this.json(res, 200, this.taskCoordinator.list())
+        if (method === 'POST') return this.json(res, 201, await this.taskCoordinator.create(createTaskSchema.parse(await this.readBody(req))))
+      }
+      const taskMatch = path.match(/^\/tasks\/([a-f0-9-]{36})$/)
+      if (taskMatch && this.taskCoordinator) {
+        if (method === 'GET') return this.json(res, 200, this.taskCoordinator.get(taskMatch[1]))
+        if (method === 'POST') return this.json(res, 200, await this.taskCoordinator.command(taskMatch[1], taskCommandSchema.parse(await this.readBody(req))))
+      }
       // Health
       if (method === 'GET' && path === '/health') {
         return this.json(res, 200, {
@@ -455,7 +473,7 @@ export class DaemonServer {
           pid: process.pid,
           uptime: Math.floor((Date.now() - this.startedAt) / 1000),
           agentCount: this.agentManager.list().length,
-          version: '1.0.0'
+          version: '2.0.0'
         })
       }
 
@@ -652,7 +670,11 @@ export class DaemonServer {
       if (method === 'POST' && path === '/headless') {
         const body = headlessStartSchema.parse(await this.readBody(req))
         body.projectDir = await canonicalProjectRoot(body.projectDir)
-        const run = this.headlessOrchestrator.start(body)
+        if (body.provider === 'opencode') return this.json(res, 400, { error: 'OpenCode headless permission confinement is not verified; use a supervised interactive Agent.' })
+        const writing = body.accessMode === 'project-write'
+        if (writing && (this.taskCoordinator?.ownsProject(body.projectDir) || this.agentManager.list().some(agent => ['running', 'starting'].includes(agent.status) && agent.projectDir.toLowerCase() === body.projectDir.toLowerCase()) || this.headlessOrchestrator.list().some(run => (run.status === 'running' || !!run.error?.startsWith('Cancellation failed:')) && run.accessMode === 'project-write' && run.projectDir.toLowerCase() === body.projectDir.toLowerCase()))) return this.json(res, 409, { error: 'This canonical project already has an active writer' })
+        const sandbox = writing ? 'workspace-write' as const : 'read-only' as const
+        const run = this.headlessOrchestrator.start({ ...body, sandbox })
         return this.json(res, 201, run)
       }
 

@@ -474,6 +474,9 @@ export interface HeadlessRun {
   endedAt: string | null
   sessionId: string | null
   error: string | null
+  result?: import('./tasks').ProviderExecutionResult
+  accessMode?: 'context-only' | 'read-only' | 'project-write'
+  sandbox?: 'read-only' | 'workspace-write'
 }
 
 export interface StartHeadlessRunPayload {
@@ -483,6 +486,9 @@ export interface StartHeadlessRunPayload {
   model: ModelId
   reasoningEffort?: string
   resumeSessionId?: string | null
+  sandbox?: 'read-only' | 'workspace-write'
+  timeoutMs?: number
+  accessMode?: 'context-only' | 'read-only' | 'project-write'
 }
 
 export interface HeadlessRunEventPayload {

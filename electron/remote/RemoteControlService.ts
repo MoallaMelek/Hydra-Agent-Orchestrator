@@ -6,6 +6,8 @@ import type { DaemonNotificationService } from '../daemon/DaemonNotificationServ
 import { getFirebaseConfig } from './firebaseConfig'
 import { createMobileLink } from './mobileLink'
 import { z } from 'zod'
+import { remoteTaskSummary } from '@shared/remoteTasks'
+import type { HydraTask } from '@shared/tasks'
 import type {
   AgentState,
   RemoteControlState,
@@ -22,6 +24,7 @@ interface AgentBackend extends EventEmitter {
   list(): AgentState[] | Promise<AgentState[]>
   get(agentId: string): AgentState | null | Promise<AgentState | null>
   sendInput(agentId: string, input: string): boolean | void | Promise<void>
+  listTasks?(): Promise<HydraTask[]>
 }
 
 // Firebase SDK — lazy-imported so the module can be loaded even if firebase
@@ -161,6 +164,9 @@ export class RemoteControlService extends EventEmitter {
   private flushTimer: ReturnType<typeof setInterval> | null = null
   private sessionHeartbeatTimer: ReturnType<typeof setInterval> | null = null
   private sessionExpiryTimer: ReturnType<typeof setTimeout> | null = null
+  private taskSyncTimer: ReturnType<typeof setInterval> | null = null
+  private inboxInFlight = new Set<string>()
+  private inboxDelivered = new Set<string>()
 
   constructor(
     private agentManager: AgentBackend,
@@ -206,6 +212,7 @@ export class RemoteControlService extends EventEmitter {
       )
 
       this.startSessionHeartbeat()
+      this.taskSyncTimer = setInterval(() => { void this.syncTaskState().catch(() => {}) }, 5000)
       this.updateState({ status: 'active', connectedAt: new Date().toISOString() })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -229,6 +236,7 @@ export class RemoteControlService extends EventEmitter {
   }
 
   async disable(): Promise<RemoteControlState> {
+    if (this.taskSyncTimer) { clearInterval(this.taskSyncTimer); this.taskSyncTimer = null }
     if (!this.state.enabled) return this.getState()
 
     this.detachAllListeners()
@@ -282,6 +290,7 @@ export class RemoteControlService extends EventEmitter {
   }
 
   destroy(): void {
+    if (this.taskSyncTimer) clearInterval(this.taskSyncTimer)
     this.detachAllListeners()
     this.stopOutputFlushing()
     this.stopSessionHeartbeat()
@@ -416,25 +425,37 @@ export class RemoteControlService extends EventEmitter {
           void this.writeSessionMetadata({ mobileConnected: true })
         }
 
-        this.processInboxMessage(parsed.data)
-        void updateDoc(msgRef, { processed: true }).catch(() => {})
+        const key = `${sessionId}:${change.doc.id}`
+        if (this.inboxInFlight.has(key)) continue
+        this.inboxInFlight.add(key)
+        void (async () => {
+          try {
+            if (!this.inboxDelivered.has(key)) {
+              await this.processInboxMessage(parsed.data)
+              this.inboxDelivered.add(key)
+              if (this.inboxDelivered.size > 2000) this.inboxDelivered.delete(this.inboxDelivered.values().next().value!)
+            }
+            await updateDoc(msgRef, { processed: true })
+          } catch { this.emit('delivery-error', { messageId: change.doc.id, error: 'Remote command could not be delivered or acknowledged. It was not marked processed.' }) }
+          finally { this.inboxInFlight.delete(key) }
+        })()
       }
     })
   }
 
   // ── Command dispatch ──────────────────────────────────────────────────────
 
-  private processInboxMessage(msg: SafeRemoteInboxMessage): void {
+  private async processInboxMessage(msg: SafeRemoteInboxMessage): Promise<void> {
     switch (msg.type) {
       case 'handshake': {
         // Presence signal from mobile app after authentication.
         break
       }
       case 'prompt': {
-        void Promise.resolve(this.agentManager.get(msg.payload.agentId)).then((agent) => {
-          if (!agent || agent.yolo) return
-          return this.agentManager.sendInput(msg.payload.agentId, msg.payload.input)
-        })
+        const agent = await this.agentManager.get(msg.payload.agentId)
+        if (!agent || agent.yolo) throw new Error('Remote agent is unavailable or not permitted')
+        const delivered = await this.agentManager.sendInput(msg.payload.agentId, msg.payload.input)
+        if (delivered === false) throw new Error('Remote prompt delivery rejected')
         break
       }
     }
@@ -571,6 +592,16 @@ export class RemoteControlService extends EventEmitter {
       mobileConnected: this.state.mobileConnected,
       lastHeartbeatAt: new Date().toISOString()
     })
+    await this.syncTaskState()
+  }
+
+  private async syncTaskState(): Promise<void> {
+    if (!this.firestore || !this.state.sessionId || !this.agentManager.listTasks) return
+    const { doc, setDoc } = await import('firebase/firestore')
+    const tasks = await this.agentManager.listTasks().catch(() => [])
+    for (const task of tasks.slice(0, 30)) {
+      await setDoc(doc(this.firestore, 'sessions', this.state.sessionId, 'state', `task-${task.id}`), remoteTaskSummary(task))
+    }
   }
 
   private async flushOutputBatch(): Promise<void> {

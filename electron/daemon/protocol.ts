@@ -35,6 +35,9 @@ export interface DaemonErrorResponse {
 // ── WebSocket messages ────────────────────────────────────────────────────────
 
 export type WsServerMessage =
+  | { type: 'task:text'; payload: { taskId: string; attemptId: string; role: string; provider: string; text: string } }
+  | { type: 'task:changed'; payload: import('@shared/tasks').HydraTask }
+  | { type: 'task:activity'; payload: { taskId: string; attemptId: string; line: string } }
   | { type: 'agent:output'; payload: AgentOutputPayload }
   | { type: 'agent:status'; payload: AgentStatusPayload }
   | { type: 'agent:waiting'; payload: { agentId: string } }

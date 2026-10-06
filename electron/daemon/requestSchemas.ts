@@ -78,7 +78,8 @@ export const headlessStartSchema = z.object({
   provider: providerSchema,
   model: modelSchema,
   reasoningEffort: z.string().trim().max(32).optional(),
-  resumeSessionId: idSchema.nullable().optional()
+  resumeSessionId: idSchema.nullable().optional(),
+  accessMode: z.enum(['context-only', 'read-only', 'project-write']).optional()
 }).strict()
 
 export const skillToggleSchema = z.object({

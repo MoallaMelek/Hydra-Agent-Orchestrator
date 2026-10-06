@@ -1,5 +1,6 @@
 import { spawn, type SpawnOptions } from 'child_process'
 import { PROVIDER_MODELS, type ProviderId, type ProviderModelOption } from '@shared/types'
+import { spawnResolvedCli, terminateProcessTree } from './cliExecution'
 
 const MODEL_CACHE_TTL_MS = 5 * 60 * 1000
 const CODEX_APP_SERVER_TIMEOUT_MS = 8000
@@ -310,21 +311,12 @@ function parseOpenCodeVerboseOutput(output: string): ProviderModelOption[] {
 
 /** Spawn a CLI command, using cmd.exe on Windows to handle .cmd wrappers. */
 function spawnCli(command: string, args: string[], options: SpawnOptions) {
-  if (process.platform === 'win32') {
-    return spawn('cmd.exe', ['/c', command, ...args], options)
-  }
-  return spawn(command, args, options)
+  return spawnResolvedCli(command, args, options)
 }
 
 /** Kill a child process portably (Windows doesn't support SIGTERM). */
 function killChild(child: ReturnType<typeof spawn>): void {
-  try {
-    if (process.platform === 'win32') {
-      child.kill()
-    } else {
-      child.kill('SIGTERM')
-    }
-  } catch { /* already dead */ }
+  void terminateProcessTree(child).catch(() => {})
 }
 
 function cloneModels(models: ProviderModelOption[]): ProviderModelOption[] {

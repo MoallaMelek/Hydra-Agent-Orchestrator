@@ -11,7 +11,7 @@ import { pathToFileURL } from 'url'
 
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { DaemonClient } from './daemon/DaemonClient'
-import { ensureDaemon, stopDaemon, getDaemonPaths } from './daemon/lifecycle'
+import { ensureDaemon, stopDaemon, getDaemonPaths, startHealthMonitor } from './daemon/lifecycle'
 import { ConfigStore } from './config/ConfigStore'
 import { KeybindingStore } from './config/KeybindingStore'
 import { registerIpcHandlers } from './ipc/handlers'
@@ -22,6 +22,7 @@ import { FileSystemService } from './fs/FileSystemService'
 import { GitService } from './git/GitService'
 import { RemoteControlService } from './remote/RemoteControlService'
 import { IPC } from '@shared/types'
+import { TASK_ACTIVE_PHASES } from '@shared/tasks'
 import { assertTrustedIpcSender } from './security/ipcSecurity'
 import { lockDownNavigation } from './security/navigation'
 
@@ -30,6 +31,7 @@ let forceQuit = false
 let isCheckingCloseGuard = false
 let remoteControlService: RemoteControlService | null = null
 let daemonClient: DaemonClient | null = null
+let stopHealthMonitor: (() => void) | null = null
 
 const userDataPath = app.getPath('userData')
 const daemonPaths = getDaemonPaths(userDataPath)
@@ -99,8 +101,11 @@ function createWindow(): void {
       const agents = await daemonClient?.list() ?? []
       const active = agents.filter((a) => a.status === 'running' || a.status === 'starting')
 
-      if (active.length > 0) {
-        mainWindow?.webContents.send(IPC.APP_CONFIRM_QUIT, active.length)
+      const tasks = await daemonClient?.listTasks().catch(() => []) ?? []
+      const runningTasks = tasks.filter(task => TASK_ACTIVE_PHASES.includes(task.phase)).length
+      const independentRuns = (await daemonClient?.listHeadlessRuns({ status: 'running' }) ?? []).filter(run => !tasks.some(task => task.attempts.some(attempt => attempt.runId === run.id))).length
+      if (active.length + runningTasks + independentRuns > 0) {
+        mainWindow?.webContents.send(IPC.APP_CONFIRM_QUIT, active.length + runningTasks + independentRuns)
         return
       }
 
@@ -176,10 +181,11 @@ app.whenReady().then(async () => {
     return true
   })
 
+  daemonClient = new DaemonClient(daemonPaths.socketPath, '0'.repeat(64))
   // ── Connect to daemon ───────────────────────────────────────────────────
 
   try {
-    daemonClient = await ensureDaemon(daemonPaths)
+    daemonClient!.adoptTransport(await ensureDaemon(daemonPaths))
     observability.logMain({
       level: 'info',
       event: 'daemon.connected',
@@ -197,6 +203,9 @@ app.whenReady().then(async () => {
 
   // ── Forward daemon events to renderer ────────────────────────────────
 
+  stopHealthMonitor = startHealthMonitor(daemonClient, daemonPaths, () => {
+    observability.logMain({ level: 'info', event: 'daemon.reconnected', message: 'Daemon transport recovered; task history reconciles without replay' })
+  })
   const notificationService = new NotificationService()
 
   if (daemonClient) {
@@ -325,6 +334,7 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', async () => {
+  stopHealthMonitor?.(); stopHealthMonitor = null
   observability.logMain({
     level: 'info',
     event: 'app.window-all-closed'
@@ -337,14 +347,17 @@ app.on('window-all-closed', async () => {
   // Check if daemon has running agents
   try {
     const agents = await daemonClient?.list() ?? []
-    const running = agents.filter((a) => a.status === 'running')
+    const running = agents.filter((a) => a.status === 'running' || a.status === 'starting')
+    const tasks = await daemonClient?.listTasks().catch(() => []) ?? []
+    const runningTasks = tasks.filter(task => TASK_ACTIVE_PHASES.includes(task.phase)).length
 
-    if (running.length > 0) {
+    const independentRuns = (await daemonClient?.listHeadlessRuns({ status: 'running' }) ?? []).filter(run => !tasks.some(task => task.attempts.some(attempt => attempt.runId === run.id))).length
+    if (running.length + runningTasks + independentRuns > 0) {
       // Leave daemon running — agents continue in background
       observability.logMain({
         level: 'info',
         event: 'app.quit-with-daemon',
-        message: `Leaving daemon running with ${running.length} active agents`
+        message: `Leaving daemon running with ${running.length} active agents and ${runningTasks} active tasks`
       })
     } else {
       // No running agents — stop daemon
@@ -359,6 +372,7 @@ app.on('window-all-closed', async () => {
 })
 
 app.on('before-quit', () => {
+  stopHealthMonitor?.(); stopHealthMonitor = null
   observability.logMain({
     level: 'info',
     event: 'app.before-quit'

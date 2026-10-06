@@ -2,6 +2,7 @@ import { spawn } from 'child_process'
 import { join } from 'path'
 import { closeSync, openSync } from 'fs'
 import { randomBytes } from 'crypto'
+import { TASK_ACTIVE_PHASES } from '@shared/tasks'
 import { DaemonClient } from './DaemonClient'
 import { readLockFile, removeLockFile } from './lock'
 
@@ -70,11 +71,26 @@ export async function ensureDaemon(paths: DaemonPaths): Promise<DaemonClient> {
       }
     } else {
     const client = new DaemonClient(lock.socketPath, lock.authToken)
+    let responsive = false
     try {
       await client.connect()
-      console.log(`[lifecycle] Connected to existing daemon (PID ${lock.pid})`)
-      return client
-    } catch {
+      responsive = true
+      const health = await client.health()
+      if (health?.version && health.version !== '2.0.0') {
+        const [agents, runs, tasks] = await Promise.all([client.list(), client.listHeadlessRuns({ status: 'running' }), client.listTasks().catch(() => [])])
+        const busy = agents.some(agent => ['running', 'starting', 'waiting'].includes(agent.status)) || runs.length > 0 || tasks.some(task => TASK_ACTIVE_PHASES.includes(task.phase))
+        if (busy) {
+          client.requireTaskUpgrade('The running daemon needs an upgrade. Finish or stop its active work in Agents, then restart Hydra. Active work was preserved.')
+          return client
+        }
+        await client.shutdown(); client.disconnect(); await sleep(300); removeLockFile(lockPath)
+        console.log('[lifecycle] Idle old daemon stopped for task protocol upgrade')
+      } else {
+        console.log(`[lifecycle] Connected to existing daemon (PID ${lock.pid})`)
+        return client
+      }
+    } catch (error) {
+      if (responsive) { client.disconnect(); throw new Error(`Cannot safely upgrade the responsive daemon: ${(error as Error).message}`) }
       console.log('[lifecycle] Stale lock file — daemon not responding, respawning')
       removeLockFile(lockPath)
     }
@@ -211,8 +227,9 @@ export function startHealthMonitor(
 
       // Try to reconnect
       try {
-        await ensureDaemon(paths)
-        // Copy WebSocket events — the caller should handle this
+        const replacement = await ensureDaemon(paths)
+        if (!running) { replacement.disconnect(); return }
+        client.adoptTransport?.(replacement)
         onReconnected?.()
       } catch {
         // Will retry on next interval

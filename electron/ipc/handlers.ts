@@ -26,6 +26,7 @@ import type {
 } from '@shared/types'
 import { z } from 'zod'
 import { createTrustedIpcMain } from '../security/ipcSecurity'
+import { createTaskSchema, taskCommandSchema } from '../tasks/taskSchemas'
 
 const editorIdSchema = z.enum(['vscode', 'cursor', 'windsurf', 'antigravity', 'zed', 'finder', 'terminal'])
 const agentIdSchema = z.string().trim().min(1).max(128)
@@ -108,7 +109,8 @@ const headlessStartSchema = z.object({
   provider: providerSchema,
   model: modelSchema,
   reasoningEffort: reasoningEffortSchema,
-  resumeSessionId: z.string().trim().min(1).max(128).nullable().optional()
+  resumeSessionId: z.string().trim().min(1).max(128).nullable().optional(),
+  accessMode: z.enum(['context-only', 'read-only', 'project-write']).optional()
 })
 const headlessListOptionsSchema = z
   .object({
@@ -187,6 +189,14 @@ export function registerIpcHandlers(
   rendererUrl: string = process.env.ELECTRON_RENDERER_URL || 'file:///invalid-renderer-url'
 ): void {
   const ipcMain = createTrustedIpcMain(electronIpcMain, rendererUrl)
+  ipcMain.handle('task:list', () => getDaemonClient().listTasks())
+  ipcMain.handle('task:create', (_event, payload: unknown) => getDaemonClient().createTask(createTaskSchema.parse(payload)))
+  ipcMain.handle('task:command', (_event, id: string, command: unknown) => getDaemonClient().taskCommand(z.string().uuid().parse(id), taskCommandSchema.parse(command)))
+  for (const channel of ['task:changed', 'task:activity', 'task:text']) {
+    daemonClient?.on(channel, payload => {
+      BrowserWindow.getAllWindows().forEach(win => win.webContents.send(channel, payload))
+    })
+  }
   const providerModelCatalog = new ProviderModelCatalog()
   const getDaemonClient = (): DaemonClient => {
     if (daemonClient) return daemonClient

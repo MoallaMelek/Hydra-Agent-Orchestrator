@@ -21,6 +21,7 @@ import type {
   FreeTerminalLayout
 } from '@shared/types'
 import type { DaemonHealthResponse, WsServerMessage } from './protocol'
+import type { CreateTaskPayload, HydraTask, TaskCommand } from '@shared/tasks'
 
 const WS_RECONNECT_INTERVAL = 2000
 const WS_MAX_RECONNECT_INTERVAL = 30000
@@ -39,10 +40,13 @@ export class DaemonClient extends EventEmitter {
   private wsReconnectAttempts = 0
   private connected = false
   private destroyed = false
+  private transportGeneration = 0
+  private taskCompatibilityError: string | null = null
+  requireTaskUpgrade(message: string): void { this.taskCompatibilityError = message }
 
   constructor(
-    private readonly socketPath: string,
-    private readonly authToken: string
+    private socketPath: string,
+    private authToken: string
   ) {
     super()
   }
@@ -57,6 +61,7 @@ export class DaemonClient extends EventEmitter {
   }
 
   disconnect(): void {
+    this.transportGeneration++
     this.destroyed = true
     if (this.wsReconnectTimer) {
       clearTimeout(this.wsReconnectTimer)
@@ -73,8 +78,21 @@ export class DaemonClient extends EventEmitter {
     return this.connected && this.ws?.readyState === WebSocket.OPEN
   }
 
+  /** Preserve listeners across daemon crashes and token rotation. */
+  adoptTransport(replacement: DaemonClient): void {
+    if (replacement === this) return
+    this.disconnect()
+    this.socketPath = replacement.socketPath; this.authToken = replacement.authToken
+    this.taskCompatibilityError = replacement.taskCompatibilityError
+    replacement.disconnect()
+    this.destroyed = false; this.connected = true; this.wsReconnectAttempts = 0
+    this.connectWebSocket()
+    this.emit('reconnected')
+  }
+
   private connectWebSocket(): void {
     if (this.destroyed) return
+    const generation = this.transportGeneration
 
     // Route websocket traffic over a raw Unix socket connection.
     // Using ws+unix URLs can URL-encode spaces in macOS paths
@@ -85,14 +103,21 @@ export class DaemonClient extends EventEmitter {
     })
 
     ws.on('open', () => {
+      if (generation !== this.transportGeneration) { ws.close(); return }
       this.wsReconnectAttempts = 0
       this.ws = ws
     })
 
     ws.on('message', (raw: Buffer) => {
+      if (generation !== this.transportGeneration) return
       try {
         const msg = JSON.parse(raw.toString()) as WsServerMessage
         switch (msg.type) {
+          case 'task:changed':
+          case 'task:activity':
+          case 'task:text':
+            this.emit(msg.type, msg.payload)
+            break
           case 'agent:output':
             this.emit('output', msg.payload)
             break
@@ -136,6 +161,7 @@ export class DaemonClient extends EventEmitter {
     })
 
     ws.on('close', () => {
+      if (generation !== this.transportGeneration) return
       this.ws = null
       if (!this.destroyed) {
         this.scheduleReconnect()
@@ -165,6 +191,14 @@ export class DaemonClient extends EventEmitter {
   async health(): Promise<DaemonHealthResponse> {
     return this.httpRequest('GET', '/health')
   }
+
+  async listTasks(): Promise<HydraTask[]> {
+    if (this.taskCompatibilityError) throw new Error(this.taskCompatibilityError)
+    try { return await this.httpRequest('GET', '/tasks') }
+    catch (error) { if ((error as Error).message === 'Not found' || (error as Error).message === 'HTTP 404') throw new Error('The running daemon predates task chat. Finish or stop its legacy agents, then restart Hydra. Existing agents were preserved.'); throw error }
+  }
+  createTask(payload: CreateTaskPayload): Promise<HydraTask> { return this.httpRequest('POST', '/tasks', payload) }
+  taskCommand(id: string, command: TaskCommand): Promise<HydraTask> { return this.httpRequest('POST', `/tasks/${encodeURIComponent(id)}`, command) }
 
   async list(): Promise<AgentState[]> {
     return this.httpRequest('GET', '/agents')
@@ -420,6 +454,7 @@ export class DaemonClient extends EventEmitter {
       if (body !== undefined) {
         req.write(JSON.stringify(body))
       }
+      req.setTimeout(10000, () => req.destroy(new Error('Daemon request timed out')))
       req.end()
     })
   }

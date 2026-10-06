@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '@shared/types'
 import type { KeybindingRule } from '@shared/keybindings'
+import type { CreateTaskPayload, HydraTask, TaskCommand } from '@shared/tasks'
 import type {
   CreateAgentPayload,
   AgentState,
@@ -45,6 +46,24 @@ import type {
 export type HydraAPI = typeof hydraApi
 
 const hydraApi = {
+  onTaskText: (callback: (event: { taskId: string; attemptId: string; role: string; provider: string; text: string }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, event: { taskId: string; attemptId: string; role: string; provider: string; text: string }) => callback(event)
+    ipcRenderer.on('task:text', handler)
+    return () => ipcRenderer.removeListener('task:text', handler)
+  },
+  listTasks: (): Promise<HydraTask[]> => ipcRenderer.invoke('task:list'),
+  createTask: (payload: CreateTaskPayload): Promise<HydraTask> => ipcRenderer.invoke('task:create', payload),
+  taskCommand: (id: string, command: TaskCommand): Promise<HydraTask> => ipcRenderer.invoke('task:command', id, command),
+  onTaskChanged: (callback: (task: HydraTask) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, task: HydraTask) => callback(task)
+    ipcRenderer.on('task:changed', handler)
+    return () => ipcRenderer.removeListener('task:changed', handler)
+  },
+  onTaskActivity: (callback: (event: { taskId: string; attemptId: string; line: string }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, event: { taskId: string; attemptId: string; line: string }) => callback(event)
+    ipcRenderer.on('task:activity', handler)
+    return () => ipcRenderer.removeListener('task:activity', handler)
+  },
   // Preflight
   preflight: (provider?: ProviderId): Promise<PreflightResult> => ipcRenderer.invoke(IPC.PREFLIGHT_CHECK, provider),
 

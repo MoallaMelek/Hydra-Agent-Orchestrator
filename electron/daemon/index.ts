@@ -10,6 +10,7 @@
 
 import { join } from 'path'
 import { mkdirSync } from 'fs'
+import { realpathSync } from 'fs'
 import { homedir } from 'os'
 import { AgentManager } from '../agents/AgentManager'
 import { ConfigStore } from '../config/ConfigStore'
@@ -25,6 +26,8 @@ import { SkillScanner } from '../skills/SkillScanner'
 import { getDefaultModelForProvider } from '@shared/types'
 import { fixPath } from '../util/fix-path'
 import { buildSessionImportOptions } from './sessionImportOptions'
+import { TaskCoordinator } from '../tasks/TaskCoordinator'
+import { createTaskAdapters } from '../tasks/providerAdapters'
 
 // ── Parse CLI args ────────────────────────────────────────────────────────────
 
@@ -95,6 +98,19 @@ async function main(): Promise<void> {
     }
   })
   const headlessOrchestrator = new HeadlessOrchestrator(join(userDataPath, 'headless-runs'))
+  const taskCoordinator = new TaskCoordinator(join(userDataPath, 'tasks'), createTaskAdapters(headlessOrchestrator, id => {
+    const config = configStore.get()
+    return config.defaultProvider === id ? config.defaultModel : null
+  }))
+  agentManager.setProjectWriteGuard(root => taskCoordinator.ownsProject(root) || headlessOrchestrator.list().some(run => {
+    if (run.status !== 'running' && !run.error?.startsWith('Cancellation failed:')) return false
+    if (run.accessMode !== 'project-write' && run.sandbox !== 'workspace-write') return false
+    try { const path = realpathSync(run.projectDir); return process.platform === 'win32' ? path.toLowerCase() === root.toLowerCase() : path === root } catch { return true }
+  }))
+  taskCoordinator.setExternalWriterCheck(root => agentManager.list().some(agent => {
+    if (!['running', 'starting'].includes(agent.status)) return false
+    try { const path = realpathSync(agent.projectDir); return process.platform === 'win32' ? path.toLowerCase() === root.toLowerCase() : path === root } catch { return false }
+  }) || headlessOrchestrator.list().some(run => (run.status === 'running' || !!run.error?.startsWith('Cancellation failed:')) && (run.accessMode === 'project-write' || run.sandbox === 'workspace-write') && (process.platform === 'win32' ? run.projectDir.toLowerCase() === root.toLowerCase() : run.projectDir === root)))
   const notificationService = new DaemonNotificationService()
 
   // Restore workspace agents
@@ -162,6 +178,8 @@ async function main(): Promise<void> {
     console.log('[daemon] Shutting down...')
     workspaceStore.setAgents(agentManager.exportWorkspaceAgents())
     agentManager.killAll()
+    taskCoordinator.shutdown()
+    headlessOrchestrator.shutdown()
     mcpServer?.stop()
     server.stop()
     removeLockFile(lockPath)
@@ -178,6 +196,7 @@ async function main(): Promise<void> {
     sessionCatalog,
     codexSessionCatalog,
     headlessOrchestrator,
+    taskCoordinator,
     workspaceStore,
     notificationService,
     mcpServer,

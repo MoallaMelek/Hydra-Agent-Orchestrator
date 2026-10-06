@@ -429,6 +429,8 @@ export class AgentManager extends EventEmitter {
     }
     pty.kill(force ? 'SIGKILL' : 'SIGTERM')
   }
+  private projectWriteGuard: (root: string) => boolean = () => false
+  setProjectWriteGuard(guard: (root: string) => boolean): void { this.projectWriteGuard = guard }
 
   private waitForInteractiveReady(managed: ManagedAgent, pty: IPty): Promise<void> {
     const startedAt = Date.now()
@@ -460,6 +462,11 @@ export class AgentManager extends EventEmitter {
   }
 
   private spawnProcess(managed: ManagedAgent): SpawnOutcome {
+    if (this.projectWriteGuard(managed.state.projectDir)) {
+      this.updateStatus(managed.state.id, 'errored')
+      this.emit('output', { agentId: managed.state.id, data: 'This project is owned by a coordinated task. Wait for it to finish or stop the task before starting an interactive writer.\r\n' })
+      return 'errored'
+    }
     if (this.countActiveAgents(managed.state.id) >= MAX_CONCURRENT_AGENTS_HARD_LIMIT) {
       return 'capped'
     }
@@ -1023,6 +1030,7 @@ export class AgentManager extends EventEmitter {
   sendInput(agentId: string, input: string): boolean {
     const managed = this.agents.get(agentId)
     if (!managed) return false
+    if (this.projectWriteGuard(managed.state.projectDir)) return false
 
     if (!this.ensureProcess(managed)) return false
 
@@ -1032,6 +1040,7 @@ export class AgentManager extends EventEmitter {
   sendRawInput(agentId: string, data: string): boolean {
     const managed = this.agents.get(agentId)
     if (!managed) return false
+    if (this.projectWriteGuard(managed.state.projectDir)) return false
     if (!this.ensureProcess(managed)) return false
 
     const pty = managed.pty
