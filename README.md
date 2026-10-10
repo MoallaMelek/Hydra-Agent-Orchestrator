@@ -193,7 +193,7 @@ Using **npm**:
 
 ```bash
 git clone git@github.com:MoallaMelek/Hydra-Agent-Orchestrator.git
-cd hydra
+cd Hydra-Agent-Orchestrator
 npm install
 npm run build
 npm run dist:mac      # Package macOS build
@@ -205,7 +205,7 @@ Using **bun**:
 
 ```bash
 git clone git@github.com:MoallaMelek/Hydra-Agent-Orchestrator.git
-cd hydra
+cd Hydra-Agent-Orchestrator
 bun install
 bun run build
 bun run dist:mac      # Package macOS build
