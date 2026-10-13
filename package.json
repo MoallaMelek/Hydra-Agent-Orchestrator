@@ -26,7 +26,8 @@
     "provenance": "node tools/provenance-check.mjs",
     "licenses": "node tools/license-report.mjs",
     "check": "npm run typecheck && npm run lint && npm test && npm run provenance",
-    "desktop": "npm run build && electron apps/desktop"
+    "desktop": "npm run build && electron apps/desktop",
+    "e2e:desktop": "node tools/desktop-e2e.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

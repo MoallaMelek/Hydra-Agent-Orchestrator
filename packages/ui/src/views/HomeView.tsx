@@ -1,12 +1,14 @@
-import { FolderPlus, ShieldCheck, GitBranch, FlaskConical } from 'lucide-react'
+import { ShieldCheck, GitBranch, FlaskConical } from 'lucide-react'
 import { HydraMark } from '../brand/HydraMark'
-import { Badge, Button, Panel } from '../design/components'
+import { Badge, Button, Callout, Panel } from '../design/components'
 import { useApp } from '../app/context'
 import { StagePipeline } from './StagePipeline'
+import { providerReady, SetupChecklist } from './SetupChecklist'
 import { ago, statusLabel } from '../lib/format'
 
 export function HomeView({ onAddProject }: { onAddProject: () => void }) {
   const { state, go } = useApp()
+  const anyReady = state.providers.some(providerReady)
   const tasks = Object.values(state.tasks).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   const needsYou = tasks.filter((t) => t.status === 'waiting_input')
   const running = tasks.filter((t) => t.status === 'running' || t.status === 'queued')
@@ -21,8 +23,8 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
           <p className="muted" style={{ maxWidth: 560 }}>
             Hydra plans, implements, reviews and verifies changes with Claude Code and Codex in an isolated git worktree. Nothing touches your branch until you accept a verified result.
           </p>
-          <Button variant="primary" size="lg" icon={<FolderPlus size={16} />} onClick={onAddProject}>Add a project</Button>
         </div>
+        <div style={{ marginTop: 32, textAlign: 'left' }}><SetupChecklist onAddProject={onAddProject} /></div>
         <div className="stats" style={{ justifyContent: 'center', marginTop: 32 }}>
           {[
             [<GitBranch key="g" size={18} />, 'Isolated worktree per task'],
@@ -51,6 +53,12 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
   return (
     <div className="page">
       <div className="page__head"><div className="page__title"><h1>Overview</h1><p className="muted">{running.length} running · {needsYou.length} waiting for you</p></div></div>
+      {state.providers.length > 0 && !anyReady && (
+        <Callout tone="warn">
+          No agent is ready, so new tasks cannot run. Install Claude Code or Codex and sign in with your own account.{' '}
+          <Button size="sm" variant="ghost" onClick={() => go({ view: 'providers' })}>Open Agents &amp; providers</Button>
+        </Callout>
+      )}
       <Panel title="Needs your decision">
         {needsYou.length ? <div className="task-list">{needsYou.map(row)}</div> : <p className="muted">Nothing is waiting for you.</p>}
       </Panel>
