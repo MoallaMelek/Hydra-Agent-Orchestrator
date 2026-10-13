@@ -1,4 +1,17 @@
 import { timingSafeEqual } from 'node:crypto';
+/**
+ * Extracts the pathname of a request target without throwing. Node's HTTP parser
+ * accepts targets such as `http://[` that make `new URL()` throw; an uncaught
+ * throw there would crash the engine host.
+ */
+export function safePath(target) {
+    try {
+        return new URL(target ?? '/', 'http://localhost').pathname;
+    }
+    catch {
+        return null;
+    }
+}
 /** Constant-time bearer token comparison. */
 export function bearerMatches(header, token) {
     if (!header?.startsWith('Bearer '))

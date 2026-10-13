@@ -2,7 +2,7 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { WebSocketServer } from 'ws';
-import { bearerMatches, hostAllowed, originAllowed, SECURITY_HEADERS } from './security.js';
+import { bearerMatches, hostAllowed, originAllowed, safePath, SECURITY_HEADERS } from './security.js';
 const MAX_BODY = 1024 * 1024;
 const MAX_LOG_BYTES = 5 * 1024 * 1024;
 const MIME = {
@@ -105,7 +105,11 @@ export async function startApiServer(options) {
             try {
                 if (!hostAllowed(req, port))
                     throw new HttpError(421, 'Misdirected request');
-                const path = new URL(req.url ?? '/', 'http://localhost').pathname;
+                if (!originAllowed(req, port))
+                    throw new HttpError(403, 'Forbidden origin');
+                const path = safePath(req.url);
+                if (path === null)
+                    throw new HttpError(400, 'Bad request');
                 if (path.startsWith('/api/'))
                     await api(req, res, path);
                 else if (req.method === 'GET')
@@ -124,8 +128,10 @@ export async function startApiServer(options) {
     });
     // ── live event stream ────────────────────────────────────────
     const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
+    server.on('clientError', (_error, socket) => socket.destroy());
     server.on('upgrade', (req, socket, head) => {
-        const path = new URL(req.url ?? '/', 'http://localhost').pathname;
+        socket.on('error', () => socket.destroy());
+        const path = safePath(req.url);
         if (path !== '/api/stream' || !hostAllowed(req, port) || !originAllowed(req, port)) {
             socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
             socket.destroy();
@@ -167,6 +173,8 @@ function attachStream(ws, engine, token) {
         catch {
             return ws.close(4400, 'bad frame');
         }
+        if (!msg || typeof msg !== 'object' || Array.isArray(msg))
+            return ws.close(4400, 'bad frame');
         if (msg.type !== 'auth' || typeof msg.token !== 'string' || !bearerMatches(`Bearer ${msg.token}`, token))
             return ws.close(4401, 'unauthorized');
         let cursor = typeof msg.after === 'number' && msg.after >= 0 ? msg.after : engine.store.lastSeq;

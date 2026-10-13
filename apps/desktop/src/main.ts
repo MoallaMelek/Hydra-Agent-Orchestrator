@@ -162,6 +162,11 @@ ipcMain.on('hydra:notify', (_event, payload: unknown) => {
   }
 })
 
+if (process.env.HYDRA_DESKTOP_SMOKE) {
+  // An unattended smoke run must never hang a CI job.
+  setTimeout(() => { process.stderr.write('smoke: timed out\n'); app.exit(2) }, 90_000).unref()
+}
+
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
@@ -175,14 +180,23 @@ if (!app.requestSingleInstanceLock()) {
       apiUrl = await startEngine()
       createWindow(apiUrl)
     } catch (error) {
-      dialog.showErrorBox('Hydra could not start', (error as Error).message)
       quitting = true
+      if (process.env.HYDRA_DESKTOP_SMOKE) {
+        // Never block an unattended run on a modal dialog.
+        const line = `${JSON.stringify({ type: 'smoke', error: (error as Error).message })}\n`
+        process.stderr.write(line)
+        if (process.env.HYDRA_DESKTOP_SMOKE_OUT) writeFileSync(process.env.HYDRA_DESKTOP_SMOKE_OUT, line)
+        app.exit(1)
+        return
+      }
+      dialog.showErrorBox('Hydra could not start', (error as Error).message)
       app.quit()
     }
   })
   app.on('before-quit', () => { quitting = true })
   app.on('will-quit', () => {
     // Closing stdin asks hydrad to shut down gracefully (it pauses running tasks).
+    // hydrad is not killed when we exit, so it finishes shutting down on its own.
     engine?.stdin?.end()
   })
   app.on('window-all-closed', () => app.quit())

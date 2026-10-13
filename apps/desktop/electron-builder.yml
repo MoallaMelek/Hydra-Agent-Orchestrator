@@ -40,3 +40,8 @@ linux:
   executableName: hydra
   maintainer: Melek Moalla
   synopsis: Supervised AI coding agents with isolated worktrees and human approval
+deb:
+  packageName: hydra-desktop
+  artifactName: hydra-desktop_${version}_${arch}.${ext}
+appImage:
+  artifactName: Hydra-${version}-${arch}.${ext}

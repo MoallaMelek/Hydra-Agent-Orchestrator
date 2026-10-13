@@ -50,6 +50,7 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
@@ -77,6 +78,7 @@ jobs:
           DATA="$LOCALAPPDATA/Hydra/v2"
           HYDRA_DESKTOP_SMOKE=1 HYDRA_DESKTOP_SMOKE_OUT="$RUNNER_TEMP/smoke1.json" timeout 120 "$APP" || true
           node tools/check-smoke.mjs "$RUNNER_TEMP/smoke1.json" --packaged --data-dir "$DATA" --no-providers
+          sleep 5; if tasklist | grep -i '^Hydra.exe'; then echo "engine outlived the app"; exit 1; fi
           powershell -NoProfile -Command "Start-Process -Wait -FilePath '$LOCALAPPDATA\Programs\Hydra\Uninstall Hydra.exe' -ArgumentList '/S'"
           sleep 5
           test ! -f "$APP" && echo "uninstalled: program files removed"
@@ -99,14 +101,18 @@ jobs:
           codesign -dv "$HOME/Applications/Hydra.app" 2>&1 | head -3 || true
           node tools/scan-artifacts.mjs "$HOME/Applications/Hydra.app/Contents/Resources"
           DATA="$HOME/Library/Application Support/Hydra/v2"
-          HYDRA_DESKTOP_SMOKE=1 HYDRA_DESKTOP_SMOKE_OUT="$RUNNER_TEMP/smoke1.json" "$HOME/Applications/Hydra.app/Contents/MacOS/Hydra" || true
+          launch() { "$@" & local pid=$!; ( sleep 120; kill -9 $pid 2>/dev/null ) & local dog=$!; wait $pid || true; kill $dog 2>/dev/null || true; }
+          no_leftovers() { sleep 5; if pgrep -fl 'Hydra.app/Contents'; then echo "engine outlived the app"; exit 1; fi; }
+          HYDRA_DESKTOP_SMOKE=1 HYDRA_DESKTOP_SMOKE_OUT="$RUNNER_TEMP/smoke1.json" launch "$HOME/Applications/Hydra.app/Contents/MacOS/Hydra"
           node tools/check-smoke.mjs "$RUNNER_TEMP/smoke1.json" --packaged --data-dir "$DATA" --no-providers
+          no_leftovers
           rm -rf "$HOME/Applications/Hydra.app"
           test -f "$DATA/hydra.db" && echo "user data preserved after removal"
           MNT=$(hdiutil attach "$DMG" -nobrowse | tail -1 | awk -F'\t' '{print $NF}')
           cp -R "$MNT/Hydra.app" "$HOME/Applications/" && hdiutil detach "$MNT"
-          HYDRA_DESKTOP_SMOKE=1 HYDRA_DESKTOP_SMOKE_OUT="$RUNNER_TEMP/smoke2.json" "$HOME/Applications/Hydra.app/Contents/MacOS/Hydra" || true
+          HYDRA_DESKTOP_SMOKE=1 HYDRA_DESKTOP_SMOKE_OUT="$RUNNER_TEMP/smoke2.json" launch "$HOME/Applications/Hydra.app/Contents/MacOS/Hydra"
           node tools/check-smoke.mjs "$RUNNER_TEMP/smoke2.json" --packaged --data-dir "$DATA" --no-providers
+          no_leftovers
 
       # ── Linux: .deb install via apt, AppImage run, remove, reinstall ──
       - name: Linux package, install and validate
@@ -125,6 +131,7 @@ jobs:
           DATA="$HOME/.local/share/hydra/v2"
           HYDRA_DESKTOP_SMOKE=1 HYDRA_DESKTOP_SMOKE_OUT="$RUNNER_TEMP/smoke1.json" xvfb-run -a timeout 120 "$BIN" || true
           node tools/check-smoke.mjs "$RUNNER_TEMP/smoke1.json" --packaged --data-dir "$DATA" --no-providers
+          sleep 5; if pgrep -fl 'hydrad.mjs'; then echo "engine outlived the app"; exit 1; fi
           sudo apt-get remove -y -qq "$(dpkg-deb -f "$DEB" Package)"
           test ! -f "$BIN" && echo "uninstalled" && test -f "$DATA/hydra.db" && echo "user data preserved after uninstall"
           chmod +x "$APPIMAGE"

@@ -4,6 +4,7 @@
   "private": true,
   "description": "Hydra desktop shell",
   "author": "Melek Moalla",
+  "homepage": "https://github.com/MoallaMelek/Hydra-Agent-Orchestrator",
   "type": "module",
   "main": "dist/main.cjs",
   "scripts": {

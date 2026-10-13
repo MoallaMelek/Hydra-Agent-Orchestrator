@@ -1,4 +1,10 @@
 import type { IncomingMessage } from 'node:http';
+/**
+ * Extracts the pathname of a request target without throwing. Node's HTTP parser
+ * accepts targets such as `http://[` that make `new URL()` throw; an uncaught
+ * throw there would crash the engine host.
+ */
+export declare function safePath(target: string | undefined): string | null;
 /** Constant-time bearer token comparison. */
 export declare function bearerMatches(header: string | undefined, token: string): boolean;
 /**

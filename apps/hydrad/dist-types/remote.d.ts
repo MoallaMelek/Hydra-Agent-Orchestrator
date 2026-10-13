@@ -21,7 +21,10 @@ export declare class RemoteHost {
     private readonly identity;
     private readonly pairings;
     private readonly sessions;
+    /** Fixed-size handshake counter per IP: {window start, count}; never stores individual attempts. */
     private readonly attempts;
+    /** In-flight commands per device+id, so concurrent duplicates share one execution. */
+    private readonly inFlight;
     constructor(options: RemoteHostOptions);
     get running(): boolean;
     get engineFingerprint(): string;
@@ -38,9 +41,15 @@ export declare class RemoteHost {
         engineFingerprint: string;
     }>;
     revoke(deviceId: string): Promise<Device>;
+    private sweepSessions;
     private allowAttempt;
+    /** Test hook: number of tracked addresses (must stay bounded under flooding). */
+    get trackedAddresses(): number;
     private accept;
-    /** First authenticated frame: registers a paired device or refreshes a known one. */
+    /**
+     * First authenticated frame: registers a paired device or refreshes a known one.
+     * State is re-read here, so a revocation during the handshake still wins.
+     */
     private authenticate;
     private handle;
 }

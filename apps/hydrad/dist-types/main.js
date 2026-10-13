@@ -96,6 +96,10 @@ export async function serve(argv = process.argv.slice(2)) {
     process.on('SIGINT', () => void stop());
     process.on('SIGTERM', () => void stop());
     process.on('disconnect', () => void stop()); // parent shell went away
+    // The desktop shell closes our stdin when it quits. 'end' only fires on a flowing stream,
+    // so stdin must be resumed or the engine would outlive the app and keep the data lock.
     process.stdin.on('end', () => void stop());
+    process.stdin.on('error', () => void stop());
+    process.stdin.resume();
 }
 //# sourceMappingURL=main.js.map
