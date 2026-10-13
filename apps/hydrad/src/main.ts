@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { Engine } from '@hydra/engine'
+import { bindChildrenToThisProcess, Engine } from '@hydra/engine'
 import { startApiServer } from './server.js'
 import { RemoteHost } from './remote.js'
 
@@ -42,6 +42,8 @@ function parseArgs(argv: string[]): Args {
  */
 export async function serve(argv = process.argv.slice(2)): Promise<void> {
   const args = parseArgs(argv)
+  // Windows: every process the engine starts dies with it, even if the engine crashes.
+  bindChildrenToThisProcess()
   const token = process.env.HYDRA_API_TOKEN || randomBytes(32).toString('base64url')
   delete process.env.HYDRA_API_TOKEN // never inherited by agents or checks
   const engine = await Engine.open({ dataDir: args.dataDir, version: VERSION })

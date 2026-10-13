@@ -1,5 +1,6 @@
 export { Engine, type Actor, type EngineOptions, type HostHooks } from './engine.js'
 export { Store } from './store/store.js'
+export { bindChildrenToThisProcess, jobSupport } from './process/winjob.js'
 export { AdapterRegistry } from './agents/registry.js'
 export { ClaudeAdapter, claudeArgs, claudeTranslator } from './agents/claude.js'
 export { CodexAdapter, codexArgs, codexTranslator } from './agents/codex.js'

@@ -12,6 +12,9 @@ files:
 extraResources:
   - from: ../hydrad/dist/hydrad.mjs
     to: hydrad/hydrad.mjs
+  # koffi (FFI) for Windows job objects: only this platform's binary is copied by the hydrad build.
+  - from: ../hydrad/dist/node_modules
+    to: hydrad/node_modules
   - from: ../../packages/ui/dist
     to: ui
     filter: ["**/*", "!**/*.map"]

@@ -1,8 +1,29 @@
 import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process'
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { delimiter, extname, isAbsolute, join } from 'node:path'
+import { ProcessJob } from './winjob.js'
 
 const IS_WINDOWS = process.platform === 'win32'
+
+/** Windows: the job object holding each child's whole process tree (see winjob.ts). */
+const jobs = new WeakMap<ChildProcess, ProcessJob>()
+
+/** Puts a freshly started child in its own job (Windows); its descendants inherit it. */
+function contain(child: ChildProcess): ChildProcess {
+  if (!IS_WINDOWS || !child.pid) return child
+  const job = ProcessJob.adopt(child.pid)
+  if (job) {
+    jobs.set(child, job)
+    // When the child ends, anything it left behind ends too; then release the job.
+    child.once('close', () => { job.terminate(); job.close() })
+  }
+  return child
+}
+
+/** True when this child's tree is held by an OS job object (Windows). */
+export function isContained(child: ChildProcess): boolean {
+  return jobs.has(child)
+}
 
 /** Characters that cmd.exe would interpret. Arguments routed through cmd.exe must not contain them. */
 const CMD_UNSAFE = /[&|<>^%!"`\r\n]/
@@ -65,15 +86,24 @@ export function spawnArgv(executable: string, args: readonly string[], options: 
     }
     const quoted = [executable, ...args].map((part) => (/[\s()]/.test(part) ? `"${part}"` : part)).join(' ')
     const comspec = process.env.ComSpec ?? join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'cmd.exe')
-    return spawn(comspec, ['/d', '/s', '/c', `"${quoted}"`], { ...base, windowsVerbatimArguments: true })
+    return contain(spawn(comspec, ['/d', '/s', '/c', `"${quoted}"`], { ...base, windowsVerbatimArguments: true }))
   }
-  return spawn(executable, [...args], base)
+  return contain(spawn(executable, [...args], base))
 }
 
-/** Terminates the process and all of its descendants. Resolves once the request completed. */
-export async function killTree(child: ChildProcess, graceMs = 1500): Promise<void> {
+/**
+ * Terminates the process and all of its descendants. Resolves true once nothing is left
+ * running, false if something may have survived (the caller must report it).
+ */
+export async function killTree(child: ChildProcess, graceMs = 1500): Promise<boolean> {
   const pid = child.pid
-  if (!pid || child.exitCode !== null || child.signalCode !== null) return
+  const job = jobs.get(child)
+  if (job) {
+    // OS-enforced: every process in the job ends, including orphaned descendants.
+    job.terminate()
+    return job.waitEmpty(5000)
+  }
+  if (!pid || child.exitCode !== null || child.signalCode !== null) return true
   if (IS_WINDOWS) {
     const taskkill = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe')
     await new Promise<void>((resolve) => {
@@ -81,23 +111,25 @@ export async function killTree(child: ChildProcess, graceMs = 1500): Promise<voi
       killer.on('close', () => resolve())
       killer.on('error', () => resolve())
     })
-    return
+    return waitForExit(child, graceMs)
   }
   const signalGroup = (signal: NodeJS.Signals) => {
     // Hydra starts agents in their own process group; if this one has none, signal the process itself.
     try { process.kill(-pid, signal) } catch { try { child.kill(signal) } catch { /* already gone */ } }
   }
   signalGroup('SIGTERM')
-  const exited = await waitForExit(child, graceMs)
-  if (!exited) signalGroup('SIGKILL')
+  if (await waitForExit(child, graceMs)) return true
+  signalGroup('SIGKILL')
+  return waitForExit(child, graceMs)
 }
 
 /**
- * After a process exits normally, kills anything left in its process group (POSIX).
- * Windows has no equivalent without Job Objects; orphaned descendants there are a
- * documented residual risk (THREAT_MODEL T16).
+ * After a process exits normally, kills anything it left behind: its job object on
+ * Windows, its process group on POSIX (THREAT_MODEL T16).
  */
 export function reapGroup(child: ChildProcess): void {
+  const job = jobs.get(child)
+  if (job) { job.terminate(); return }
   if (IS_WINDOWS || !child.pid) return
   try { process.kill(-child.pid, 'SIGKILL') } catch { /* group already empty */ }
 }
