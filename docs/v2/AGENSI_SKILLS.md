@@ -4,9 +4,9 @@ Nothing has been submitted to Agensi. Submitting, pricing and publishing need th
 
 ## 1. Audit of the three skills in `skills/`
 
-| Skill | Purpose | Independence and provenance | Quality findings | Fixed now | Status |
+| Skill | Purpose | Independence | Quality findings | Fixed now | Status |
 |---|---|---|---|---|---|
-| `evidence-based-verification` | Detect a project's real checks, run them, report exit codes against the exact commit; never claim "tests pass" without evidence | Written for v2 from scratch; no legacy text; no Hydra dependency (it only optionally honours `.hydra/checks.json`) | (1) It suggested `git stash` for before/after runs; a shared stash can collide with other tools. (2) The helper script printed "No checks detected" for a nonexistent directory. | Both fixed: temporary worktree only; exit 2 with an error for a missing directory | Ready to list (owner approval) |
+| `evidence-based-verification` | Detect a project's real checks, run them, report exit codes against the exact commit; never claim "tests pass" without evidence | Written from scratch; no Hydra dependency (it only optionally honours `.hydra/checks.json`) | (1) It suggested `git stash` for before/after runs; a shared stash can collide with other tools. (2) The helper script printed "No checks detected" for a nonexistent directory. | Both fixed: temporary worktree only; exit 2 with an error for a missing directory | Ready to list (owner approval) |
 | `independent-code-review` | Structured, severity-ranked review against the request; treats repo text as data; JSON verdict; encourages a different model as reviewer | Same | Sound. It depends on the reviewer agent having the diff; it says so. Cross-references the verification skill, which degrades gracefully if that skill is absent. | — | Ready |
 | `isolated-change-workflow` | Plan → worktree → implement → review → verify → present → apply only on accept → revert-based rollback | Same | Sound and non-destructive (no reset, no force-push, refuses dirty trees). Manual: it relies on the agent following the steps; nothing enforces them (that is what the Hydra app adds). | — | Ready |
 
@@ -55,7 +55,7 @@ Reading: the categories are crowded, and installs are close to zero for paid and
 - **Name:** Supervised AI Changes Kit (all three skills)
 
 ## 4. Positioning relative to the Hydra app
-The skills describe the discipline; the Hydra desktop app enforces it (engine-run checks, worktree isolation, approval bound to the reviewed commit, budgets). A listing may say: "Want this enforced rather than followed? See Hydra." Only do that after the name and trademark decision (OWNERSHIP_AND_PROVENANCE §8), and never imply that Anthropic or OpenAI endorse it.
+The skills describe the discipline; the Hydra desktop app enforces it (engine-run checks, worktree isolation, approval bound to the reviewed commit, budgets). A listing may say: "Want this enforced rather than followed? See Hydra." Only do that after the name and trademark decision, and never imply that Anthropic or OpenAI endorse it.
 
 ## 5. Owner decisions needed
 1. Approve submission (nothing is submitted).

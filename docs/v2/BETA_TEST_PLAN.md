@@ -128,6 +128,6 @@ Checklist for the owner or a tester:
 
 - [ ] Approve distributing unsigned builds to named testers (no public release).
 - [ ] Choose the security contact mailbox and approve the privacy statement.
-- [ ] Choose a licence or beta terms (OWNERSHIP_AND_PROVENANCE §7).
-- [ ] Decide on the name (OWNERSHIP_AND_PROVENANCE §8).
+- [ ] Choose a licence or beta terms (see HANDOFF "Decisions needing approval").
+- [ ] Decide on the name (see HANDOFF "Decisions needing approval").
 - [ ] Choose where testers report bugs: private repository issues, email or a form.

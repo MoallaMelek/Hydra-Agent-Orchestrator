@@ -3,7 +3,9 @@
 // its normalized 6-line windows ("shingles") that also occur anywhere in the legacy
 // tree. Also fails on any import from legacy/ and on upstream infrastructure identifiers.
 import { createHash } from 'node:crypto'
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
@@ -38,7 +40,24 @@ function shingles(text) {
   return set
 }
 
-const legacyFiles = walk(join(ROOT, 'legacy'))
+/**
+ * The reference code to compare against: the in-tree legacy/ folder if present,
+ * otherwise the archived implementation at the git tag below (extracted to a temp dir).
+ */
+const REFERENCE_TAG = 'legacy-v0.2.61'
+function referenceDir() {
+  const inTree = join(ROOT, 'legacy')
+  if (existsSync(inTree)) return inTree
+  const dir = mkdtempSync(join(tmpdir(), 'hydra-reference-'))
+  const tar = join(dir, 'reference.tar')
+  execFileSync('git', ['-C', ROOT, 'archive', '--format=tar', '-o', tar, REFERENCE_TAG], { stdio: 'pipe' })
+  // Relative name: GNU tar reads "C:..." as a remote host.
+  execFileSync('tar', ['-xf', 'reference.tar'], { cwd: dir, stdio: 'pipe' })
+  rmSync(tar)
+  return dir
+}
+
+const legacyFiles = walk(referenceDir())
 const legacy = new Set()
 for (const file of legacyFiles) for (const s of shingles(readFileSync(file, 'utf8'))) legacy.add(s)
 

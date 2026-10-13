@@ -46,8 +46,7 @@
 | `apps/desktop` | Electron shell: starts hydrad, opens a window, provides native dialogs. |
 | `apps/relay` | Zero-knowledge WebSocket relay plus static PWA hosting. Dockerfile included. |
 | `skills/` | Standalone Agensi-compatible SKILL.md skills derived from Hydra's methods. |
-| `tools/` | Provenance check, licence report, release helpers. |
-| `legacy/` | Archived pre-v2 implementation. Never built or imported. |
+| `tools/` | Originality check, licence report, release and test helpers. |
 
 ## 3. Domain model
 

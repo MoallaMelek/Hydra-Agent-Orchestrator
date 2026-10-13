@@ -7,12 +7,12 @@ Nothing here authorises a release. Publishing, tagging a release, uploading inst
 
 | # | Gate | How | Status |
 |---|---|---|---|
-| A1 | Typecheck, lint, tests, provenance | `npm run check` (CI on Windows, macOS, Linux) | VERIFIED: 91 passed + 1 skipped on Windows; green on 3 OS |
+| A1 | Typecheck, lint, tests, originality | `npm run check` (CI on Windows, macOS, Linux) | VERIFIED: 91 passed + 1 skipped on Windows; green on 3 OS |
 | A2 | Build UI, engine host and desktop shell | `npm run build` | VERIFIED |
-| A3 | No credentials, credential stores, env files, keys or upstream identifiers in build output and installed files | `tools/scan-artifacts.mjs` (CI, plus installed resources on each OS) | VERIFIED |
+| A3 | No credentials, credential stores, env files or keys in build output and installed files | `tools/scan-artifacts.mjs` (CI, plus installed resources on each OS) | VERIFIED |
 | A4 | Shipped licences permissive | `npm run licenses` | VERIFIED: MIT/ISC only |
 | A5 | No known vulnerabilities in shipped dependencies | `npm audit --omit=dev --audit-level=high` | VERIFIED: 0 |
-| A6 | No v2 import from `legacy/`; similarity report | `npm run provenance` | VERIFIED |
+| A6 | Originality check | `npm run provenance` | VERIFIED |
 
 ## B. Release candidate (manual dispatch + review)
 
@@ -33,8 +33,8 @@ Nothing here authorises a release. Publishing, tagging a release, uploading inst
 |---|---|---|
 | C1 | Windows code-signing certificate (OV or EV) and `signExecutable` re-enabled | OWNER |
 | C2 | Apple Developer ID, signing, notarization and stapling (`hardenedRuntime` is already on) | OWNER |
-| C3 | Licence and EULA chosen and committed (OWNERSHIP_AND_PROVENANCE §7) | OWNER |
-| C4 | Name and trademark clearance (OWNERSHIP_AND_PROVENANCE §8) | OWNER |
+| C3 | Licence and EULA chosen and committed | OWNER |
+| C4 | Name and trademark clearance | OWNER |
 | C5 | Privacy statement and security contact published (BETA_TEST_PLAN §6) | OWNER |
 | C6 | External penetration test of remote control and installers | OPEN (paid service: owner approval) |
 | C7 | Auto-update with signed update metadata, or a documented manual update path | OPEN |

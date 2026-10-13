@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint'
 import globals from 'globals'
 
 export default tseslint.config(
-  { ignores: ['legacy/**', '.hydra-dev/**', '**/dist/**', '**/out/**', '**/release/**', '**/node_modules/**', '**/coverage/**'] },
+  { ignores: ['.hydra-dev/**', '**/dist/**', '**/out/**', '**/release/**', '**/node_modules/**', '**/coverage/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -11,7 +11,7 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       '@typescript-eslint/consistent-type-imports': 'error',
-      'no-restricted-imports': ['error', { patterns: [{ group: ['**/legacy/**'], message: 'v2 must never import legacy code.' }] }],
+      'no-restricted-imports': ['error', { patterns: [{ group: ['**/legacy/**'], message: 'Do not import archived code.' }] }],
       'max-lines': ['warn', { max: 450, skipBlankLines: true, skipComments: true }]
     }
   }

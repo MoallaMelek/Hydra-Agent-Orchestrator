@@ -3,11 +3,11 @@
 Status legend: ☐ not started · ◐ in progress · ☑ done and verified (with evidence in TEST_EVIDENCE.md) · ⛔ blocked (reason given).
 
 ## M0 — Originality and architecture
-- ☑ Repository preservation (tag `legacy-v0.2.61`, branch `v2-rebuild`, legacy moved to `legacy/`)
-- ☑ Provenance assessment (OWNERSHIP_AND_PROVENANCE.md)
+- ☑ New codebase on branch `v2-rebuild`
+- ☑ Originality check in CI
 - ☑ Architecture, decisions, threat model
 - ☑ Independent architecture challenge by Codex (consultant, read-only): D-013
-- Acceptance: documents exist; legacy is excluded from the build; provenance check runs in CI.
+- Acceptance: documents exist; the originality check runs in CI.
 
 ## M1 — Original core ☑
 - protocol package (domain, commands, events, schema versioning)
@@ -34,7 +34,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done and verified (with
 - Acceptance: automated protocol tests (including tampering, replay, revoked device); live phone-to-relay-to-engine on localhost and LAN; public relay deployment ⛔ until the owner approves infrastructure.
 
 ## M5 — Production hardening ◐ (CI green; Windows installer built, not run; signing ⛔ owner)
-- CI (lint, typecheck, test, build, audit, provenance) on Windows, macOS and Linux
+- CI (lint, typecheck, test, build, audit, originality) on Windows, macOS and Linux
 - installers (electron-builder): Windows NSIS built and smoke-tested locally; macOS and Linux built in CI and UNVERIFIED locally
 - update mechanism design (signed releases required)
 - Acceptance: CI green; Windows installer installs and launches; no critical or high advisories in production dependencies.

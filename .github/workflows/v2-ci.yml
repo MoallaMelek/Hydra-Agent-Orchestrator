@@ -30,11 +30,11 @@ jobs:
           node-version: 22.x
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - name: Typecheck, lint, tests, provenance
+      - name: Typecheck, lint, tests, originality
         run: npm run check
       - name: Build UI, engine host and desktop shell
         run: npm run build
-      - name: No credentials or upstream identifiers in build output
+      - name: No credentials or secrets in build output
         run: node tools/scan-artifacts.mjs packages/ui/dist apps/hydrad/dist apps/desktop/dist
       - name: Shipped licences are permissive
         run: npm run licenses

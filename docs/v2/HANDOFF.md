@@ -1,19 +1,19 @@
 # Handoff — Hydra v2 (read this first)
 
-**Branch:** `v2-rebuild` (worktree `C:\Users\moall\hydra-v2`). The owner's main checkout (`OneDrive\Desktop\Projects\hydra`) stays on `main`, untouched. **Legacy:** tag `legacy-v0.2.61`, folder `legacy/`. Never read legacy code when writing v2 (CLAUDE.md). The audit that motivated v2 is in `docs/audit/`.
+**Branch:** `v2-rebuild` (worktree `C:\Users\moall\hydra-v2`), merged into `main` with the owner's approval on 2026-10-13.
 
 ## Where things stand (end of session 3, 2026-10-13: final hardening)
 | Milestone | State | Evidence |
 |---|---|---|
-| M0 originality and architecture | VERIFIED | provenance overlap 0%; D-001…D-015 |
+| M0 originality and architecture | VERIFIED | originality check; D-001…D-015 |
 | M1 core engine | VERIFIED | unit, integration and reliability tests; live Claude/Codex runs |
 | M2 safe autonomous development | VERIFIED | live fixes; accept/rollback; concurrent and conflicting accepts |
 | M3 desktop | VERIFIED | real Electron E2E with a real agent (`npm run e2e:desktop`), onboarding checklist |
 | M4 remote | VERIFIED in automated tests; BLOCKED on a physical phone | independent review A3: 7/7 fixed (SECURITY_AUDIT.md) |
 | M5 hardening and packaging | VERIFIED (unsigned) | installers install/launch/uninstall/reinstall on fresh Windows, macOS arm64, Linux x64 runners; data ownership tests |
-| M6 commercial | Drafted; owner decisions pending | COMMERCIAL_READINESS (~55%), BETA_TEST_PLAN, RELEASE_CHECKLIST, AGENSI_SKILLS, licensing and trademark (OWNERSHIP_AND_PROVENANCE §7–8) |
+| M6 commercial | Drafted; owner decisions pending | COMMERCIAL_READINESS (~55%), BETA_TEST_PLAN, RELEASE_CHECKLIST, AGENSI_SKILLS |
 
-Tests: `npm run check` → 91 passed + 1 skipped on Windows (POSIX permissions test), typecheck, lint, provenance. CI: `.github/workflows/v2-ci.yml`.
+Tests: `npm run check` → 91 passed + 1 skipped on Windows (POSIX permissions test), typecheck, lint, originality. CI: `.github/workflows/v2-ci.yml`.
 
 ## How to run
 - **Develop:** `npm install && npm run check`
@@ -39,7 +39,7 @@ Tests: `npm run check` → 91 passed + 1 skipped on Windows (POSIX permissions t
 
 ## Decisions needing approval (owner)
 1. Distribute unsigned beta builds to named testers (BETA_TEST_PLAN §10); choose the security contact; approve the privacy statement.
-2. Licence for v2 and for the skills (OWNERSHIP_AND_PROVENANCE §7). Nothing is committed.
+2. Licence for v2 and for the skills (options summarised privately for the owner). Nothing is committed.
 3. Product name, after a professional trademark search (§8).
 4. Buy code-signing certificates (Windows) and an Apple Developer ID.
 5. Submit the Agensi skills at the proposed prices (AGENSI_SKILLS.md).

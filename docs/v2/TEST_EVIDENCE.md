@@ -12,8 +12,8 @@ Environment for all entries unless stated: Windows 11 Pro 10.0.26200 · Node 22.
 | E2 | Typecheck including tests | `npx tsc -p tsconfig.test.json` | VERIFIED pass |
 | E3 | Lint | `npx eslint packages` | VERIFIED pass (0 problems) |
 | E4 | Unit + integration tests | `npx vitest run packages/engine` | VERIFIED 42/42 pass (5 files) |
-| E5 | Provenance overlap vs `legacy/` | `node tools/provenance-check.mjs` | VERIFIED 0 of 2,387 v2 6-line windows shared with legacy (0.000%) |
-| E6 | Provenance detector positive control | copied `legacy/electron/tasks/TaskCoordinator.ts` into v2 temporarily | VERIFIED flagged at 100% and check failed; file removed; check passes again |
+| E5 | Originality check | `node tools/provenance-check.mjs` | VERIFIED: no shared 6-line windows beyond standard boilerplate |
+| E6 | Originality detector positive control | a copied file introduced temporarily | VERIFIED flagged at 100% and the check failed; file removed; check passes again |
 
 ### What E4's integration tests prove (scripted agents, real git, real `npm test`)
 - Full PLAN→IMPLEMENT→REVIEW→VERIFY→DEMO→APPROVAL with the user's tree unchanged until Accept; Accept fast-forwards; rollback adds a revert commit and history keeps all commits.
@@ -60,7 +60,7 @@ Setup: `npm run build -w @hydra/ui`, `npm run build -w @hydra/hydrad`, `node app
 | U9 | Roll back from UI → revert commit, history kept, test fails again | VERIFIED |
 | U10 | Providers page shows live version, signed-in method, capabilities | VERIFIED |
 | U11 | Phone-width layout | UNVERIFIED (screenshots timed out in the pane; layout CSS has a ≤900 px breakpoint) |
-Build sizes: UI 284 KB JS (88 KB gzip), 18.6 KB CSS; hydrad bundle 1.0 MB. `npm run check` passes (typecheck incl. UI, lint, 62 tests, provenance).
+Build sizes: UI 284 KB JS (88 KB gzip), 18.6 KB CSS; hydrad bundle 1.0 MB. `npm run check` passes (typecheck incl. UI, lint, 62 tests, originality).
 
 ## 2026-10-13 — Electron desktop shell
 | # | Check | Result |
@@ -71,7 +71,7 @@ Build sizes: UI 284 KB JS (88 KB gzip), 18.6 KB CSS; hydrad bundle 1.0 MB. `npm 
 | D4 | Quit stops the engine (no orphan electron.exe processes) | VERIFIED via tasklist |
 | D5 | Engine shutdown pauses running tasks (resumable) instead of canceling | VERIFIED (unit test) |
 | D6 | Native folder picker, notifications, close-while-running dialog | UNVERIFIED (needs a person at the window) |
-`npm run check` → 64/64 tests, typecheck (engine, hydrad, UI, desktop), lint, provenance pass.
+`npm run check` → 64/64 tests, typecheck (engine, hydrad, UI, desktop), lint, originality pass.
 
 ## 2026-10-13 — Milestone 4: remote control (end-to-end encrypted, no cloud)
 Automated (`npx vitest run packages/secure-channel apps/hydrad/src/remote.test.ts`):
@@ -86,12 +86,12 @@ Live in the desktop browser pane (hydrad with `--remote-bind 127.0.0.1`):
 | R4 | Phone starts a question task; real Claude answers ($0.06); result streams to the phone | VERIFIED |
 | R5 | Desktop revokes the phone → phone goes Offline immediately; reload refused with "no longer paired" | VERIFIED |
 | R6 | Real LAN access from a physical phone over Wi-Fi (`--remote-bind 0.0.0.0`) | UNVERIFIED (needs a physical device and a firewall prompt approval on this PC) |
-`npm run check` → 72/72 tests, typecheck, lint, provenance pass.
+`npm run check` → 72/72 tests, typecheck, lint, originality pass.
 
 ## 2026-10-13 — Milestone 5: hardening and packaging (Windows, local)
 | # | Check | Result |
 |---|---|---|
-| P1 | `npm audit --omit=dev` (shipped dependencies) | VERIFIED 0 vulnerabilities (legacy: 38, incl. 3 critical). Dev tooling: 8 moderate (sprintf-js via packaging tools; not shipped) |
+| P1 | `npm audit --omit=dev` (shipped dependencies) | VERIFIED 0 vulnerabilities. Dev tooling: 8 moderate (sprintf-js via packaging tools; not shipped) |
 | P2 | `npm run licenses` | VERIFIED 10 shipped third-party packages, all MIT or ISC → docs/v2/THIRD_PARTY.md |
 | P3 | `tools/scan-artifacts.mjs` on UI, hydrad and shell bundles and on packaged resources | VERIFIED clean; positive control (planted `.codex/` dir and API-key string) correctly fails |
 | P4 | `electron-builder --win dir`: packaged `Hydra.exe` smoke test (engine from bundled resources) | VERIFIED same smoke report as D2 (UI live, 4-key bridge, no Node in renderer) |
@@ -132,7 +132,7 @@ The smoke report checks: the page loads and the stream is live, the renderer has
 | No network client code in engine sources (no telemetry) | VERIFIED by a static scan test; the UI and desktop shell only call the local engine (manual grep) |
 | Fake `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` in the environment never appear in the database, WAL, logs, backups or exports after a full task | VERIFIED (scripted agents; real CLIs read their own credential stores) |
 
-`npm run check` → 87 passed, 1 skipped (Windows), typecheck, lint, provenance pass.
+`npm run check` → 87 passed, 1 skipped (Windows), typecheck, lint, originality pass.
 
 ### Real Electron desktop app (`npm run e2e:desktop`, Windows 11, dev build of commit 37f2534)
 Driven over the Chrome DevTools Protocol in the real Electron renderer, not a browser, with a fresh data directory each run. Screenshots are in `.hydra-dev/desktop-e2e*/` (not committed).

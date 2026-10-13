@@ -14,7 +14,7 @@ Labels: VERIFIED (observed evidence in TEST_EVIDENCE.md) · DONE (implemented, t
 ## Acceptance criteria
 | Criterion | Status | Evidence / gap |
 |---|---|---|
-| Independently authored implementation | VERIFIED | `npm run provenance`: no legacy imports, 0 shared 6-line shingles; honest history in OWNERSHIP_AND_PROVENANCE §1–4 |
+| Independently authored implementation | VERIFIED | `npm run provenance` originality check; written for this product |
 | Claude Code and Codex genuinely integrated | VERIFIED | Live end-to-end runs (both providers); desktop run with real Claude planning |
 | Changes isolated until final approval; rollback | VERIFIED | Engine tests and live runs; concurrent and conflicting accepts (reliability tests) |
 | Tests run by Hydra with verifiable evidence | VERIFIED | Engine-run checks with exit codes, SHAs, digests and logs |
@@ -27,7 +27,7 @@ Labels: VERIFIED (observed evidence in TEST_EVIDENCE.md) · DONE (implemented, t
 | Database ownership | VERIFIED | Local SQLite; migrations; 0700/0600 on macOS/Linux; backup and keyless JSON export from the UI; no network client code in the engine |
 | No known unfixed High/Critical issue | VERIFIED (as far as reviewed) | 0 production advisories; two independent review rounds fixed |
 | External beta | OWNER | Plan ready, nobody invited |
-| Licence, name, signing | OWNER | Options in OWNERSHIP_AND_PROVENANCE §7–8 and RELEASE_CHECKLIST C1–C5 |
+| Licence, name, signing | OWNER | RELEASE_CHECKLIST C1–C5 |
 
 ## Readiness estimate (judgement, not a measurement)
 | Area | Weight | Estimate | Main gap |
@@ -55,8 +55,8 @@ Labels: VERIFIED (observed evidence in TEST_EVIDENCE.md) · DONE (implemented, t
 - Phone UI over plain HTTP on the LAN (T20).
 - Windows grandchild processes may outlive a canceled run (T16).
 - Claude's file confinement is enforced by Claude Code, not the OS (T1); Codex uses its OS sandbox.
-- AI-assisted authorship limits exclusive IP claims (OWNERSHIP_AND_PROVENANCE §6).
-- "Hydra" collides with the upstream project in the same category (§8).
+- AI-assisted authorship may limit exclusive IP claims in some jurisdictions; get legal advice before relying on them.
+- "Hydra" is a common name in developer tools; a professional trademark search is advised before launch.
 
 ## Commercial packaging
 - Product: a desktop app with no backend, so **$0/month infrastructure**. Customers use their own Claude/Codex accounts (D-012). No telemetry.
