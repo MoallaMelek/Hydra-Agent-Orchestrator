@@ -50,7 +50,8 @@ let totalShared = 0
 for (const file of v2Files) {
   const text = readFileSync(file, 'utf8')
   const rel = relative(ROOT, file).replaceAll('\\', '/')
-  if (rel === 'tools/provenance-check.mjs') continue // contains the forbidden patterns by design
+  // These two tools contain the forbidden patterns by design (they detect them).
+  if (rel === 'tools/provenance-check.mjs' || rel === 'tools/scan-artifacts.mjs') continue
   for (const pattern of FORBIDDEN) if (pattern.test(text)) problems.push(`${rel}: forbidden reference ${pattern}`)
   const mine = shingles(text)
   let shared = 0
