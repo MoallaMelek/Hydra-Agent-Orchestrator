@@ -214,6 +214,22 @@ describe('engine lifecycle', () => {
     expect(ready.stages.filter((s) => s.stage === 'plan')).toHaveLength(1)
   })
 
+  it('pauses running tasks when the engine shuts down, so they can be resumed', async () => {
+    const dataDir = tempDir('hydra-shutdown-')
+    const { engine, projectId } = await setup(script({ implementer: () => ({ delayMs: 60_000, structured: IMPL }) }), dataDir)
+    const task = await create(engine, projectId)
+    await until(engine, task.id, (t) => t.stage === 'implement' && t.status === 'running')
+    await engine.close()
+    engines.splice(engines.indexOf(engine), 1)
+    const reopened = await Engine.open({ dataDir, registry: new AdapterRegistry([script()]), skipProbe: true })
+    engines.push(reopened)
+    const paused = reopened.store.getTask(task.id)!
+    expect(paused.status).toBe('paused')
+    expect(paused.error).toMatch(/Hydra was closed/)
+    await reopened.execute({ type: 'task.resume', taskId: task.id })
+    await until(reopened, task.id, waiting)
+  })
+
   it('enforces the cost budget using reported usage', async () => {
     const { engine, projectId } = await setup(script({ implementer: () => ({ files: { 'math.js': FIXED_MATH }, structured: IMPL, usage: { inputTokens: 10, outputTokens: 10, costUsd: 9 } }) }))
     const task = await create(engine, projectId, { budget: { maxCostUsd: 1 } })

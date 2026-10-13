@@ -30,6 +30,7 @@ export class Orchestrator {
   private readonly running = new Map<string, AbortController>()
   private readonly done = new Map<string, Promise<void>>()
   private readonly repoLock = new KeyedMutex()
+  private shuttingDown = false
 
   constructor(private readonly ctx: EngineContext) {}
 
@@ -173,7 +174,9 @@ export class Orchestrator {
     })
   }
 
+  /** Stops running work for an engine shutdown: tasks are paused (resumable), not canceled. */
   async shutdown(): Promise<void> {
+    this.shuttingDown = true
     for (const [taskId, controller] of this.running) {
       if (this.ctx.store.getTask(taskId)?.stage !== 'apply') controller.abort()
     }
@@ -275,6 +278,11 @@ export class Orchestrator {
   }
 
   private markCanceled(taskId: string, stage: TaskStage, attempt?: number): void {
+    if (this.shuttingDown) {
+      if (attempt) this.endStage(taskId, stage, attempt, 'canceled', 'Hydra was closed')
+      updateTask(this.ctx, taskId, (t) => { t.status = 'paused'; t.waitReason = null; t.error = 'Hydra was closed while this task was running. Completed stages are kept; resume to continue.' })
+      return
+    }
     if (attempt) this.endStage(taskId, stage, attempt, 'canceled', 'Canceled by user')
     updateTask(this.ctx, taskId, (t) => { t.status = 'canceled'; t.waitReason = null })
     logTask(this.ctx, taskId, 'info', 'Canceled. The isolated workspace is kept until you delete the task.')

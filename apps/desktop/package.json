@@ -1,0 +1,18 @@
+{
+  "name": "@hydra/desktop",
+  "version": "2.0.0-alpha.0",
+  "private": true,
+  "description": "Hydra desktop shell",
+  "author": "Melek Moalla",
+  "type": "module",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.2"
+  }
+}

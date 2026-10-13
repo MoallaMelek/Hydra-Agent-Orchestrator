@@ -61,3 +61,14 @@ Setup: `npm run build -w @hydra/ui`, `npm run build -w @hydra/hydrad`, `node app
 | U10 | Providers page shows live version, signed-in method, capabilities | VERIFIED |
 | U11 | Phone-width layout | UNVERIFIED (screenshots timed out in the pane; layout CSS has a ≤900 px breakpoint) |
 Build sizes: UI 284 KB JS (88 KB gzip), 18.6 KB CSS; hydrad bundle 1.0 MB. `npm run check` passes (typecheck incl. UI, lint, 62 tests, provenance).
+
+## 2026-10-13 — Electron desktop shell
+| # | Check | Result |
+|---|---|---|
+| D1 | `node:sqlite` inside Electron 44.7.0's Node (24.21.0) | VERIFIED (SQLite 3.53.4); D-003 resolved, no separate Node runtime needed |
+| D2 | Smoke test `HYDRA_DESKTOP_SMOKE=1 electron apps/desktop`: shell starts hydrad, window loads the UI | VERIFIED title "Hydra", stream "Live", home rendered |
+| D3 | Renderer isolation: page sees only `hydraHost.{apiUrl, token, pickDirectory, notify}`; `require` and `process` undefined | VERIFIED |
+| D4 | Quit stops the engine (no orphan electron.exe processes) | VERIFIED via tasklist |
+| D5 | Engine shutdown pauses running tasks (resumable) instead of canceling | VERIFIED (unit test) |
+| D6 | Native folder picker, notifications, close-while-running dialog | UNVERIFIED (needs a person at the window) |
+`npm run check` → 64/64 tests, typecheck (engine, hydrad, UI, desktop), lint, provenance pass.

@@ -1,0 +1,176 @@
+import { app, BrowserWindow, dialog, ipcMain, Notification, session, shell } from 'electron'
+import { spawn, type ChildProcess } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+
+/**
+ * Hydra desktop shell. It only supervises the engine host (hydrad), opens a
+ * locked-down window onto the engine's own UI, and offers a folder picker and
+ * notifications. All orchestration lives in hydrad.
+ */
+
+const token = randomBytes(32).toString('base64url')
+let engine: ChildProcess | null = null
+let apiUrl: string | null = null
+let window: BrowserWindow | null = null
+let quitting = false
+
+function resource(...parts: string[]): string {
+  // Packaged: <resources>/<parts>; development: the monorepo build outputs.
+  if (app.isPackaged) return join(process.resourcesPath, ...parts)
+  const repo = join(__dirname, '..', '..', '..')
+  return parts[0] === 'hydrad' ? join(repo, 'apps', 'hydrad', 'dist', 'hydrad.mjs') : join(repo, 'packages', 'ui', 'dist')
+}
+
+/** Starts hydrad on Electron's embedded Node and resolves with its URL. */
+function startEngine(): Promise<string> {
+  const entry = app.isPackaged ? resource('hydrad', 'hydrad.mjs') : resource('hydrad')
+  const ui = app.isPackaged ? resource('ui') : resource('ui')
+  if (!existsSync(entry)) throw new Error(`Engine not found at ${entry}. Run "npm run build" first.`)
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [entry, '--static', ui], {
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', HYDRA_API_TOKEN: token },
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true
+    })
+    engine = child
+    let buffer = ''
+    let errors = ''
+    const timer = setTimeout(() => reject(new Error(`Engine did not start in time. ${errors.slice(-500)}`)), 30_000)
+    child.stdout?.on('data', (chunk: Buffer) => {
+      buffer += chunk.toString()
+      const line = buffer.split('\n').find((l) => l.includes('"type":"ready"'))
+      if (!line) return
+      clearTimeout(timer)
+      const ready = JSON.parse(line) as { url: string }
+      resolve(ready.url)
+    })
+    child.stderr?.on('data', (chunk: Buffer) => { errors = (errors + chunk.toString()).slice(-4000) })
+    child.on('exit', (code) => {
+      clearTimeout(timer)
+      engine = null
+      if (!quitting) {
+        reject(new Error(`Engine exited (${code}). ${errors.slice(-800)}`))
+        if (window) dialog.showErrorBox('Hydra engine stopped', `The engine exited unexpectedly (code ${code}). Hydra will close; your tasks are saved and can be resumed.\n\n${errors.slice(-600)}`)
+        app.quit()
+      }
+    })
+  })
+}
+
+async function runningTaskCount(): Promise<number> {
+  if (!apiUrl) return 0
+  try {
+    const response = await fetch(`${apiUrl}/api/state`, { headers: { Authorization: `Bearer ${token}` } })
+    const state = (await response.json()) as { tasks: Array<{ status: string }> }
+    return state.tasks.filter((t) => t.status === 'running' || t.status === 'queued').length
+  } catch {
+    return 0
+  }
+}
+
+function createWindow(url: string): void {
+  window = new BrowserWindow({
+    width: 1360, height: 860, minWidth: 900, minHeight: 600,
+    backgroundColor: '#0b0d12', title: 'Hydra', show: false,
+    webPreferences: {
+      preload: join(__dirname, 'preload.cjs'),
+      contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true,
+      spellcheck: false,
+      additionalArguments: [`--hydra-api=${url}`, `--hydra-token=${token}`]
+    }
+  })
+  const origin = new URL(url).origin
+  window.webContents.on('will-navigate', (event, target) => { if (new URL(target).origin !== origin) event.preventDefault() })
+  window.webContents.setWindowOpenHandler(({ url: target }) => {
+    if (/^https:\/\//.test(target)) void shell.openExternal(target)
+    return { action: 'deny' }
+  })
+  window.once('ready-to-show', () => { if (!process.env.HYDRA_DESKTOP_SMOKE) window?.show() })
+  if (process.env.HYDRA_DESKTOP_SMOKE) {
+    // Automated smoke test: report what the sandboxed page can and cannot see, then quit.
+    window.webContents.once('did-finish-load', () => {
+      setTimeout(() => {
+        void window!.webContents.executeJavaScript(`({
+          title: document.title,
+          hostKeys: Object.keys(window.hydraHost || {}).sort(),
+          hasToken: Boolean(window.hydraHost && window.hydraHost.token),
+          nodeRequire: typeof require,
+          nodeProcess: typeof process,
+          live: document.body.innerText.includes('Live'),
+          heading: (document.querySelector('h1') || {}).textContent || null
+        })`).then((report: unknown) => {
+          process.stdout.write(`${JSON.stringify({ type: 'smoke', report })}\n`)
+          quitting = true
+          app.quit()
+        })
+      }, 2500)
+    })
+  }
+  window.on('close', (event) => {
+    if (quitting) return
+    event.preventDefault()
+    void (async () => {
+      const running = await runningTaskCount()
+      if (running) {
+        const { response } = await dialog.showMessageBox(window!, {
+          type: 'warning', buttons: ['Keep working', 'Quit'], defaultId: 0, cancelId: 0,
+          message: `${running} task${running > 1 ? 's are' : ' is'} still running.`,
+          detail: 'Quitting stops the agents. The tasks are saved and paused; resume them the next time you open Hydra.'
+        })
+        if (response === 0) return
+      }
+      quitting = true
+      app.quit()
+    })()
+  })
+  void window.loadURL(`${url}/`)
+}
+
+function lockDownSessions(): void {
+  // No camera, microphone, notifications-from-web, geolocation, etc.
+  session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
+  session.defaultSession.setPermissionCheckHandler(() => false)
+}
+
+ipcMain.handle('hydra:pick-directory', async (event) => {
+  const owner = BrowserWindow.fromWebContents(event.sender)
+  const result = owner
+    ? await dialog.showOpenDialog(owner, { properties: ['openDirectory'], title: 'Choose a project folder' })
+    : await dialog.showOpenDialog({ properties: ['openDirectory'], title: 'Choose a project folder' })
+  return result.canceled ? null : result.filePaths[0] ?? null
+})
+
+ipcMain.on('hydra:notify', (_event, payload: unknown) => {
+  const { title, body } = (payload ?? {}) as { title?: unknown; body?: unknown }
+  if (typeof title === 'string' && typeof body === 'string' && Notification.isSupported()) {
+    new Notification({ title: title.slice(0, 120), body: body.slice(0, 400) }).show()
+  }
+})
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', () => { if (window) { if (window.isMinimized()) window.restore(); window.focus() } })
+  app.on('web-contents-created', (_event, contents) => {
+    contents.on('will-attach-webview', (event) => event.preventDefault())
+  })
+  void app.whenReady().then(async () => {
+    lockDownSessions()
+    try {
+      apiUrl = await startEngine()
+      createWindow(apiUrl)
+    } catch (error) {
+      dialog.showErrorBox('Hydra could not start', (error as Error).message)
+      quitting = true
+      app.quit()
+    }
+  })
+  app.on('before-quit', () => { quitting = true })
+  app.on('will-quit', () => {
+    // Closing stdin asks hydrad to shut down gracefully (it pauses running tasks).
+    engine?.stdin?.end()
+  })
+  app.on('window-all-closed', () => app.quit())
+}
