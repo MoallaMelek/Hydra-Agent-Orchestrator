@@ -50,6 +50,12 @@ function referenceDir() {
   if (existsSync(inTree)) return inTree
   const dir = mkdtempSync(join(tmpdir(), 'hydra-reference-'))
   const tar = join(dir, 'reference.tar')
+  try {
+    execFileSync('git', ['-C', ROOT, 'rev-parse', '--verify', `${REFERENCE_TAG}^{tree}`], { stdio: 'pipe' })
+  } catch {
+    // Shallow clones (CI) do not have the tag yet.
+    execFileSync('git', ['-C', ROOT, 'fetch', '--no-tags', '--depth=1', 'origin', `refs/tags/${REFERENCE_TAG}:refs/tags/${REFERENCE_TAG}`], { stdio: 'pipe' })
+  }
   execFileSync('git', ['-C', ROOT, 'archive', '--format=tar', '-o', tar, REFERENCE_TAG], { stdio: 'pipe' })
   // Relative name: GNU tar reads "C:..." as a remote host.
   execFileSync('tar', ['-xf', 'reference.tar'], { cwd: dir, stdio: 'pipe' })
