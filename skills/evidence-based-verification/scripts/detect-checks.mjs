@@ -5,6 +5,10 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const root = process.argv[2] ?? '.'
+if (!existsSync(root)) {
+  console.error(`Not a directory: ${root}`)
+  process.exit(2)
+}
 const has = (...names) => names.some((n) => existsSync(join(root, n)))
 const read = (n) => { try { return readFileSync(join(root, n), 'utf8') } catch { return '' } }
 const win = process.platform === 'win32'

@@ -54,4 +54,4 @@ Verdict: VERIFIED | NOT VERIFIED (<n> failing, <m> not run)
 If anything failed or was not run, the verdict is **NOT VERIFIED**, even if you believe the change is correct.
 
 ## Optional: prove the change made a difference
-Run the same checks on the commit before the change (`git stash` or a temporary worktree: `git worktree add --detach <tmp> <base-commit>`) and show which checks went from failing to passing and whether anything regressed. Remove the temporary worktree afterwards.
+Run the same checks on the commit before the change in a temporary worktree (`git worktree add --detach <tmp> <base-commit>`; avoid `git stash`, which can collide with other tools or sessions sharing the stash) and show which checks went from failing to passing and whether anything regressed. Remove the temporary worktree afterwards.
