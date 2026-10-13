@@ -85,6 +85,11 @@ export class RemoteHost {
     /** Creates a single-use pairing link (5 minutes). */
     async pairStart(name, scopes) {
         await this.start();
+        for (const [key, pending] of this.pairings)
+            if (pending.expiresAt < Date.now())
+                this.pairings.delete(key);
+        if (this.pairings.size >= 10)
+            throw new Error('Too many open pairing codes; wait for them to expire');
         const id = newId();
         const secret = randomBytes(32);
         const expiresAt = Date.now() + PAIRING_TTL_MS;
@@ -107,6 +112,11 @@ export class RemoteHost {
     allowAttempt(req) {
         const ip = req.socket.remoteAddress ?? 'unknown';
         const now = Date.now();
+        if (this.attempts.size > 1000) {
+            for (const [key, times] of this.attempts)
+                if (times.every((t) => now - t >= 60_000))
+                    this.attempts.delete(key);
+        }
         const recent = (this.attempts.get(ip) ?? []).filter((t) => now - t < 60_000);
         recent.push(now);
         this.attempts.set(ip, recent);
@@ -121,6 +131,8 @@ export class RemoteHost {
         let pairing = null;
         let devicePub = '';
         let unsubscribe = null;
+        let tokens = 30;
+        let refilledAt = Date.now();
         const sendFrame = (message) => { if (channel && ws.readyState === ws.OPEN)
             ws.send(JSON.stringify(channel.seal(message))); };
         ws.on('message', (raw) => {
@@ -165,6 +177,13 @@ export class RemoteHost {
                     sendFrame({ type: 'welcome', deviceId: device.id, name: device.name, scopes: device.scopes, expiresAt: device.expiresAt });
                     return;
                 }
+                // Per-session rate limit: a token bucket of 30 requests, refilled at 10 per second.
+                const now = Date.now();
+                tokens = Math.min(30, tokens + ((now - refilledAt) / 1000) * 10);
+                refilledAt = now;
+                if (tokens < 1)
+                    return sendFrame({ ack: typeof message.id === 'string' ? message.id : null, ok: false, error: { code: 'unavailable', message: 'Too many requests; slow down' } });
+                tokens -= 1;
                 void this.handle(message, deviceId, scopes).then(sendFrame);
             }
             catch {
@@ -185,7 +204,9 @@ export class RemoteHost {
         const store = this.options.engine.store;
         const now = new Date();
         if (pairing) {
-            this.pairings.delete(pairing.id); // single use
+            // Single use, claimed atomically: if two phones raced the same link, only the first registers.
+            if (!this.pairings.delete(pairing.id))
+                throw new Error('Pairing already used');
             const device = {
                 id: newId(), name: (requestedName || pairing.value.name).slice(0, 80), scopes: pairing.value.scopes,
                 pairedAt: now.toISOString(), lastSeenAt: now.toISOString(), expiresAt: new Date(now.getTime() + DEVICE_TTL_MS).toISOString(), revokedAt: null

@@ -1,23 +1,38 @@
 # Handoff — Hydra v2 (read this first)
 
-**Branch:** `v2-rebuild` (worktree `C:\Users\moall\hydra-v2`; the owner's main checkout `OneDrive\Desktop\Projects\hydra` stays on `main`, untouched). **Legacy archive:** tag `legacy-v0.2.61`, folder `legacy/`. Never read legacy code when writing v2 (see CLAUDE.md).
+**Branch:** `v2-rebuild` (worktree `C:\Users\moall\hydra-v2`). The owner's main checkout (`OneDrive\Desktop\Projects\hydra`) stays on `main`, untouched. **Legacy:** tag `legacy-v0.2.61`, folder `legacy/`. Never read legacy code when writing v2 (CLAUDE.md). The audit that motivated v2 is in `docs/audit/`.
 
-## State at end of session 1 (2026-10-13)
-- **M0 done:** provenance, architecture, decisions D-001…D-013, threat model T1–T19, roadmap.
-- **M1/M2 engine done and verified:** `packages/protocol`, `packages/engine`. 62 automated tests pass. Live acceptance with real Claude Code 2.1.282 and Codex CLI 0.162 passed twice (before and after hardening): Node and Python bug fixes went PLAN→…→APPROVAL, tree untouched until Accept, Accept fast-forwards, independent test passes, Rollback restores. Details in TEST_EVIDENCE.md.
-- **Independent Codex review** (25 findings) addressed in commit `d5b515a`; residual risks listed in D-013.
-- **M3 UI done and verified in the browser pane** (see TEST_EVIDENCE M3 table). Electron shell not started.
-  - `apps/hydrad` (API server) done and tested (6 security tests).
-  - `packages/ui` is **incomplete WIP**: design system, store, transport, Shell, Home, Project, NewTaskForm, DecisionBar, OverviewTab and ChangesTab are written.
-  - **Missing:** `views/TaskView.tsx`, `task/ChecksTab.tsx`, `task/AgentsTab.tsx`, `task/ActivityTab.tsx`, `ProvidersView.tsx`, `DevicesView.tsx`, `SettingsView.tsx`, `src/main.tsx`, `index.html`, `vite.config.ts`, the UI tsconfig, and `npm install` of the UI deps (react 19.3, vite 8.3.4, lucide-react 1.55, @vitejs/plugin-react 6.1.2).
-  - The UI has **never been compiled**; expect type errors.
-- **Not started:** `apps/desktop` (Electron shell), M4 remote (`packages/secure-channel`, `apps/relay`), M5 CI/installers, M6 docs/skills.
+## Where things stand (end of session 2, 2026-10-13)
+| Milestone | State | Evidence |
+|---|---|---|
+| M0 originality and architecture | ☑ | provenance overlap 0% with a positive control; D-001…D-013 |
+| M1 core engine | ☑ | unit and integration tests; live Claude/Codex runs |
+| M2 safe autonomous development | ☑ | live Node and Python fixes; accept/rollback; integrate + re-verify; Codex review fixes |
+| M3 desktop | ☑ UI and shell | browser-pane E2E; Electron smoke test; packaged app smoke test |
+| M4 remote | ☑ LAN/localhost | 8 protocol tests; live pairing, phone-driven task, revocation. ⛔ physical phone over Wi-Fi not tested |
+| M5 hardening | ◐ | CI green on Windows/macOS/Linux; 0 production vulnerabilities; artifact scan; Windows installer built. Installer run, signing, mac/linux packages pending |
+| M6 commercial | ◐ | user guide; 3 Agensi skills (not submitted); readiness report |
 
-## Next actions, in order
-1. Finish the missing UI files listed above. Add the UI to `tsconfig.json` references (with jsx and the DOM lib), build with Vite, and have hydrad serve `packages/ui/dist` (`--static`). Verify in the browser pane against a real engine (`hydrad --print-token`, open `http://127.0.0.1:<port>/#token=…`); the UI should read the token from the fragment.
-2. Electron shell: spawn the hydrad bundle (`npm run build -w @hydra/hydrad`). Verify `node:sqlite` inside Electron's Node; if absent, ship a Node runtime.
-3. M4 per ARCHITECTURE §11 and D-011: LAN-first E2E channel, then the relay. Do not deploy any cloud resource without the owner's approval.
-4. CI workflow (lint, typecheck, test, provenance, audit) on Windows, macOS and Linux.
+Tests: `npm run check` → 72 tests, typecheck (6 projects), lint, provenance. CI: `.github/workflows/v2-ci.yml`.
 
-## Owner decisions pending
-v2 licence · trademark check · code-signing certificates · relay hosting · Agensi submission · merge to `main`.
+## How to run
+- **Develop:** `npm install && npm run check`
+- **Desktop app:** `npm run desktop` (builds UI, hydrad and shell, then launches Electron)
+- **Engine and UI in a browser:** `npm run build`, then `HYDRA_API_TOKEN=<random> node apps/hydrad/dist/hydrad.mjs --static packages/ui/dist --port 47821`, then open `http://127.0.0.1:47821/#token=<random>`
+- **Remote on localhost only:** add `--remote-bind 127.0.0.1 --remote-host 127.0.0.1`
+- **Live agent acceptance:** `npx tsc -b && node tools/live-e2e.mjs out.json node python analyze` (uses your provider accounts)
+- **Windows installer:** `npm run build && cd apps/desktop && npx electron-builder --win nsis --x64 --config electron-builder.yml`
+
+## Pitfalls learned (do not repeat)
+- **Never write source code through bash heredocs or `node -e` with backslashes.** It produced NUL bytes, backspace bytes and broken regexes three times. Use the editor tools.
+- Git for Windows hides a worktree's `.git` file, so open it with `r+`, not `w`. Test repos need `core.autocrlf=false`.
+- `git worktree remove` with a junction inside: always `unlinkDependencies` first (tested).
+- Compare **canonical** paths (macOS `/var` → `/private/var`; Windows 8.3 short names on CI).
+- Navigating to the same URL with only a new `#fragment` does not reload the page in the browser pane.
+
+## Next actions
+1. Act on the second Codex review (`.hydra-dev/codex-consult-remote.md`, local only): fix confirmed findings and record D-014.
+2. Owner-approved: run the installer on a test machine or VM; test pairing with a physical phone over Wi-Fi.
+3. Run the CI `package` job (workflow_dispatch) for macOS and Linux installers; smoke-test them.
+4. Optional container execution profile for checks (THREAT_MODEL T5).
+5. External beta (owner).

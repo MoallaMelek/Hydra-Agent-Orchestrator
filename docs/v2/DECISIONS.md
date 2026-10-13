@@ -78,3 +78,8 @@ Format: ID · date · decision · alternatives considered · why · consequences
   - Stage outputs and stage completion are separate transactions; a crash between them re-runs that stage (idempotent re-run, wasted tokens, no safety impact).
   - Git clean/smudge filters configured by the user still apply to engine checkouts. → T17.
   - Checks run project code with the user's privileges; the optional container profile is the mitigation (not yet implemented). → T5.
+
+### D-014 · 2026-10-13 · Remote host hardening (self-review; independent review blocked)
+- The planned second independent Codex review of the remote channel could not run: the Codex account hit its usage limit. It is **still owed** before release.
+- Self-review (not independent) found and fixed: (1) **pairing race**: two phones completing the handshake on one link could both register; pairings are now claimed atomically at authentication (regression test added); (2) expired pairings were never pruned, and open pairings are now capped at 10; (3) the per-IP handshake-attempt map is pruned; (4) a per-session token-bucket rate limit (30 burst, 10/s) applies after authentication.
+- Noted residual: the per-launch API token reaches the renderer through Electron `additionalArguments`, visible in the process command line to same-user processes (already T8).

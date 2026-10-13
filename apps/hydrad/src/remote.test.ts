@@ -126,6 +126,18 @@ describe('remote control over the encrypted channel', () => {
     await expect(new Phone(phone.key).connect(link.url, enginePub, null)).rejects.toThrow(/closed 4401/)
   })
 
+  it('registers exactly one device when two phones race the same pairing link', async () => {
+    const { engine, remote } = await boot()
+    const link = await remote.pairStart('Phone', ['control'])
+    const { enginePub, pairing } = parse(link.url)
+    const results = await Promise.allSettled([
+      new Phone().connect(link.url, enginePub, pairing),
+      new Phone().connect(link.url, enginePub, pairing)
+    ])
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+    expect(engine.store.listDevices()).toHaveLength(1)
+  })
+
   it('refuses a wrong pairing secret, unknown devices and an impostor engine key', async () => {
     const { remote } = await boot()
     const link = await remote.pairStart('Phone', [])
