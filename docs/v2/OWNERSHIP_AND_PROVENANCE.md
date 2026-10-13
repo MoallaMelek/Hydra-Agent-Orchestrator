@@ -30,7 +30,7 @@ All legacy logos and icons (`legacy/assets/hydra*.png`, `legacy/build/icon.*`, `
 
 - v2 was designed from **product requirements** (the owner's brief) and from the audit's **problem list**, not from legacy source files.
 - The implementer (Claude Opus 5.5) read parts of the legacy code during the audit on 2026-10-12. That is prior exposure, so this is **"clean-room-inspired"**, not a formal clean-room with separated teams. During v2 implementation, no legacy file was opened as a reference for writing v2 code, and nothing was copied, translated or paraphrased.
-- Architecture deliberately differs: an engine-first daemon with an event-sourced SQLite journal; isolation through git worktrees; verification **executed by the engine itself** rather than parsed from agent output; a zero-knowledge end-to-end-encrypted relay instead of Firebase; a single UI used by the desktop shell and the phone. See ARCHITECTURE.md and DECISIONS.md.
+- Architecture deliberately differs: an engine-first daemon with an event-sourced SQLite journal; isolation through git worktrees; verification **executed by the engine itself** rather than parsed from agent output; end-to-end-encrypted remote control over the LAN instead of Firebase (an owner-hosted relay is designed but not implemented); a single UI used by the desktop shell and the phone. See ARCHITECTURE.md and DECISIONS.md.
 - Objective evidence: `npm run provenance` computes normalized 6-line shingle overlap between every v2 source file and every legacy source file. Results are recorded in TEST_EVIDENCE.md at each milestone.
 
 ## 5. Third-party components
@@ -43,3 +43,36 @@ Third-party libraries are used under their licences. `docs/v2/THIRD_PARTY.md` is
 2. **AI-generated code.** Copyright protection for code generated largely by AI may be limited in some jurisdictions; human direction, selection and arrangement matter. Do not claim exclusive IP solely on this basis without advice.
 3. **Name and trademark.** "Hydra" is used by the upstream project and many unrelated products. Check before commercial use.
 4. **Statement you can truthfully make today:** "Hydra v2 is a new codebase with an original architecture, designed under my direction and implemented with AI coding assistance; it replaces an earlier version that was based on the open-source jpdlr/hydra project." Do not describe the legacy versions as independently authored.
+
+## 7. Licensing strategy options (2026-10-13; not selected)
+
+Facts that constrain the choice:
+- The GitHub repository `MoallaMelek/Hydra-Agent-Orchestrator` is **public**, so the v2 source on `v2-rebuild` is already readable by anyone. With no licence file it is "all rights reserved": people may read it but have no right to use, copy or redistribute it.
+- `legacy/` stays MIT with the upstream notices whatever is chosen for v2.
+- All shipped dependencies are MIT or ISC (THIRD_PARTY.md), so every option below is compatible. Electron's Chromium carries its own notices, and the installers must include them (electron-builder does this by default).
+
+| Option | What customers may do | Fits selling it? | Trade-offs |
+|---|---|---|---|
+| A. Proprietary EULA, private repository | Use the binaries under your terms only | Yes, the simplest commercial path | Make the repository private first (owner action). No community contributions. You need an EULA, ideally reviewed by a lawyer. |
+| B. Source-available (FSL-1.1 → Apache-2.0 after 2 years, or BUSL-1.1) | Read, modify, self-host; competing commercial use is forbidden until the change date | Yes | Keeps the repository public and trustworthy for a security-sensitive tool. Not OSI "open source", so some companies' policies block it. |
+| C. Open core: MIT/Apache engine + proprietary paid features (e.g. relay service, team features) | Free core; pay for extras | Yes, if paid features are worth paying for | You must decide and maintain the split. A competitor can fork the core. |
+| D. AGPL-3.0 + commercial licence (dual licensing) | Free under copyleft; buy a licence to avoid copyleft | Yes, for companies | Needs a contributor agreement to relicense contributions. Copyleft scares some buyers. |
+| E. MIT / Apache-2.0 | Anything | Only by selling services or support | No protection against resale. |
+
+**Recommendation (for discussion, not a decision):** B (FSL-1.1-Apache-2.0) if you want the code public for trust and to show security work; A if you want maximum control and plan Agensi/marketplace distribution of binaries only. In both cases add a short EULA or terms of use for the installers, a privacy statement (BETA_TEST_PLAN.md draft) and the Chromium/third-party notices. **Nothing has been committed: choosing and publishing a licence needs your approval.**
+
+## 8. Trademark: preliminary check (2026-10-13; not legal advice)
+
+Method: web searches only. No USPTO, EUIPO, WIPO or INPI (Tunisia) database search was performed, and no attorney was consulted. This section is a list of risks to check, not a clearance.
+
+| Existing use of "Hydra" | Field | Relevance |
+|---|---|---|
+| `jpdlr/hydra`, the upstream project this repository was forked from | Desktop orchestrator for coding agents | **Highest risk:** the same name in the same product category, with prior use (2026-02) |
+| Several Claude Code plugins and GitHub projects named "Hydra" that orchestrate AI subagents | AI agent orchestration | Same category; common-law use is possible |
+| HYDRA HOST, INC. | Trademark filings in class 42 (AI infrastructure software, 2025–2026) | Possible conflict in class 42; the exact marks were not confirmed |
+| Meta's Hydra (hydra.cc), Nix Hydra CI, Ory Hydra (OAuth server) | Developer tools | Crowded field; it weakens distinctiveness of "Hydra" alone for software |
+| GitHub "Project HydraFusion" (Copilot multi-model orchestration, reported Sept 2026) | AI coding | Similar name in the same market (secondary source only) |
+
+Assessment: "Hydra" alone is weak and crowded for developer and AI software, and it collides with the upstream project in the exact same category. "Hydra Agent Orchestrator" is descriptive apart from "Hydra". Before commercial launch: (1) have a professional clearance search run in the countries where you will sell (classes 9 and 42); (2) consider a distinctive name or composite mark; (3) do not file or use ® before registration. **No name change has been made; this needs your decision.**
+
+Sources: web results for [Hydra Host trademark profile](https://gleanmark.com/owner/hydrahostinc), [a Hydra Claude plugin](https://claudepluginhub.com/plugins/ar6420-hail-hydra), [Meta Hydra](https://engineering.fb.com/2019/10/03/open-source/hydra/), [Nix Hydra](https://wiki.nixos.org/wiki/Translations:Hydra/1/en), [HydraFusion digest](https://r.codekk.com/ai/2026-09-05).
