@@ -24,6 +24,22 @@ export class BudgetExceededError extends Error {
   }
 }
 
+/**
+ * The provider refused work for account reasons (quota, rate limit, overload).
+ * Nothing is wrong with the task; it pauses and can be resumed later.
+ */
+export class ProviderUnavailableError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ProviderUnavailableError'
+  }
+}
+
+const PROVIDER_LIMIT = /usage limit|rate[ -]?limit|quota|too many requests|\b429\b|overloaded|insufficient[_ ]credit|credit balance|try again (at|in|later)/i
+
+/** True when a provider failure message describes an account limit rather than a task problem. */
+export const isProviderLimit = (message: string): boolean => PROVIDER_LIMIT.test(message)
+
 export class CanceledError extends Error {
   constructor(message = 'Canceled') {
     super(message)

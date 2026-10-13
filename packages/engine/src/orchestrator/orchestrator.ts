@@ -3,7 +3,7 @@ import { currentBranch, headSha, isAncestor } from '../isolation/git.js'
 import { killOrphanAgent } from '../process/instance.js'
 import { afterFinalDecision, afterPlanDecision, nextStep, type FinalDecision, type StageResult, type Step } from '../workflow/machine.js'
 import { policyFor } from '../workflow/policy.js'
-import { BudgetExceededError, CanceledError, conflict, errorMessage, HydraError, invalid } from '../util/errors.js'
+import { BudgetExceededError, CanceledError, conflict, errorMessage, HydraError, invalid, ProviderUnavailableError } from '../util/errors.js'
 import { isoNow } from '../util/ids.js'
 import { type EngineContext, logTask, updateTask } from './context.js'
 import { ReapprovalNeeded, STAGE_RUNNERS } from './stages.js'
@@ -206,6 +206,12 @@ export class Orchestrator {
         if (stage === 'apply' && (error instanceof ReapprovalNeeded || (error instanceof HydraError && error.code === 'conflict'))) {
           this.endStage(taskId, stage, attempt, 'failed', error.message)
           updateTask(this.ctx, taskId, (t) => { t.status = 'waiting_input'; t.waitReason = 'final_approval'; t.stage = 'approval'; t.error = error.message; t.applyIntent = null })
+          return
+        }
+        if (error instanceof ProviderUnavailableError) {
+          this.endStage(taskId, stage, attempt, 'failed', error.message)
+          updateTask(this.ctx, taskId, (t) => { t.status = 'paused'; t.error = `${error.message} Resume when the provider is available again, or start a new task with a different provider.` })
+          logTask(this.ctx, taskId, 'warn', error.message)
           return
         }
         const budget = error instanceof BudgetExceededError

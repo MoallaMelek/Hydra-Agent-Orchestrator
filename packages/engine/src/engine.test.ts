@@ -199,6 +199,21 @@ describe('engine lifecycle', () => {
     expect(engine.store.listRuns(task.id).at(-1)!.status).toBe('canceled')
   })
 
+  it('pauses (not fails) when the provider reports a usage limit, and resumes later', async () => {
+    let limited = true
+    const { engine, projectId } = await setup(script({ implementer: () => (limited
+      ? { fail: "You've hit your usage limit. Try again at 6:46 AM." }
+      : { files: { 'math.js': FIXED_MATH }, structured: IMPL }) }))
+    const task = await create(engine, projectId)
+    const paused = await until(engine, task.id, (t) => t.status === 'paused')
+    expect(paused.error).toMatch(/not accepting work right now/)
+    expect(paused.plan).not.toBeNull()
+    limited = false
+    await engine.execute({ type: 'task.resume', taskId: task.id })
+    const ready = await until(engine, task.id, waiting)
+    expect(ready.stages.filter((s) => s.stage === 'plan')).toHaveLength(1)
+  })
+
   it('enforces the cost budget using reported usage', async () => {
     const { engine, projectId } = await setup(script({ implementer: () => ({ files: { 'math.js': FIXED_MATH }, structured: IMPL, usage: { inputTokens: 10, outputTokens: 10, costUsd: 9 } }) }))
     const task = await create(engine, projectId, { budget: { maxCostUsd: 1 } })

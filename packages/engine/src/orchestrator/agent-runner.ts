@@ -4,7 +4,7 @@ import type { AccessLevel } from '../agents/types.js'
 import { addUsage, assertCanStartRun, assertWithinBudget, remainingActiveMs, remainingUsd } from '../workflow/budget.js'
 import { redact } from '../util/redact.js'
 import { policyFor } from '../workflow/policy.js'
-import { CanceledError, type BudgetExceededError } from '../util/errors.js'
+import { CanceledError, isProviderLimit, ProviderUnavailableError, type BudgetExceededError } from '../util/errors.js'
 import { isoNow, newId } from '../util/ids.js'
 import { type EngineContext, updateTask } from './context.js'
 
@@ -125,6 +125,7 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
 
   if (budgetError) throw budgetError
   if (call.signal.aborted || finished.status === 'canceled') throw new CanceledError()
+  if (finished.status === 'failed' && isProviderLimit(finished.detail ?? '')) throw new ProviderUnavailableError(`${adapter.displayName} is not accepting work right now: ${finished.detail}`)
   if (finished.status !== 'succeeded') throw new Error(`${adapter.displayName} ${finished.status === 'timed_out' ? 'timed out' : 'failed'}: ${finished.detail ?? 'no detail'}`)
   return { structured, run }
 }
