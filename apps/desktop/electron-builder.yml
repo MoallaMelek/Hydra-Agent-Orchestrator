@@ -1,0 +1,40 @@
+appId: dev.melekmoalla.hydra
+productName: Hydra
+copyright: Copyright © 2026 Melek Moalla
+directories:
+  output: release
+  buildResources: build
+# Only the bundled shell goes into app.asar; engine and UI ship as plain resources.
+files:
+  - dist/**/*
+  - "!dist/**/*.map"
+  - package.json
+extraResources:
+  - from: ../hydrad/dist/hydrad.mjs
+    to: hydrad/hydrad.mjs
+  - from: ../../packages/ui/dist
+    to: ui
+    filter: ["**/*", "!**/*.map"]
+asar: true
+# Never publish from a local build; releases are a separate, owner-approved step.
+publish: null
+win:
+  target: [nsis]
+  icon: build/icon.ico
+  # Unsigned until the owner provides a code-signing certificate (see docs/v2/DECISIONS.md).
+  signExecutable: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: Hydra-Setup-${version}-${arch}.${ext}
+mac:
+  target: [dmg]
+  icon: build/icon.png
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+linux:
+  target: [AppImage, deb]
+  icon: build/icon.png
+  category: Development
+  maintainer: Melek Moalla

@@ -87,3 +87,15 @@ Live in the desktop browser pane (hydrad with `--remote-bind 127.0.0.1`):
 | R5 | Desktop revokes the phone → phone goes Offline immediately; reload refused with "no longer paired" | VERIFIED |
 | R6 | Real LAN access from a physical phone over Wi-Fi (`--remote-bind 0.0.0.0`) | UNVERIFIED (needs a physical device and a firewall prompt approval on this PC) |
 `npm run check` → 72/72 tests, typecheck, lint, provenance pass.
+
+## 2026-10-13 — Milestone 5: hardening and packaging (Windows, local)
+| # | Check | Result |
+|---|---|---|
+| P1 | `npm audit --omit=dev` (shipped dependencies) | VERIFIED 0 vulnerabilities (legacy: 38, incl. 3 critical). Dev tooling: 8 moderate (sprintf-js via packaging tools; not shipped) |
+| P2 | `npm run licenses` | VERIFIED 10 shipped third-party packages, all MIT or ISC → docs/v2/THIRD_PARTY.md |
+| P3 | `tools/scan-artifacts.mjs` on UI, hydrad and shell bundles and on packaged resources | VERIFIED clean; positive control (planted `.codex/` dir and API-key string) correctly fails |
+| P4 | `electron-builder --win dir`: packaged `Hydra.exe` smoke test (engine from bundled resources) | VERIFIED same smoke report as D2 (UI live, 4-key bridge, no Node in renderer) |
+| P5 | `electron-builder --win nsis`: installer built, `Hydra-Setup-2.0.0-alpha.0-x64.exe` 111.8 MB, sha256 984f9084c007f901…0491 | VERIFIED built (unsigned) |
+| P6 | Running the installer (install, launch, uninstall) | UNVERIFIED: would modify this PC; awaiting owner approval |
+| P7 | macOS dmg and Linux AppImage/deb | UNVERIFIED: configured in electron-builder.yml and the CI `package` job (manual dispatch); not built locally |
+| P8 | CI workflow `.github/workflows/v2-ci.yml` (Windows, macOS, Linux) | Pending first run after push |

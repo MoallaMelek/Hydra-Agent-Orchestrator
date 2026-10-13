@@ -1,0 +1,82 @@
+name: v2 CI
+
+on:
+  push:
+    branches: [v2-rebuild]
+  pull_request:
+    branches: [v2-rebuild]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Build unsigned installers as workflow artifacts (never published)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.x
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck, lint, tests, provenance
+        run: npm run check
+      - name: Build UI, engine host and desktop shell
+        run: npm run build
+      - name: No credentials or upstream identifiers in build output
+        run: node tools/scan-artifacts.mjs packages/ui/dist apps/hydrad/dist apps/desktop/dist
+      - name: Shipped licences are permissive
+        run: npm run licenses
+      - name: No known vulnerabilities in shipped dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  package:
+    if: github.event_name == 'workflow_dispatch' && inputs.package
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: --win nsis --x64
+          - os: macos-latest
+            target: --mac dmg
+          - os: ubuntu-latest
+            target: --linux AppImage deb
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.x
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Package (unsigned, not published)
+        working-directory: apps/desktop
+        run: npx electron-builder ${{ matrix.target }} --config electron-builder.yml --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Scan packaged resources
+        shell: bash
+        run: node tools/scan-artifacts.mjs apps/desktop/release/*-unpacked/resources apps/desktop/release/mac*/Hydra.app/Contents/Resources 2>/dev/null || node tools/scan-artifacts.mjs $(ls -d apps/desktop/release/*/ | head -1)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hydra-${{ matrix.os }}
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.deb
+          retention-days: 7
