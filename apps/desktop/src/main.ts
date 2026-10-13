@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Notification, session, shell } from 'electron'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { existsSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
@@ -13,6 +13,7 @@ import { join } from 'node:path'
 const token = randomBytes(32).toString('base64url')
 let engine: ChildProcess | null = null
 let apiUrl: string | null = null
+let engineDataDir: string | null = null
 let window: BrowserWindow | null = null
 let quitting = false
 
@@ -43,7 +44,8 @@ function startEngine(): Promise<string> {
       const line = buffer.split('\n').find((l) => l.includes('"type":"ready"'))
       if (!line) return
       clearTimeout(timer)
-      const ready = JSON.parse(line) as { url: string }
+      const ready = JSON.parse(line) as { url: string; dataDir: string }
+      engineDataDir = ready.dataDir
       resolve(ready.url)
     })
     child.stderr?.on('data', (chunk: Buffer) => { errors = (errors + chunk.toString()).slice(-4000) })
@@ -100,8 +102,19 @@ function createWindow(url: string): void {
           nodeProcess: typeof process,
           live: document.body.innerText.includes('Live'),
           heading: (document.querySelector('h1') || {}).textContent || null
-        })`).then((report: unknown) => {
-          process.stdout.write(`${JSON.stringify({ type: 'smoke', report })}\n`)
+        })`).then(async (page: unknown) => {
+          // Engine-side facts: where data lives, schema state, and provider detection.
+          const state = await fetch(`${apiUrl}/api/state`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()) as {
+            engineVersion: string; providers: Array<{ id: string; installed: boolean; authenticated: boolean | null; problems: string[] }>
+          }
+          const report = {
+            page, packaged: app.isPackaged, appVersion: app.getVersion(), engineVersion: state.engineVersion, dataDir: engineDataDir,
+            databaseExists: engineDataDir ? existsSync(join(engineDataDir, 'hydra.db')) : false,
+            providers: state.providers.map((p) => ({ id: p.id, installed: p.installed, authenticated: p.authenticated, problems: p.problems.length }))
+          }
+          const line = `${JSON.stringify({ type: 'smoke', report })}\n`
+          process.stdout.write(line)
+          if (process.env.HYDRA_DESKTOP_SMOKE_OUT) writeFileSync(process.env.HYDRA_DESKTOP_SMOKE_OUT, line)
           quitting = true
           app.quit()
         })

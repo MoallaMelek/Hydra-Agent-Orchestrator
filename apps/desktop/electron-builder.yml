@@ -37,4 +37,6 @@ linux:
   target: [AppImage, deb]
   icon: build/icon.png
   category: Development
+  executableName: hydra
   maintainer: Melek Moalla
+  synopsis: Supervised AI coding agents with isolated worktrees and human approval

@@ -7,8 +7,8 @@ on:
     branches: [v2-rebuild]
   workflow_dispatch:
     inputs:
-      package:
-        description: Build unsigned installers as workflow artifacts (never published)
+      installers:
+        description: Build, install, launch, uninstall and reinstall the real packages on fresh runners (nothing is uploaded)
         type: boolean
         default: false
 
@@ -41,20 +41,17 @@ jobs:
       - name: No known vulnerabilities in shipped dependencies
         run: npm audit --omit=dev --audit-level=high
 
-  package:
-    if: github.event_name == 'workflow_dispatch' && inputs.package
+  installers:
+    name: installer (${{ matrix.os }})
+    if: github.event_name == 'workflow_dispatch' && inputs.installers
     needs: check
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            target: --win nsis --x64
-          - os: macos-latest
-            target: --mac dmg
-          - os: ubuntu-latest
-            target: --linux AppImage deb
+        os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -63,20 +60,74 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run build
-      - name: Package (unsigned, not published)
-        working-directory: apps/desktop
-        run: npx electron-builder ${{ matrix.target }} --config electron-builder.yml --publish never
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      - name: Scan packaged resources
+
+      # ── Windows: NSIS per-user install, launch, uninstall, reinstall ──
+      - name: Windows package, install and validate
+        if: runner.os == 'Windows'
         shell: bash
-        run: node tools/scan-artifacts.mjs apps/desktop/release/*-unpacked/resources apps/desktop/release/mac*/Hydra.app/Contents/Resources 2>/dev/null || node tools/scan-artifacts.mjs $(ls -d apps/desktop/release/*/ | head -1)
-      - uses: actions/upload-artifact@v4
-        with:
-          name: hydra-${{ matrix.os }}
-          path: |
-            apps/desktop/release/*.exe
-            apps/desktop/release/*.dmg
-            apps/desktop/release/*.AppImage
-            apps/desktop/release/*.deb
-          retention-days: 7
+        run: |
+          set -euo pipefail
+          (cd apps/desktop && npx electron-builder --win nsis --x64 --config electron-builder.yml --publish never)
+          SETUP=$(ls apps/desktop/release/Hydra-Setup-*.exe)
+          echo "installer: $SETUP ($(stat -c %s "$SETUP") bytes)"
+          powershell -NoProfile -Command "Start-Process -Wait -FilePath '$SETUP' -ArgumentList '/S'"
+          APP="$LOCALAPPDATA/Programs/Hydra/Hydra.exe"
+          test -f "$APP" && echo "installed: $APP"
+          node tools/scan-artifacts.mjs "$LOCALAPPDATA/Programs/Hydra/resources"
+          DATA="$LOCALAPPDATA/Hydra/v2"
+          HYDRA_DESKTOP_SMOKE=1 HYDRA_DESKTOP_SMOKE_OUT="$RUNNER_TEMP/smoke1.json" timeout 120 "$APP" || true
+          node tools/check-smoke.mjs "$RUNNER_TEMP/smoke1.json" --packaged --data-dir "$DATA" --no-providers
+          powershell -NoProfile -Command "Start-Process -Wait -FilePath '$LOCALAPPDATA\Programs\Hydra\Uninstall Hydra.exe' -ArgumentList '/S'"
+          sleep 5
+          test ! -f "$APP" && echo "uninstalled: program files removed"
+          test -f "$DATA/hydra.db" && echo "user data preserved after uninstall: $DATA/hydra.db"
+          powershell -NoProfile -Command "Start-Process -Wait -FilePath '$SETUP' -ArgumentList '/S'"
+          HYDRA_DESKTOP_SMOKE=1 HYDRA_DESKTOP_SMOKE_OUT="$RUNNER_TEMP/smoke2.json" timeout 120 "$APP" || true
+          node tools/check-smoke.mjs "$RUNNER_TEMP/smoke2.json" --packaged --data-dir "$DATA" --no-providers
+          echo "reinstall reused existing data"
+
+      # ── macOS: DMG, copy app, launch, remove, reinstall ──
+      - name: macOS package, install and validate
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          (cd apps/desktop && npx electron-builder --mac dmg --config electron-builder.yml --publish never)
+          DMG=$(ls apps/desktop/release/*.dmg | head -1)
+          echo "dmg: $DMG ($(stat -f %z "$DMG") bytes)"
+          MNT=$(hdiutil attach "$DMG" -nobrowse | tail -1 | awk -F'\t' '{print $NF}')
+          mkdir -p "$HOME/Applications" && cp -R "$MNT/Hydra.app" "$HOME/Applications/" && hdiutil detach "$MNT"
+          codesign -dv "$HOME/Applications/Hydra.app" 2>&1 | head -3 || true
+          node tools/scan-artifacts.mjs "$HOME/Applications/Hydra.app/Contents/Resources"
+          DATA="$HOME/Library/Application Support/Hydra/v2"
+          HYDRA_DESKTOP_SMOKE=1 HYDRA_DESKTOP_SMOKE_OUT="$RUNNER_TEMP/smoke1.json" "$HOME/Applications/Hydra.app/Contents/MacOS/Hydra" || true
+          node tools/check-smoke.mjs "$RUNNER_TEMP/smoke1.json" --packaged --data-dir "$DATA" --no-providers
+          rm -rf "$HOME/Applications/Hydra.app"
+          test -f "$DATA/hydra.db" && echo "user data preserved after removal"
+          MNT=$(hdiutil attach "$DMG" -nobrowse | tail -1 | awk -F'\t' '{print $NF}')
+          cp -R "$MNT/Hydra.app" "$HOME/Applications/" && hdiutil detach "$MNT"
+          HYDRA_DESKTOP_SMOKE=1 HYDRA_DESKTOP_SMOKE_OUT="$RUNNER_TEMP/smoke2.json" "$HOME/Applications/Hydra.app/Contents/MacOS/Hydra" || true
+          node tools/check-smoke.mjs "$RUNNER_TEMP/smoke2.json" --packaged --data-dir "$DATA" --no-providers
+
+      # ── Linux: .deb install via apt, AppImage run, remove, reinstall ──
+      - name: Linux package, install and validate
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb > /dev/null
+          (cd apps/desktop && npx electron-builder --linux AppImage deb --config electron-builder.yml --publish never)
+          DEB=$(ls apps/desktop/release/*.deb | head -1); APPIMAGE=$(ls apps/desktop/release/*.AppImage | head -1)
+          echo "deb: $DEB ($(stat -c %s "$DEB") bytes) appimage: $APPIMAGE ($(stat -c %s "$APPIMAGE") bytes)"
+          sudo apt-get install -y -qq "./$DEB"
+          BIN=$(dpkg -L hydra-desktop 2>/dev/null | grep -E '/hydra$' | head -1 || true)
+          [ -z "$BIN" ] && BIN=$(dpkg-deb -c "$DEB" | awk '{print $6}' | grep -E '/hydra$' | sed 's#^\.##' | head -1)
+          echo "installed binary: $BIN"
+          node tools/scan-artifacts.mjs "$(dirname "$BIN")/resources"
+          DATA="$HOME/.local/share/hydra/v2"
+          HYDRA_DESKTOP_SMOKE=1 HYDRA_DESKTOP_SMOKE_OUT="$RUNNER_TEMP/smoke1.json" xvfb-run -a timeout 120 "$BIN" || true
+          node tools/check-smoke.mjs "$RUNNER_TEMP/smoke1.json" --packaged --data-dir "$DATA" --no-providers
+          sudo apt-get remove -y -qq "$(dpkg-deb -f "$DEB" Package)"
+          test ! -f "$BIN" && echo "uninstalled" && test -f "$DATA/hydra.db" && echo "user data preserved after uninstall"
+          chmod +x "$APPIMAGE"
+          HYDRA_DESKTOP_SMOKE=1 HYDRA_DESKTOP_SMOKE_OUT="$RUNNER_TEMP/smoke2.json" xvfb-run -a timeout 120 "$APPIMAGE" --appimage-extract-and-run || true
+          node tools/check-smoke.mjs "$RUNNER_TEMP/smoke2.json" --packaged --data-dir "$DATA" --no-providers
+          echo "AppImage reused existing data"
