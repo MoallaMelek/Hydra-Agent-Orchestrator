@@ -43,6 +43,11 @@ export class AdapterRegistry {
     return [...this.statuses.values()]
   }
 
+  /** Stops processes adapters keep for later use (pre-started answering agents). */
+  async dispose(): Promise<void> {
+    await Promise.all([...this.adapters.values()].map((adapter) => adapter.dispose?.().catch(() => {})))
+  }
+
   /** Usable means installed with no blocking problems (as of the last refresh). */
   usable(id: ProviderId): boolean {
     const status = this.statuses.get(id)

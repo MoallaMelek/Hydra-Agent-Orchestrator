@@ -20,8 +20,8 @@ const runs = Number(args.includes('--runs') ? args[args.indexOf('--runs') + 1] :
 const provider = args.includes('--provider') ? args[args.indexOf('--provider') + 1] : 'claude'
 
 const SCENARIOS = [
-  { id: 'greeting', prompt: 'hi', intent: 'analyze' },
-  { id: 'repo-question', prompt: 'What does add() in math.js return?', intent: 'analyze' }
+  { id: 'greeting', prompt: 'hi' },
+  { id: 'repo-question', prompt: 'What does add() in math.js return?' }
 ]
 
 function fixture() {
@@ -72,7 +72,7 @@ engine.subscribe(({ event }) => {
   if (!taskId || !marks.has(taskId)) return
   const m = marks.get(taskId)
   if (event.type === 'run.updated' && m.agentStart === undefined) m.agentStart = now
-  if (event.type === 'run.output' && m.firstOutput === undefined && event.text.trim()) m.firstOutput = now
+  if (event.type === 'run.output' && m.firstOutput === undefined && event.stream === 'answer' && event.text.trim()) m.firstOutput = now
   if (event.type === 'task.updated' && ['completed', 'failed', 'paused', 'canceled'].includes(event.task.status) && m.done === undefined) m.done = now
 })
 
@@ -82,18 +82,20 @@ for (const scenario of SCENARIOS) {
   const providerOnly = []
   for (let i = 0; i < runs; i++) {
     const submitted = Date.now()
-    const ack = await engine.execute({ type: 'task.create', projectId, prompt: scenario.prompt, intent: scenario.intent, mode: 'safe', assignment: { planner: provider, implementer: provider, reviewer: provider } })
+    const ack = await engine.execute({ type: 'task.create', projectId, prompt: scenario.prompt, depth: 'auto', mode: 'safe', assignment: { planner: provider, implementer: provider, reviewer: provider } })
     const ackMs = Date.now() - submitted
     const id = ack.result.id
     const m = { submitted }
     marks.set(id, m)
     while (m.done === undefined) await new Promise((r) => setTimeout(r, 50))
     const task = engine.store.getTask(id)
-    hydra.push({ ackMs, toAgentStartMs: m.agentStart - submitted, firstOutputMs: m.firstOutput ? m.firstOutput - submitted : null, totalMs: m.done - submitted, status: task.status, agentRuns: task.usage.agentRuns, costUsd: task.usage.costUsd, answer: (task.answer ?? task.error ?? '').slice(0, 160) })
+    hydra.push({ warm: i > 0, route: task.route?.depth ?? null, ackMs, toAgentStartMs: m.agentStart - submitted, firstOutputMs: m.firstOutput ? m.firstOutput - submitted : null, totalMs: m.done - submitted, status: task.status, agentRuns: task.usage.agentRuns, costUsd: task.usage.costUsd, answer: (task.answer ?? task.error ?? '').slice(0, 160) })
     providerOnly.push(await direct(scenario.prompt, repo))
     console.log(scenario.id, i, JSON.stringify(hydra.at(-1)), JSON.stringify(providerOnly.at(-1)))
   }
   results.scenarios[scenario.id] = {
+    cold: { firstOutput: stats(hydra.filter((r) => !r.warm).map((r) => r.firstOutputMs)), total: stats(hydra.filter((r) => !r.warm).map((r) => r.totalMs)) },
+    warm: { firstOutput: stats(hydra.filter((r) => r.warm).map((r) => r.firstOutputMs)), total: stats(hydra.filter((r) => r.warm).map((r) => r.totalMs)) },
     hydra: { ack: stats(hydra.map((r) => r.ackMs)), agentStart: stats(hydra.map((r) => r.toAgentStartMs)), firstOutput: stats(hydra.map((r) => r.firstOutputMs)), total: stats(hydra.map((r) => r.totalMs)), samples: hydra },
     providerOnly: { firstOutput: stats(providerOnly.map((r) => r.firstOutputMs)), total: stats(providerOnly.map((r) => r.totalMs)), samples: providerOnly }
   }

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { Route } from './route.js'
 
 /** Bumped on any breaking change to persisted or wire formats. */
 export const PROTOCOL_VERSION = 1
@@ -209,6 +210,10 @@ export const Task = z.object({
   title: z.string().max(200),
   prompt: z.string().min(1).max(50_000),
   intent: TaskIntent,
+  /** How Hydra decided to handle the request (absent on tasks created before routing existed). */
+  route: Route.nullable().default(null),
+  /** The question this one follows up on (questions only). */
+  followUpOf: Id.nullable().default(null),
   mode: AutonomyMode,
   assignment: Assignment,
   budget: Budget,

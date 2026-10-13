@@ -56,7 +56,11 @@ export class ScriptedAdapter implements AgentAdapter {
         writeFileSync(join(request.cwd, path), content)
       }
     }
-    if (step.text) yield { type: 'text', text: step.text }
+    // Plain-text replies: the text itself, or an older-style structured { answer }.
+    const reply = step.text ?? (!request.outputSchema && typeof (step.structured as { answer?: unknown } | undefined)?.answer === 'string' ? (step.structured as { answer: string }).answer : undefined)
+    if (reply && request.stream) for (const piece of reply.match(/[\s\S]{1,12}/g) ?? []) yield { type: 'text_delta', text: piece }
+    else if (step.text) yield { type: 'text', text: step.text }
+    if (reply) yield { type: 'final_text', text: reply }
     if (step.usage) yield { type: 'usage', inputTokens: step.usage.inputTokens, outputTokens: step.usage.outputTokens, cachedTokens: 0, costUsd: step.usage.costUsd, model: 'scripted' }
     if (step.structured !== undefined) yield { type: 'structured', value: step.structured }
     if (step.fail) {

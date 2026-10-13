@@ -1,18 +1,17 @@
 import { z } from 'zod'
 import { Plan, Review, type DemoReport, type Evidence, type Task, type TaskStage } from '@hydra/protocol'
 import { isAncestor } from '../isolation/git.js'
-import { answerPrompt, fixPrompt, implementPrompt, planPrompt, reviewPrompt } from '../prompts/prompts.js'
-import { ANSWER_SCHEMA, IMPLEMENT_SCHEMA, PLAN_SCHEMA, REVIEW_SCHEMA } from '../prompts/schemas.js'
+import { answerPrompt, fixPrompt, implementPrompt, planPrompt, reviewPrompt, type Turn } from '../prompts/prompts.js'
+import { IMPLEMENT_SCHEMA, PLAN_SCHEMA, REVIEW_SCHEMA } from '../prompts/schemas.js'
 import { checkDefinitionDigest, detectChecks } from '../verification/detect.js'
 import { passed } from '../verification/runner.js'
 import type { StageResult } from '../workflow/machine.js'
 import { conflict } from '../util/errors.js'
 import { isoNow } from '../util/ids.js'
-import { callAgent } from './agent-runner.js'
+import { callAgent, callAgentText } from './agent-runner.js'
 import { runChecksAt } from './checks.js'
 import { type EngineContext, logTask, updateTask } from './context.js'
 
-const Answer = z.object({ answer: z.string().min(1), filesReferenced: z.array(z.string()) })
 /** Planner output: a plan, or (steps empty) a direct reply when the message was not a change request. */
 const PlannerOutput = Plan.extend({
   steps: z.array(z.string().min(1).max(1000)).max(30),
@@ -48,15 +47,27 @@ export function latestEvidence(all: readonly Evidence[], phase: Evidence['phase'
   return latest
 }
 
+/** Earlier turns of a follow-up conversation, oldest first (at most four, answers shortened). */
+function conversation(ctx: EngineContext, t: Task): Turn[] {
+  const turns: Turn[] = []
+  let previous = t.followUpOf ? ctx.store.getTask(t.followUpOf) : null
+  while (previous && turns.length < 4) {
+    if (previous.answer) turns.unshift({ question: previous.prompt.slice(0, 4000), answer: previous.answer.slice(0, 6000) })
+    previous = previous.followUpOf ? ctx.store.getTask(previous.followUpOf) : null
+  }
+  return turns
+}
+
 // ── PLAN ─────────────────────────────────────────────────────
 export async function planStage({ ctx, taskId, signal }: StageInput): Promise<StageResult> {
   let t = task(ctx, taskId)
   if (t.intent === 'analyze') {
-    const { value } = await callAgent(ctx, {
+    // One streamed, read-only reply: no plan, no worktree, no review.
+    const { text } = await callAgentText(ctx, {
       taskId, stage: 'plan', role: 'planner', provider: t.assignment.planner, access: 'read', cwd: projectRoot(ctx, t),
-      prompt: answerPrompt(t), jsonSchema: ANSWER_SCHEMA, parse: Answer, signal
+      prompt: answerPrompt(t, conversation(ctx, t)), stream: true, signal
     })
-    updateTask(ctx, taskId, (draft) => { draft.answer = value.answer })
+    updateTask(ctx, taskId, (draft) => { draft.answer = text })
     return { stage: 'plan', ok: true }
   }
   if (!t.workspace) {

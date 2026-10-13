@@ -133,3 +133,8 @@
 .md table { border-collapse: collapse; font-size: 13px; }
 .md th, .md td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
 .md a { color: var(--accent); }
+.chat__route { margin-left: 8px; font-weight: 500; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.chat__reply { display: flex; gap: var(--space-2); align-items: flex-end; padding: var(--space-3) var(--space-5) var(--space-4); border-top: 1px solid var(--border); }
+.chat__reply .hx-textarea { flex: 1; min-height: 44px; }
+.route-preview { font-size: 13px; color: var(--text-2); margin: -4px 0 0; }
+.route-preview b { color: var(--text); }

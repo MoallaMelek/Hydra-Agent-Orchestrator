@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import {
-  Budget, Command, emptyUsage, PROTOCOL_VERSION, REMOTE_COMMAND_SCOPE,
+  Budget, Command, emptyUsage, PROTOCOL_VERSION, REMOTE_COMMAND_SCOPE, routeRequest, type Route,
   type CommandAck, type DeviceScope, type EngineSnapshot, type EventEnvelope, type Project, type Task, type TaskDetail, type TaskDiff
 } from '@hydra/protocol'
 import { AdapterRegistry } from './agents/registry.js'
@@ -167,6 +167,12 @@ export class Engine {
         this.store.audit(actorLabel, 'task.create', { taskId: task.id, mode: task.mode, assignment: task.assignment })
         return task
       }
+      case 'agent.prewarm': {
+        const project = this.store.getProject(command.projectId)
+        if (!project) throw notFound('Project')
+        if (this.ctx.registry.usable('claude')) this.ctx.registry.get('claude').prewarm?.(project.root)
+        return null
+      }
       case 'task.cancel': this.requireTask(command.taskId); this.store.audit(actorLabel, 'task.cancel', { taskId: command.taskId }); return this.orchestrator.cancel(command.taskId)
       case 'task.resume': this.requireTask(command.taskId); this.orchestrator.resume(command.taskId); return null
       case 'task.approve_plan': this.requireTask(command.taskId); this.orchestrator.approvePlan(command.taskId, command.approve, command.note, source); return null
@@ -204,11 +210,23 @@ export class Engine {
     const project = this.store.getProject(command.projectId)
     if (!project) throw notFound('Project')
     if (!existsSync(project.root)) throw conflict(`Project folder is missing: ${project.root}`)
-    if (command.intent === 'change') {
-      if (!(await isRepository(project.root))) throw invalid('Change tasks need a git repository so work can be isolated. Run `git init` and commit, or use an analysis task.')
-      if (!(await headSha(project.root))) throw invalid('The repository has no commits yet. Make an initial commit first.')
+    // Route: the user's explicit choice, the legacy intent field, or Hydra's own classification.
+    let route: Route = routeRequest(command.prompt, command.depth ?? (command.intent === 'change' ? 'deep' : command.intent === 'analyze' ? 'standard' : 'auto'))
+    // Only changes need git; skip the check (two git processes) for answers.
+    if (route.depth === 'deep' && !((await isRepository(project.root)) && Boolean(await headSha(project.root)))) {
+      if (!route.auto) throw invalid('Changes need a git repository with at least one commit so work can be isolated. Run `git init` and commit, or ask a question instead.')
+      route = { ...route, depth: 'standard', reason: 'This folder is not a git repository with commits, so Hydra can only answer here.' }
     }
-    const roles = command.intent === 'analyze' ? [command.assignment.planner] : [command.assignment.planner, command.assignment.implementer, command.assignment.reviewer]
+    const intent = route.depth === 'deep' ? 'change' as const : 'analyze' as const
+    // High-risk changes always stop for plan approval, whatever mode was requested.
+    const mode = intent === 'change' && route.risk === 'high' ? 'safe' as const : command.mode
+    let followUpOf: string | null = null
+    if (command.followUpOf) {
+      const previous = this.store.getTask(command.followUpOf)
+      if (!previous || previous.projectId !== project.id || previous.intent !== 'analyze') throw invalid('Follow-ups continue a question in the same project')
+      followUpOf = previous.id
+    }
+    const roles = intent === 'analyze' ? [command.assignment.planner] : [command.assignment.planner, command.assignment.implementer, command.assignment.reviewer]
     for (const provider of new Set(roles)) {
       if (!this.ctx.registry.has(provider)) throw unavailable(`${provider} is not available in this build`)
       if (!this.ctx.registry.usable(provider)) {
@@ -216,14 +234,14 @@ export class Engine {
         throw unavailable(`${status?.displayName ?? provider} is not ready: ${status?.problems.join(' ') || 'not installed'}`)
       }
     }
-    const budget = Budget.parse({ ...policyFor(command.mode).defaultBudget, ...command.budget })
+    const budget = Budget.parse({ ...policyFor(mode).defaultBudget, ...command.budget })
     const firstLine = command.prompt.split(/\r?\n/).find((line) => line.trim()) ?? command.prompt
     const now = isoNow()
     const task: Task = {
       id: newId(), projectId: project.id, title: (command.title || firstLine).trim().slice(0, 120), prompt: command.prompt,
-      intent: command.intent, mode: command.mode, assignment: command.assignment, budget,
+      intent, route, followUpOf, mode, assignment: command.assignment, budget,
       status: 'queued', stage: 'plan', waitReason: null, outcome: null, fixRound: 0,
-      plan: null, review: null, checks: [], checksApproved: !policyFor(command.mode).requireCheckApproval, checkDigest: null, applyIntent: null, demo: null, answer: null,
+      plan: null, review: null, checks: [], checksApproved: !policyFor(mode).requireCheckApproval, checkDigest: null, applyIntent: null, demo: null, answer: null,
       workspace: null, applied: null, usage: emptyUsage(), stages: [], feedback: [], error: null, createdAt: now, updatedAt: now
     }
     this.store.putTask(task)
@@ -278,6 +296,7 @@ export class Engine {
 
   async close(): Promise<void> {
     await this.orchestrator.shutdown()
+    await this.ctx.registry.dispose()
     this.store.close()
     this.lock.release()
   }

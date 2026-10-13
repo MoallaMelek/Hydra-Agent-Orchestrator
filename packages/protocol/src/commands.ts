@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { Assignment, AutonomyMode, Budget, DeviceScope, Id, TaskIntent } from './domain.js'
+import { DepthChoice } from './route.js'
 
 const Feedback = z.string().trim().min(1).max(10_000)
 
@@ -15,12 +16,19 @@ export const Command = z.discriminatedUnion('type', [
     projectId: Id,
     prompt: z.string().trim().min(1).max(50_000),
     title: z.string().trim().max(200).optional(),
-    intent: TaskIntent,
+    /** Optional when depth is given: Hydra derives it from the route. */
+    intent: TaskIntent.optional(),
+    /** auto (default): Hydra classifies the request; or force fast / standard / deep. */
+    depth: DepthChoice.optional(),
+    /** Continue a previous question: its question and answer are given to the agent as context. */
+    followUpOf: Id.optional(),
     mode: AutonomyMode,
     assignment: Assignment,
     budget: Budget.partial().optional()
   }),
   z.object({ type: z.literal('task.cancel'), taskId: Id }),
+  /** Starts an answering agent ahead of time for this project so the next question is faster. */
+  z.object({ type: z.literal('agent.prewarm'), projectId: Id }),
   z.object({ type: z.literal('task.resume'), taskId: Id }),
   z.object({ type: z.literal('task.approve_plan'), taskId: Id, approve: z.boolean(), note: z.string().max(10_000).optional() }),
   z.object({
@@ -52,6 +60,7 @@ export type CommandAck = z.infer<typeof CommandAck>
 /** Minimum device scope required to issue each command remotely. Commands absent here are desktop-only. */
 export const REMOTE_COMMAND_SCOPE: Partial<Record<CommandType, 'control' | 'approve'>> = {
   'task.create': 'control',
+  'agent.prewarm': 'control',
   'task.cancel': 'control',
   'task.resume': 'control',
   'task.approve_plan': 'approve',

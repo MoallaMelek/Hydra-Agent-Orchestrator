@@ -16,9 +16,11 @@ export interface AgentCall<T> {
   access: AccessLevel
   cwd: string
   prompt: string
-  jsonSchema: Record<string, unknown>
-  /** zod schema the structured output must satisfy. */
-  parse: z.ZodType<T>
+  jsonSchema?: Record<string, unknown>
+  /** zod schema the structured output must satisfy (structured calls only). */
+  parse?: z.ZodType<T>
+  /** Stream the reply token by token (plain-text calls only). */
+  stream?: boolean
   signal: AbortSignal
 }
 
@@ -28,12 +30,24 @@ export interface AgentCallResult<T> {
 }
 
 const OUTPUT_FLUSH_MS = 400
+/** Streamed replies are flushed faster so the user sees them appear. */
+const ANSWER_FLUSH_MS = 80
+/** An unfinished run of token-like characters this long is held back until it ends, so secrets are redacted whole. */
+const HOLD_BACK = /[A-Za-z0-9_\-+/=.]{8,}$/
+
+/** A plain-text reply, streamed to the UI while it is written. Redacted before it is shown or stored. */
+export async function callAgentText(ctx: EngineContext, call: AgentCall<string>): Promise<{ text: string; run: AgentRunInfo }> {
+  const result = await runOnce(ctx, { ...call, jsonSchema: undefined, parse: undefined }, call.prompt)
+  const text = redact(result.text).trim()
+  if (!text) throw new Error(`${call.provider} returned an empty reply`)
+  return { text, run: result.run }
+}
 
 /**
  * Runs one agent with budget enforcement, durable run records and live output.
  * If the structured answer is invalid it retries once with the validation error.
  */
-export async function callAgent<T>(ctx: EngineContext, call: AgentCall<T>): Promise<AgentCallResult<T>> {
+export async function callAgent<T>(ctx: EngineContext, call: AgentCall<T> & { jsonSchema: Record<string, unknown>; parse: z.ZodType<T> }): Promise<AgentCallResult<T>> {
   const first = await runOnce(ctx, call, call.prompt)
   const parsed = call.parse.safeParse(first.structured)
   if (parsed.success) return { value: parsed.data, run: first.run }
@@ -45,7 +59,7 @@ export async function callAgent<T>(ctx: EngineContext, call: AgentCall<T>): Prom
   throw new Error(`${call.provider} did not return valid structured output after a retry`)
 }
 
-async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string): Promise<{ structured: unknown; run: AgentRunInfo }> {
+async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string): Promise<{ structured: unknown; text: string; run: AgentRunInfo }> {
   if (call.signal.aborted) throw new CanceledError()
   assertCanStartRun(ctx.store.getTask(call.taskId)!)
   const adapter = ctx.registry.get(call.provider)
@@ -66,6 +80,24 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
   updateTask(ctx, call.taskId, (t) => { t.usage.agentRuns += 1 })
 
   let structured: unknown
+  let finalText = ''
+  let draft = ''
+  let published = 0
+  let answerTimer: ReturnType<typeof setTimeout> | null = null
+  const flushAnswer = (final: boolean) => {
+    answerTimer = null
+    const hold = final ? null : HOLD_BACK.exec(draft)
+    const ready = redact(hold ? draft.slice(0, hold.index) : draft)
+    if (ready.length <= published) return
+    const piece = ready.slice(published)
+    published = ready.length
+    run = { ...run, tail: (run.tail + piece).slice(-8000) }
+    ctx.store.publish({ type: 'run.output', runId: run.id, taskId: call.taskId, text: piece.slice(-16_000), stream: 'answer' })
+  }
+  const emitDelta = (text: string) => {
+    draft += text
+    if (!answerTimer) answerTimer = setTimeout(() => flushAnswer(false), ANSWER_FLUSH_MS)
+  }
   let budgetError: BudgetExceededError | null = null
   let pending = ''
   let flushTimer: ReturnType<typeof setTimeout> | null = null
@@ -88,7 +120,7 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
   let finished: { status: 'succeeded' | 'failed' | 'canceled' | 'timed_out'; detail: string | null } = { status: 'failed', detail: 'Agent ended without a result' }
   try {
     for await (const event of adapter.run({
-      cwd: call.cwd, prompt, role: call.role, access: call.access, outputSchema: call.jsonSchema,
+      cwd: call.cwd, prompt, role: call.role, access: call.access, outputSchema: call.jsonSchema, stream: call.stream,
       model: null, maxBudgetUsd: remainingUsd(task), timeoutMs
     }, runAbort.signal)) {
       switch (event.type) {
@@ -96,6 +128,8 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
           if (event.pid) { run = { ...run, pid: event.pid }; ctx.store.putRun(run) }
           break
         case 'text': emitText(event.text); break
+        case 'text_delta': emitDelta(event.text); break
+        case 'final_text': finalText = event.text; break
         case 'tool': emitText(`› ${event.name} ${event.summary}`); break
         case 'error': emitText(`⚠ ${event.message}`); break
         case 'structured': structured = event.value; break
@@ -115,6 +149,8 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
   } finally {
     if (flushTimer) clearTimeout(flushTimer)
     flush()
+    if (answerTimer) clearTimeout(answerTimer)
+    flushAnswer(true)
     call.signal.removeEventListener('abort', forward)
     release()
   }
@@ -127,5 +163,5 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
   if (call.signal.aborted || finished.status === 'canceled') throw new CanceledError()
   if (finished.status === 'failed' && isProviderLimit(finished.detail ?? '')) throw new ProviderUnavailableError(`${adapter.displayName} is not accepting work right now: ${finished.detail}`)
   if (finished.status !== 'succeeded') throw new Error(`${adapter.displayName} ${finished.status === 'timed_out' ? 'timed out' : 'failed'}: ${finished.detail ?? 'no detail'}`)
-  return { structured, run }
+  return { structured, text: finalText || draft, run }
 }

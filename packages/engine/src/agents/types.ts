@@ -10,6 +10,8 @@ export interface AgentRunRequest {
   access: AccessLevel
   /** JSON Schema the final answer must satisfy, enforced by the provider when supported. */
   outputSchema?: Record<string, unknown>
+  /** Stream the reply token by token (plain-text answers only). */
+  stream?: boolean
   model?: string | null
   /** Hard spend ceiling for this run, passed to providers that support one. */
   maxBudgetUsd?: number
@@ -19,6 +21,8 @@ export interface AgentRunRequest {
 export type AgentEvent =
   | { type: 'started'; pid: number | null; command: string }
   | { type: 'text'; text: string }
+  /** A streamed piece of the reply (no line break implied). */
+  | { type: 'text_delta'; text: string }
   | { type: 'tool'; name: string; summary: string }
   | { type: 'usage'; inputTokens: number; outputTokens: number; cachedTokens: number; costUsd: number | null; model: string | null }
   | { type: 'structured'; value: unknown }
@@ -40,4 +44,8 @@ export interface AgentAdapter {
   readonly capabilities: AdapterCapabilities
   probe(): Promise<ProviderStatus>
   run(request: AgentRunRequest, signal: AbortSignal): AsyncIterable<AgentEvent>
+  /** Optionally start an answering process ahead of time for this directory. */
+  prewarm?(cwd: string): void
+  /** Stops any processes the adapter keeps for later use. */
+  dispose?(): Promise<void>
 }

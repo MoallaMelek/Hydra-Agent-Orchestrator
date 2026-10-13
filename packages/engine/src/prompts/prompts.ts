@@ -73,12 +73,21 @@ export function planPrompt(task: Task): string {
   ].filter(Boolean).join('\n\n')
 }
 
-export function answerPrompt(task: Task): string {
+/** An earlier question and answer in the same conversation, oldest first. */
+export interface Turn { question: string; answer: string }
+
+export function answerPrompt(task: Task, history: readonly Turn[] = []): string {
+  const quick = task.route?.depth === 'fast'
+  const earlier = history.length
+    ? ['## Earlier in this conversation', ...history.map((turn) => `User: ${turn.question}\n\nYou: ${turn.answer}`)].join('\n\n')
+    : ''
   return [
-    'Answer the user\'s message about the repository in your working directory. Read what you need (read-only).',
-    'Return structured output: answer (markdown allowed) and filesReferenced (repository-relative paths you relied on; may be empty).',
-    VOICE, ROLE_RULES, request(task)
-  ].join('\n\n')
+    quick
+      ? 'Reply to the user\'s message. Answer directly; open files in the repository in your working directory only if the message needs them.'
+      : 'Answer the user\'s message about the repository in your working directory. Read what you need (read-only) before answering.',
+    'Reply in plain Markdown. Your reply is shown to the user as you write it.',
+    VOICE, ROLE_RULES, earlier, request(task)
+  ].filter(Boolean).join('\n\n')
 }
 
 export function implementPrompt(task: Task): string {

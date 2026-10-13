@@ -17,13 +17,15 @@ export interface AppState {
   remote: EngineSnapshot['remote'] | null
   /** Live agent output per run (bounded). */
   output: Record<string, string>
+  /** A reply being written right now, per task (streamed answer text). */
+  drafts: Record<string, string>
   logs: Record<string, LogLine[]>
   /** Bumped when evidence or runs change for a task, so detail views refetch. */
   revision: Record<string, number>
 }
 
 const initial: AppState = {
-  ready: false, error: null, connection: 'connecting', engineVersion: '', projects: [], tasks: {}, providers: [], devices: [], remote: null, output: {}, logs: {}, revision: {}
+  ready: false, error: null, connection: 'connecting', engineVersion: '', projects: [], tasks: {}, providers: [], devices: [], remote: null, output: {}, drafts: {}, logs: {}, revision: {}
 }
 
 /** Minimal observable store: the engine's event stream is the only writer. */
@@ -85,6 +87,10 @@ export class EngineStore {
         return this.set({ logs: { ...this.state.logs, [event.taskId]: lines } })
       }
       case 'run.output': {
+        if (event.stream === 'answer') {
+          const draft = ((this.state.drafts[event.taskId] ?? '') + event.text).slice(-60_000)
+          return this.set({ drafts: { ...this.state.drafts, [event.taskId]: draft } })
+        }
         const text = ((this.state.output[event.runId] ?? '') + event.text).slice(-60_000)
         return this.set({ output: { ...this.state.output, [event.runId]: text } })
       }

@@ -17,11 +17,6 @@ export const PLAN_SCHEMA = obj({
   reply: str(20_000)
 })
 
-export const ANSWER_SCHEMA = obj({
-  answer: str(20_000),
-  filesReferenced: strList(50, 500)
-})
-
 export const IMPLEMENT_SCHEMA = obj({
   summary: str(4000),
   followUps: strList(20)

@@ -48,6 +48,7 @@ export function TaskView({ taskId }: { taskId: string }) {
               <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
                 <Badge tone={status.tone} live={status.live}>{status.label}</Badge>
                 {task.intent === 'change' && <Badge tone="neutral" plain title={MODE_INFO[task.mode].detail}>{MODE_INFO[task.mode].label} mode</Badge>}
+                {task.route?.risk === 'high' && <Badge tone="warn" title={task.route.reason}>High risk: plan approval required</Badge>}
                 {task.workspace && <span className="faint mono" style={{ fontSize: 12 }}>{task.workspace.branch} · {shortSha(task.workspace.baseSha)} → {shortSha(task.workspace.headSha)}</span>}
               </div>
             </div>

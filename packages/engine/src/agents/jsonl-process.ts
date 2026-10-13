@@ -1,3 +1,4 @@
+import type { ChildProcess } from 'node:child_process'
 import { killTree, lineSplitter, reapGroup, spawnArgv } from '../process/spawn.js'
 import type { AgentEvent } from './types.js'
 
@@ -12,7 +13,12 @@ export interface JsonlProcessSpec {
   translate: (json: Record<string, unknown>) => AgentEvent[]
   /** Decides the final status once the process has closed. */
   conclude: (exitCode: number | null, stderrTail: string) => { status: 'succeeded' | 'failed'; detail: string | null }
+  /** A process started ahead of time with the same arguments; used instead of spawning. */
+  prestarted?: ChildProcess
 }
+
+/** How long a process may take to exit after being told to stop before Hydra reports it. */
+const STOP_DEADLINE_MS = 10_000
 
 /**
  * Runs a provider CLI that emits JSON lines on stdout and yields normalized events.
@@ -33,20 +39,27 @@ export async function* runJsonlProcess(spec: JsonlProcessSpec, signal: AbortSign
     return
   }
 
-  let child
-  try {
-    child = spawnArgv(spec.executable, spec.args, { cwd: spec.cwd, env: spec.env, stdin: 'pipe' })
-  } catch (error) {
-    yield { type: 'finished', status: 'failed', detail: `Could not start ${spec.executable}: ${(error as Error).message}` }
-    return
+  let child: ChildProcess
+  if (spec.prestarted) child = spec.prestarted
+  else {
+    try {
+      child = spawnArgv(spec.executable, spec.args, { cwd: spec.cwd, env: spec.env, stdin: 'pipe' })
+    } catch (error) {
+      yield { type: 'finished', status: 'failed', detail: `Could not start ${spec.executable}: ${(error as Error).message}` }
+      return
+    }
   }
 
   let stderrTail = ''
   let ending: 'canceled' | 'timed_out' | null = null
+  let unstoppable = false
   const stop = (why: 'canceled' | 'timed_out') => {
     if (ending) return
     ending = why
     void killTree(child)
+    // Never report a stop that did not happen: if the process outlives the deadline, say so.
+    const deadline = setTimeout(() => { if (!closed) { unstoppable = true; closed = true; wake?.() } }, STOP_DEADLINE_MS)
+    deadline.unref?.()
   }
   const onAbort = () => stop('canceled')
   signal.addEventListener('abort', onAbort, { once: true })
@@ -81,6 +94,11 @@ export async function* runJsonlProcess(spec: JsonlProcessSpec, signal: AbortSign
       if (closed) break
       await new Promise<void>((resolve) => { wake = resolve })
       wake = null
+    }
+    if (unstoppable) {
+      while (queue.length) yield queue.shift()!
+      yield { type: 'finished', status: 'failed', detail: `Process ${child.pid ?? '?'} did not exit within ${STOP_DEADLINE_MS / 1000}s of being stopped and may still be running; end it in your task manager.` }
+      return
     }
     const code = await exit
     reapGroup(child)
