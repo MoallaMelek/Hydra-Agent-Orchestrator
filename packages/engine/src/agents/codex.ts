@@ -119,7 +119,7 @@ export class CodexAdapter implements AgentAdapter {
     try {
       const { translate, conclude } = codexTranslator(Boolean(request.outputSchema))
       yield* runJsonlProcess({
-        executable, args: codexArgs(request, schemaPath), cwd: request.cwd, env: agentEnv(this.env),
+        executable, args: codexArgs(request, schemaPath), cwd: request.cwd, env: agentEnv('codex', this.env),
         stdin: request.prompt, timeoutMs: request.timeoutMs, translate, conclude
       }, signal)
     } finally {

@@ -53,8 +53,11 @@ export const UsageTotals = z.object({
   outputTokens: z.number().int().nonnegative(),
   cachedTokens: z.number().int().nonnegative(),
   costUsd: z.number().nonnegative(),
-  /** True when any part of costUsd is derived from a price table rather than reported by the provider. */
-  costEstimated: z.boolean(),
+  /**
+   * Tokens from runs whose provider did not report a price (e.g. Codex CLI). Those
+   * runs are bounded by the token budget only; costUsd does not include them.
+   */
+  unpricedTokens: z.number().int().nonnegative(),
   agentRuns: z.number().int().nonnegative()
 })
 export type UsageTotals = z.infer<typeof UsageTotals>
@@ -124,6 +127,10 @@ export const Evidence = z.object({
   outputTail: z.string().max(20_000),
   outputBytes: z.number().int().nonnegative(),
   outputSha256: z.string().regex(/^[0-9a-f]{64}$/),
+  /** Output exceeded the log quota and was cut off (exit code is still authoritative). */
+  outputTruncated: z.boolean(),
+  /** The check modified tracked files in its checkout; the result is flagged as untrustworthy. */
+  treeMutated: z.boolean(),
   required: z.boolean()
 })
 export type Evidence = z.infer<typeof Evidence>
@@ -138,6 +145,8 @@ export type DemoReport = z.infer<typeof DemoReport>
 
 export const WorkspaceInfo = z.object({
   path: z.string(),
+  /** Absolute git admin dir of this worktree; every engine git call is pinned to it. */
+  gitDir: z.string(),
   branch: z.string(),
   baseSha: z.string(),
   headSha: z.string().nullable(),
@@ -149,7 +158,10 @@ export const AppliedInfo = z.object({
   targetBranch: z.string(),
   beforeSha: z.string(),
   afterSha: z.string(),
-  method: z.enum(['fast_forward', 'merge']),
+  /** Applies are always fast-forwards of a verified tree; 'none' = nothing new to apply. */
+  method: z.enum(['fast_forward', 'none']),
+  /** Set when the task branch had to integrate newer commits from the target and was re-verified. */
+  integratedSha: z.string().nullable(),
   rolledBackSha: z.string().nullable()
 })
 export type AppliedInfo = z.infer<typeof AppliedInfo>
@@ -176,6 +188,7 @@ export const AgentRunInfo = z.object({
   endedAt: IsoTime.nullable(),
   usage: UsageTotals,
   error: z.string().nullable(),
+  pid: z.number().int().nullable(),
   /** Short rolling tail of agent text for live display. */
   tail: z.string().max(8000)
 })
@@ -208,6 +221,14 @@ export const Task = z.object({
   review: Review.nullable(),
   checks: z.array(CheckSpec),
   checksApproved: z.boolean(),
+  /**
+   * Digest of the files that define the checks (package.json scripts, .hydra/checks.json,
+   * build files) at plan time. If an agent changes them, Safe mode refuses to run checks
+   * and every mode flags it for the reviewer and the human.
+   */
+  checkDigest: z.string().nullable(),
+  /** Written before Hydra touches the user's branch, so a crash mid-apply can be reconciled. */
+  applyIntent: z.object({ targetBranch: z.string(), beforeSha: z.string(), approvedSha: z.string(), startedAt: IsoTime }).nullable(),
   demo: DemoReport.nullable(),
   answer: z.string().nullable(),
   workspace: WorkspaceInfo.nullable(),
@@ -259,4 +280,4 @@ export const Device = z.object({
 })
 export type Device = z.infer<typeof Device>
 
-export const emptyUsage = (): UsageTotals => ({ inputTokens: 0, outputTokens: 0, cachedTokens: 0, costUsd: 0, costEstimated: false, agentRuns: 0 })
+export const emptyUsage = (): UsageTotals => ({ inputTokens: 0, outputTokens: 0, cachedTokens: 0, costUsd: 0, unpricedTokens: 0, agentRuns: 0 })

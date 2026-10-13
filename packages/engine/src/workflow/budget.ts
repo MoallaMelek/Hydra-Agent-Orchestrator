@@ -1,23 +1,31 @@
 import type { Task, UsageTotals } from '@hydra/protocol'
 import { BudgetExceededError } from '../util/errors.js'
 
-export function addUsage(total: UsageTotals, delta: { inputTokens: number; outputTokens: number; cachedTokens: number; costUsd: number | null }): UsageTotals {
+export interface UsageDelta { inputTokens: number; outputTokens: number; cachedTokens: number; costUsd: number | null }
+
+/**
+ * Adds a usage report. Runs without a provider-reported price (Codex CLI) add to
+ * `unpricedTokens` instead of pretending to cost $0; they are bounded by tokens.
+ */
+export function addUsage(total: UsageTotals, delta: UsageDelta): UsageTotals {
   return {
     ...total,
     inputTokens: total.inputTokens + delta.inputTokens,
     outputTokens: total.outputTokens + delta.outputTokens,
     cachedTokens: total.cachedTokens + delta.cachedTokens,
     costUsd: total.costUsd + (delta.costUsd ?? 0),
-    costEstimated: total.costEstimated || delta.costUsd === null
+    unpricedTokens: total.unpricedTokens + (delta.costUsd === null ? delta.inputTokens + delta.outputTokens : 0)
   }
 }
 
 export const billableTokens = (usage: UsageTotals): number => usage.inputTokens + usage.outputTokens
 
-/** Throws if starting another agent run would violate the task budget. */
+/** Throws if starting another agent run would violate the task budget (limits are inclusive). */
 export function assertCanStartRun(task: Task, now: number = Date.now()): void {
   const b = task.budget
   if (task.usage.agentRuns >= b.maxAgentRuns) throw new BudgetExceededError(`Agent run limit reached (${b.maxAgentRuns})`)
+  if (task.usage.costUsd >= b.maxCostUsd) throw new BudgetExceededError(`Cost limit reached: $${task.usage.costUsd.toFixed(2)} of $${b.maxCostUsd.toFixed(2)}`)
+  if (billableTokens(task.usage) >= b.maxTokens) throw new BudgetExceededError(`Token limit reached: ${billableTokens(task.usage)} of ${b.maxTokens}`)
   assertWithinBudget(task, task.usage, now)
 }
 
@@ -38,6 +46,11 @@ export function activeMinutes(task: Task, now: number = Date.now()): number {
     ms += Math.max(0, end - Date.parse(record.startedAt))
   }
   return ms / 60_000
+}
+
+/** Active-time budget left, in milliseconds (used to cap individual runs). */
+export function remainingActiveMs(task: Task, now: number = Date.now()): number {
+  return Math.max(0, task.budget.maxWallMinutes * 60_000 - activeMinutes(task, now) * 60_000)
 }
 
 /** Dollars still available for a single run, passed to providers that support a hard cap. */

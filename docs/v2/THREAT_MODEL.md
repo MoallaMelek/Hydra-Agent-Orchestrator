@@ -23,3 +23,7 @@ Enforcement labels: **[OS]** enforced by the operating system or sandbox · **[C
 | T13 | Supply chain (A8) | Pinned lockfile, `npm audit` gate in CI, minimal dependencies, no runtime `npx`/remote code | [ENGINE] | Transitive compromise before advisories exist |
 | T14 | Update tampering | Updates only from signed releases (signing pending owner certificates) | — | Unsigned builds until the owner obtains certificates |
 | T15 | Electron renderer compromise | `contextIsolation`, `sandbox`, no `nodeIntegration`, minimal preload, navigation and window-open blocking, CSP | [ENGINE] | — |
+| T16 | Orphaned agent/check descendants on Windows after their parent exits | POSIX: process-group kill after every run; Windows: `taskkill /T` while the parent lives, plus PID-verified orphan kill at recovery | [ENGINE] | Descendants detached from an already-exited parent on Windows may survive (needs Job Objects) |
+| T17 | Git filters (clean/smudge) from user config execute during engine checkouts | Hooks disabled; `--no-ext-diff --no-textconv` for diffs | [ENGINE] | Filters configured in the user's git config still run |
+| T18 | Tampered worktree git metadata redirects engine commits | Pinned `--git-dir/--work-tree`; `.git` pointer and HEAD verified before every write | [ENGINE] | — |
+| T19 | Stale or replayed approval applies an unreviewed revision | Accept carries the reviewed SHA; mismatch is refused; moved target triggers integrate + re-verify + fresh approval | [ENGINE] | — |

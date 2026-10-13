@@ -161,10 +161,13 @@ export class Store {
   }
 
   // ── agent runs and evidence ───────────────────────────────
-  putRun(run: AgentRunInfo, opts: { durable: boolean } = { durable: true }): void {
-    this.db.prepare('INSERT INTO agent_runs (id, task_id, doc) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET doc = excluded.doc')
-      .run(run.id, run.taskId, JSON.stringify(run))
-    if (opts.durable) this.publish({ type: 'run.updated', run })
+  putRun(run: AgentRunInfo): void {
+    AgentRunInfo.parse(run)
+    this.transaction(() => {
+      this.db.prepare('INSERT INTO agent_runs (id, task_id, doc) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET doc = excluded.doc')
+        .run(run.id, run.taskId, JSON.stringify(run))
+      this.publish({ type: 'run.updated', run })
+    })
   }
 
   listRuns(taskId: string): AgentRunInfo[] {

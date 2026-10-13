@@ -8,7 +8,7 @@ const task = (over: Partial<Task> = {}): Task => ({
   assignment: { planner: 'claude', implementer: 'codex', reviewer: 'claude' },
   budget: { maxCostUsd: 5, maxTokens: 1e6, maxWallMinutes: 60, maxAgentRuns: 10, maxFixRounds: 2 },
   status: 'running', stage: 'plan', waitReason: null, outcome: null, fixRound: 0, plan: null, review: null, checks: [],
-  checksApproved: true, demo: null, answer: null, workspace: null, applied: null, usage: emptyUsage(), stages: [], feedback: [],
+  checksApproved: true, checkDigest: null, applyIntent: null, demo: null, answer: null, workspace: null, applied: null, usage: emptyUsage(), stages: [], feedback: [],
   error: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...over
 })
 const dev = policyFor('developer')

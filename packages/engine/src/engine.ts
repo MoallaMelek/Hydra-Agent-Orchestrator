@@ -11,6 +11,7 @@ import { WorkspaceManager } from './isolation/workspace.js'
 import { enginePaths, type EngineContext, logTask, Semaphore } from './orchestrator/context.js'
 import { Orchestrator } from './orchestrator/orchestrator.js'
 import { Store } from './store/store.js'
+import { InstanceLock } from './process/instance.js'
 import { conflict, errorMessage, forbidden, HydraError, invalid, notFound, unavailable } from './util/errors.js'
 import { isoNow, newId } from './util/ids.js'
 import { policyFor } from './workflow/policy.js'
@@ -41,17 +42,20 @@ export class Engine {
   readonly version: string
   private readonly ctx: EngineContext
   private hooks: HostHooks
+  private readonly lock: InstanceLock
 
   private constructor(options: EngineOptions) {
     const paths = enginePaths(options.dataDir)
-    for (const dir of [paths.dataDir, paths.worktrees, paths.logs, paths.scratch, paths.backups]) mkdirSync(dir, { recursive: true })
+    for (const dir of [paths.dataDir, paths.worktrees, paths.checkouts, paths.logs, paths.scratch, paths.backups]) mkdirSync(dir, { recursive: true })
+    this.lock = new InstanceLock(paths.dataDir)
+    this.lock.acquire()
     this.store = new Store(paths.database)
     this.version = options.version ?? '2.0.0-alpha.0'
     this.hooks = options.hooks ?? {}
     this.ctx = {
       store: this.store,
       registry: options.registry ?? AdapterRegistry.production(options.env),
-      workspaces: new WorkspaceManager(paths.worktrees),
+      workspaces: new WorkspaceManager(paths.worktrees, paths.checkouts),
       paths,
       agentSlots: new Semaphore(options.maxConcurrentAgents ?? 3),
       env: options.env ?? process.env
@@ -61,7 +65,7 @@ export class Engine {
 
   static async open(options: EngineOptions): Promise<Engine> {
     const engine = new Engine(options)
-    const interrupted = engine.orchestrator.recover()
+    const interrupted = await engine.orchestrator.recover()
     if (interrupted) engine.store.audit('engine', 'recovery', { interruptedTasks: interrupted })
     if (!options.skipProbe) await engine.refreshProviders()
     else await engine.ctx.registry.refresh()
@@ -161,7 +165,7 @@ export class Engine {
       case 'task.cancel': this.requireTask(command.taskId); this.store.audit(actorLabel, 'task.cancel', { taskId: command.taskId }); return this.orchestrator.cancel(command.taskId)
       case 'task.resume': this.requireTask(command.taskId); this.orchestrator.resume(command.taskId); return null
       case 'task.approve_plan': this.requireTask(command.taskId); this.orchestrator.approvePlan(command.taskId, command.approve, command.note, source); return null
-      case 'task.decide': this.requireTask(command.taskId); this.orchestrator.decide(command.taskId, command.decision, command.feedback, source); return null
+      case 'task.decide': this.requireTask(command.taskId); this.orchestrator.decide(command.taskId, command.decision, command.feedback, command.headSha, source); return null
       case 'task.rollback': this.requireTask(command.taskId); return this.orchestrator.rollback(command.taskId, source)
       case 'task.delete': return this.deleteTask(command.taskId, actorLabel)
       case 'device.pair_start':
@@ -214,11 +218,11 @@ export class Engine {
       id: newId(), projectId: project.id, title: (command.title || firstLine).trim().slice(0, 120), prompt: command.prompt,
       intent: command.intent, mode: command.mode, assignment: command.assignment, budget,
       status: 'queued', stage: 'plan', waitReason: null, outcome: null, fixRound: 0,
-      plan: null, review: null, checks: [], checksApproved: !policyFor(command.mode).requireCheckApproval, demo: null, answer: null,
+      plan: null, review: null, checks: [], checksApproved: !policyFor(command.mode).requireCheckApproval, checkDigest: null, applyIntent: null, demo: null, answer: null,
       workspace: null, applied: null, usage: emptyUsage(), stages: [], feedback: [], error: null, createdAt: now, updatedAt: now
     }
     this.store.putTask(task)
-    this.orchestrator.start(task.id, { kind: 'run', stage: 'plan' })
+    this.orchestrator.begin(task.id)
     return task
   }
 
@@ -253,5 +257,6 @@ export class Engine {
   async close(): Promise<void> {
     await this.orchestrator.shutdown()
     this.store.close()
+    this.lock.release()
   }
 }

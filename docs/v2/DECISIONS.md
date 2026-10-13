@@ -57,3 +57,24 @@ Format: ID · date · decision · alternatives considered · why · consequences
 
 ### D-010 · npm workspaces (no pnpm)
 - Why: npm ships with Node, pnpm is not installed on the build machine, and contributors need fewer tools.
+
+### D-013 · 2026-10-13 · Engine hardening after independent Codex review (consultation round 1)
+- Context: a fresh, read-only Codex CLI session (no prior context, told not to read `legacy/`) reviewed `packages/engine` and recommended "request changes" with 25 findings. Report kept locally in `.hydra-dev/codex-consult-engine.md` (not committed).
+- Accepted and fixed:
+  - Git metadata redirection: every worktree git call is pinned with `--git-dir/--work-tree` recorded at creation, and the `.git` pointer and HEAD branch are verified first. `GIT_*` variables are stripped.
+  - Hooks and fsmonitor are disabled for every engine git call (`core.hooksPath` points at an empty per-process directory).
+  - Accept is bound to the reviewed commit (`task.decide.headSha`, required); stale decisions are refused.
+  - Apply and rollback are serialized per repository (`KeyedMutex`). Apply cannot be canceled midway. A durable `applyIntent` is written before touching the user's branch and reconciled after a crash.
+  - Apply is **always a fast-forward of a verified tree**. If the user's branch moved, Hydra integrates it into the task branch, re-verifies, and asks for a fresh decision. "Already contains it" is recorded as `method: none`.
+  - Checks run in a throwaway checkout of the exact SHA. Tracked-file mutation is detected per check (`treeMutated`). Dependency links exist only in those checkouts, never in agent worktrees.
+  - Safe-mode approval is bound to a digest of the check definitions (scripts and build files). Changed definitions are not executed in Safe mode and are flagged in other modes.
+  - Single engine per data directory (`engine.lock`). Recovery kills orphaned agent PIDs only after confirming the image is `claude`/`codex`.
+  - Agent env is an allowlist: system and toolchain variables plus *only that provider's* variables. Checks get no provider credentials.
+  - Secret redaction on stored and broadcast output; per-check log quota; log stream errors handled; realpath-based cwd confinement.
+  - Codex usage counts as `unpricedTokens` (token-bounded) instead of $0. Budget limits are inclusive and rechecked after waiting for a slot. A run cannot outlive the remaining active-time budget.
+  - `putRun` is transactional; the Maven/Gradle wrapper path bug is fixed; the demo uses the latest verify attempt.
+- Rebuttal and residual (documented, not fixed now):
+  - Windows descendants whose parent exited cannot be reliably killed without Job Objects (native code). POSIX uses process groups. → THREAT_MODEL T16.
+  - Stage outputs and stage completion are separate transactions; a crash between them re-runs that stage (idempotent re-run, wasted tokens, no safety impact).
+  - Git clean/smudge filters configured by the user still apply to engine checkouts. → T17.
+  - Checks run project code with the user's privileges; the optional container profile is the mitigation (not yet implemented). → T5.

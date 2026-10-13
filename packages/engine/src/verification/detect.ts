@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -75,11 +76,12 @@ function detectRust(root: string): CheckSpec[] {
 
 function detectJava(root: string): CheckSpec[] {
   if (has(root, 'pom.xml')) {
-    const mvn = has(root, IS_WIN ? 'mvnw.cmd' : 'mvnw') ? join('.', IS_WIN ? 'mvnw.cmd' : 'mvnw') : 'mvn'
+    // Keep an explicit "./" so the runner executes the project wrapper instead of searching PATH.
+    const mvn = has(root, IS_WIN ? 'mvnw.cmd' : 'mvnw') ? (IS_WIN ? './mvnw.cmd' : './mvnw') : 'mvn'
     return [spec('java', 'test', 'maven test', [mvn, '-B', '-q', 'test'], 1800)]
   }
   if (has(root, 'build.gradle', 'build.gradle.kts')) {
-    const gradle = has(root, IS_WIN ? 'gradlew.bat' : 'gradlew') ? join('.', IS_WIN ? 'gradlew.bat' : 'gradlew') : 'gradle'
+    const gradle = has(root, IS_WIN ? 'gradlew.bat' : 'gradlew') ? (IS_WIN ? './gradlew.bat' : './gradlew') : 'gradle'
     return [spec('java', 'test', 'gradle test', [gradle, 'test', '--console=plain'], 1800)]
   }
   return []
@@ -131,4 +133,27 @@ export function detectChecks(root: string): CheckSpec[] {
 /** Dependency directories linked from the project into a worktree (never committed). */
 export function dependencyLinks(root: string): string[] {
   return ['node_modules'].filter((name) => existsSync(join(root, name)))
+}
+
+/** Files whose content decides what a check actually executes. */
+const DEFINITION_FILES = [
+  join('.hydra', 'checks.json'), 'pyproject.toml', 'setup.cfg', 'setup.py', 'pytest.ini', 'tox.ini', 'conftest.py', 'requirements.txt',
+  'go.mod', 'Cargo.toml', 'pom.xml', 'build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts', 'CMakeLists.txt', 'Makefile', 'makefile'
+]
+
+/**
+ * Digest of everything that defines the checks: package.json scripts and the build
+ * files above. If an agent edits them after approval, the digest changes.
+ */
+export function checkDefinitionDigest(root: string): string {
+  const hash = createHash('sha256')
+  const pkg = read(root, 'package.json')
+  if (pkg) {
+    try { hash.update(JSON.stringify((JSON.parse(pkg) as { scripts?: unknown }).scripts ?? {})) } catch { hash.update(pkg) }
+  }
+  for (const file of DEFINITION_FILES) {
+    const body = read(root, file)
+    hash.update(JSON.stringify([file, body ?? null]))
+  }
+  return hash.digest('hex')
 }

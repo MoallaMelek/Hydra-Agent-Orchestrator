@@ -91,6 +91,16 @@ export async function killTree(child: ChildProcess, graceMs = 1500): Promise<voi
   if (!exited) signalGroup('SIGKILL')
 }
 
+/**
+ * After a process exits normally, kills anything left in its process group (POSIX).
+ * Windows has no equivalent without Job Objects; orphaned descendants there are a
+ * documented residual risk (THREAT_MODEL T16).
+ */
+export function reapGroup(child: ChildProcess): void {
+  if (IS_WINDOWS || !child.pid) return
+  try { process.kill(-child.pid, 'SIGKILL') } catch { /* group already empty */ }
+}
+
 export function waitForExit(child: ChildProcess, timeoutMs: number): Promise<boolean> {
   if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve(true)
   return new Promise((resolve) => {

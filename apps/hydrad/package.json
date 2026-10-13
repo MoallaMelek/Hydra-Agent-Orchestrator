@@ -1,0 +1,21 @@
+{
+  "name": "@hydra/hydrad",
+  "version": "2.0.0-alpha.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "hydrad": "./dist/hydrad.mjs"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@hydra/engine": "2.0.0-alpha.0",
+    "@hydra/protocol": "2.0.0-alpha.0",
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2",
+    "esbuild": "^0.28.2"
+  }
+}

@@ -1,7 +1,8 @@
 import type { z } from 'zod'
 import { emptyUsage, type AgentRole, type AgentRunInfo, type ProviderId, type TaskStage } from '@hydra/protocol'
 import type { AccessLevel } from '../agents/types.js'
-import { addUsage, assertCanStartRun, assertWithinBudget, remainingUsd } from '../workflow/budget.js'
+import { addUsage, assertCanStartRun, assertWithinBudget, remainingActiveMs, remainingUsd } from '../workflow/budget.js'
+import { redact } from '../util/redact.js'
 import { policyFor } from '../workflow/policy.js'
 import { CanceledError, type BudgetExceededError } from '../util/errors.js'
 import { isoNow, newId } from '../util/ids.js'
@@ -46,10 +47,12 @@ export async function callAgent<T>(ctx: EngineContext, call: AgentCall<T>): Prom
 
 async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string): Promise<{ structured: unknown; run: AgentRunInfo }> {
   if (call.signal.aborted) throw new CanceledError()
-  const task = ctx.store.getTask(call.taskId)!
-  assertCanStartRun(task)
+  assertCanStartRun(ctx.store.getTask(call.taskId)!)
   const adapter = ctx.registry.get(call.provider)
   const release = await ctx.agentSlots.acquire(call.signal)
+  // Re-check after waiting for a slot: other runs of this task may have spent the budget meanwhile.
+  const task = ctx.store.getTask(call.taskId)!
+  try { assertCanStartRun(task) } catch (error) { release(); throw error }
 
   const runAbort = new AbortController()
   const forward = () => runAbort.abort()
@@ -57,7 +60,7 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
 
   let run: AgentRunInfo = {
     id: newId(), taskId: call.taskId, stage: call.stage, role: call.role, provider: call.provider, model: null,
-    status: 'running', startedAt: isoNow(), endedAt: null, usage: emptyUsage(), error: null, tail: ''
+    status: 'running', startedAt: isoNow(), endedAt: null, usage: emptyUsage(), error: null, pid: null, tail: ''
   }
   ctx.store.putRun(run)
   updateTask(ctx, call.taskId, (t) => { t.usage.agentRuns += 1 })
@@ -72,14 +75,16 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
     ctx.store.publish({ type: 'run.output', runId: run.id, taskId: call.taskId, text: pending.slice(-16_000) })
     pending = ''
   }
-  const emitText = (text: string) => {
+  const emitText = (raw: string) => {
+    const text = redact(raw)
     run = { ...run, tail: (run.tail + text + '\n').slice(-8000) }
     pending += `${text}\n`
     if (!flushTimer) flushTimer = setTimeout(flush, OUTPUT_FLUSH_MS)
   }
 
   const policy = policyFor(task.mode)
-  const timeoutMs = policy.agentTimeoutMinutes * 60_000
+  // A single run may never outlive the task's remaining active-time budget.
+  const timeoutMs = Math.max(1000, Math.min(policy.agentTimeoutMinutes * 60_000, remainingActiveMs(task)))
   let finished: { status: 'succeeded' | 'failed' | 'canceled' | 'timed_out'; detail: string | null } = { status: 'failed', detail: 'Agent ended without a result' }
   try {
     for await (const event of adapter.run({
@@ -87,6 +92,9 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
       model: null, maxBudgetUsd: remainingUsd(task), timeoutMs
     }, runAbort.signal)) {
       switch (event.type) {
+        case 'started':
+          if (event.pid) { run = { ...run, pid: event.pid }; ctx.store.putRun(run) }
+          break
         case 'text': emitText(event.text); break
         case 'tool': emitText(`› ${event.name} ${event.summary}`); break
         case 'error': emitText(`⚠ ${event.message}`); break

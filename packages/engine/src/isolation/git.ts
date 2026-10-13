@@ -1,21 +1,46 @@
 import { execFile } from 'node:child_process'
+import { mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import type { DiffFile } from '@hydra/protocol'
 
 export interface GitResult { code: number; stdout: string; stderr: string }
 
-/** Identity used for Hydra-authored checkpoint commits inside task worktrees. */
-const HYDRA_IDENTITY = ['-c', 'user.name=Hydra', '-c', 'user.email=hydra@localhost', '-c', 'commit.gpgsign=false']
+/** Pins a command to a specific worktree so a tampered `.git` pointer file cannot redirect it. */
+export interface GitPin { gitDir: string; workTree: string }
 
-export function git(cwd: string, args: string[], options: { allowFail?: boolean; maxBuffer?: number; env?: NodeJS.ProcessEnv } = {}): Promise<GitResult> {
-  return new Promise((resolve, reject) => {
-    execFile('git', ['-c', 'core.quotepath=false', ...args], {
-      cwd, windowsHide: true, maxBuffer: options.maxBuffer ?? 32 * 1024 * 1024, timeout: 120_000,
-      env: { ...(options.env ?? process.env), GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' }
+/** Identity used for Hydra-authored checkpoint commits inside task worktrees. */
+export const HYDRA_IDENTITY = ['-c', 'user.name=Hydra', '-c', 'user.email=hydra@localhost', '-c', 'commit.gpgsign=false']
+
+/**
+ * Engine git calls never run repository hooks or fsmonitor helpers: hooks are
+ * pointed at an empty, unpredictable, per-process directory.
+ */
+const NO_HOOKS_DIR = mkdtempSync(join(tmpdir(), 'hydra-nohooks-'))
+const SAFE_CONFIG = ['-c', `core.hooksPath=${NO_HOOKS_DIR}`, '-c', 'core.fsmonitor=false', '-c', 'core.quotepath=false', '-c', 'advice.detachedHead=false']
+
+/** Environment for git: everything except variables that would redirect repository discovery. */
+function gitEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {}
+  for (const [key, value] of Object.entries(base)) {
+    if (value !== undefined && !/^GIT_/i.test(key)) env[key] = value
+  }
+  env.GIT_TERMINAL_PROMPT = '0'
+  env.LC_ALL = 'C'
+  return env
+}
+
+export function git(cwd: string, args: string[], options: { allowFail?: boolean; maxBuffer?: number; pin?: GitPin } = {}): Promise<GitResult> {
+  const pinned = options.pin ? ['--git-dir', options.pin.gitDir, '--work-tree', options.pin.workTree] : []
+  return new Promise((resolvePromise, reject) => {
+    execFile('git', [...SAFE_CONFIG, ...pinned, ...args], {
+      cwd, windowsHide: true, maxBuffer: options.maxBuffer ?? 32 * 1024 * 1024, timeout: 120_000, env: gitEnv(process.env)
     }, (error, stdout, stderr) => {
-      const code = error ? (typeof (error as NodeJS.ErrnoException & { code?: unknown }).code === 'number' ? Number((error as { code: number }).code) : 1) : 0
+      const raw = (error as { code?: unknown } | null)?.code
+      const code = error ? (typeof raw === 'number' ? raw : 1) : 0
       const result = { code, stdout: String(stdout), stderr: String(stderr) }
       if (code !== 0 && !options.allowFail) reject(new Error(`git ${args.join(' ')} failed: ${result.stderr.trim() || result.stdout.trim()}`))
-      else resolve(result)
+      else resolvePromise(result)
     })
   })
 }
@@ -25,40 +50,67 @@ export async function isRepository(dir: string): Promise<boolean> {
   return result.code === 0 && result.stdout.trim() === 'true'
 }
 
-export async function topLevel(dir: string): Promise<string> {
-  return (await git(dir, ['rev-parse', '--show-toplevel'])).stdout.trim()
-}
-
-export async function headSha(dir: string): Promise<string | null> {
-  const result = await git(dir, ['rev-parse', '--verify', 'HEAD'], { allowFail: true })
+export async function headSha(dir: string, pin?: GitPin): Promise<string | null> {
+  const result = await git(dir, ['rev-parse', '--verify', 'HEAD'], { allowFail: true, pin })
   return result.code === 0 ? result.stdout.trim() : null
 }
 
-export async function currentBranch(dir: string): Promise<string | null> {
-  const result = await git(dir, ['symbolic-ref', '--quiet', '--short', 'HEAD'], { allowFail: true })
+export async function currentBranch(dir: string, pin?: GitPin): Promise<string | null> {
+  const result = await git(dir, ['symbolic-ref', '--quiet', '--short', 'HEAD'], { allowFail: true, pin })
   return result.code === 0 ? result.stdout.trim() : null
 }
 
-export async function isClean(dir: string): Promise<boolean> {
-  return (await git(dir, ['status', '--porcelain', '--untracked-files=normal'])).stdout.trim() === ''
+export async function isClean(dir: string, pin?: GitPin): Promise<boolean> {
+  return (await git(dir, ['status', '--porcelain', '--untracked-files=normal'], { pin })).stdout.trim() === ''
 }
 
-/** Commits everything in the worktree under Hydra's identity. Returns the new SHA or null if nothing changed. */
-export async function commitAll(dir: string, message: string, exclude: readonly string[] = []): Promise<string | null> {
-  await git(dir, ['add', '-A'])
+/** True if tracked files differ from HEAD (untracked build output is ignored). */
+export async function trackedChanges(dir: string, pin?: GitPin): Promise<boolean> {
+  return (await git(dir, ['status', '--porcelain', '--untracked-files=no'], { pin })).stdout.trim() !== ''
+}
+
+export async function isAncestor(dir: string, ancestor: string, descendant: string): Promise<boolean> {
+  return (await git(dir, ['merge-base', '--is-ancestor', ancestor, descendant], { allowFail: true })).code === 0
+}
+
+/** Absolute admin dir of a worktree, read once at creation time when it is trustworthy. */
+export async function absoluteGitDir(worktree: string): Promise<string> {
+  return resolve((await git(worktree, ['rev-parse', '--absolute-git-dir'])).stdout.trim())
+}
+
+/**
+ * Confirms the worktree's `.git` pointer still names the admin dir recorded at
+ * creation and that HEAD is still the task branch. Anything else means an agent
+ * or check tampered with git metadata; the engine refuses to touch it.
+ */
+export async function assertWorktreeIntact(pin: GitPin, branch: string): Promise<void> {
+  let pointer = ''
+  try { pointer = readFileSync(join(pin.workTree, '.git'), 'utf8') } catch { /* missing */ }
+  const target = /^gitdir:\s*(.+)\s*$/m.exec(pointer)?.[1]
+  const same = (a: string, b: string) => (process.platform === 'win32' ? resolve(a).toLowerCase() === resolve(b).toLowerCase() : resolve(a) === resolve(b))
+  if (!target || !same(resolve(pin.workTree, target), pin.gitDir)) throw new Error('Workspace git metadata was modified (the .git pointer changed). Hydra refuses to operate on it.')
+  const head = await currentBranch(pin.workTree, pin)
+  if (head !== branch) throw new Error(`Workspace HEAD moved to ${head ?? 'a detached commit'} instead of ${branch}. Hydra refuses to operate on it.`)
+}
+
+/** Commits everything under Hydra's identity. Returns the new SHA, or null if nothing changed. */
+export async function commitAll(pin: GitPin, message: string, exclude: readonly string[] = []): Promise<string | null> {
+  const dir = pin.workTree
+  await git(dir, ['add', '-A'], { pin })
   // Paths Hydra linked into the worktree must never be committed: restore their index entries to HEAD.
-  for (const path of exclude) await git(dir, ['reset', '-q', '--', path], { allowFail: true })
-  const staged = await git(dir, ['diff', '--cached', '--quiet'], { allowFail: true })
+  for (const path of exclude) await git(dir, ['reset', '-q', '--', path], { allowFail: true, pin })
+  const staged = await git(dir, ['diff', '--cached', '--quiet'], { allowFail: true, pin })
   if (staged.code === 0) return null
-  await git(dir, [...HYDRA_IDENTITY, 'commit', '--no-verify', '-q', '-m', message])
-  return headSha(dir)
+  await git(dir, [...HYDRA_IDENTITY, 'commit', '--no-verify', '-q', '-m', message], { pin })
+  return headSha(dir, pin)
 }
 
 /** Parses `git diff base..head` into per-file patches (bounded). */
-export async function diffFiles(dir: string, base: string, head: string, maxBytes = 2_000_000): Promise<{ files: DiffFile[]; truncated: boolean }> {
-  const numstat = (await git(dir, ['diff', '--numstat', '-M', '-z', base, head])).stdout
-  const status = (await git(dir, ['diff', '--name-status', '-M', '-z', base, head])).stdout
-  const patch = (await git(dir, ['diff', '-M', '--no-color', '--unified=3', base, head], { maxBuffer: 64 * 1024 * 1024 })).stdout
+export async function diffFiles(pin: GitPin, base: string, head: string, maxBytes = 2_000_000): Promise<{ files: DiffFile[]; truncated: boolean }> {
+  const dir = pin.workTree
+  const numstat = (await git(dir, ['diff', '--numstat', '-M', '-z', base, head], { pin })).stdout
+  const status = (await git(dir, ['diff', '--name-status', '-M', '-z', base, head], { pin })).stdout
+  const patch = (await git(dir, ['diff', '-M', '--no-color', '--no-ext-diff', '--no-textconv', '--unified=3', base, head], { maxBuffer: 64 * 1024 * 1024, pin })).stdout
 
   const stats = new Map<string, { add: number; del: number; binary: boolean }>()
   const numParts = numstat.split('\0')
@@ -67,8 +119,7 @@ export async function diffFiles(dir: string, base: string, head: string, maxByte
     if (!entry) continue
     const [add, del, path] = entry.split('\t')
     if (path === '') { // rename: next two entries are old and new path
-      const newPath = numParts[i + 2] ?? ''
-      stats.set(newPath, { add: Number(add) || 0, del: Number(del) || 0, binary: add === '-' })
+      stats.set(numParts[i + 2] ?? '', { add: Number(add) || 0, del: Number(del) || 0, binary: add === '-' })
       i += 2
     } else if (path !== undefined) {
       stats.set(path, { add: Number(add) || 0, del: Number(del) || 0, binary: add === '-' })
@@ -90,7 +141,6 @@ export async function diffFiles(dir: string, base: string, head: string, maxByte
     files.push({ path, oldPath, status: kind, additions: stat.add, deletions: stat.del, patch: '' })
   }
 
-  // Attach per-file patch text, splitting on "diff --git" headers.
   const chunks = patch.split(/^(?=diff --git )/m)
   let used = 0
   let truncated = false
@@ -110,6 +160,10 @@ export async function addWorktree(repo: string, path: string, branch: string, ba
   await git(repo, ['worktree', 'add', '-b', branch, path, base])
 }
 
+export async function addDetachedWorktree(repo: string, path: string, sha: string): Promise<void> {
+  await git(repo, ['worktree', 'add', '--detach', path, sha])
+}
+
 export async function removeWorktree(repo: string, path: string): Promise<void> {
   await git(repo, ['worktree', 'remove', '--force', path], { allowFail: true })
   await git(repo, ['worktree', 'prune'], { allowFail: true })
@@ -120,4 +174,6 @@ export async function deleteBranch(repo: string, branch: string): Promise<void> 
   await git(repo, ['branch', '-D', branch], { allowFail: true })
 }
 
-export { HYDRA_IDENTITY }
+export async function branchExists(repo: string, branch: string): Promise<boolean> {
+  return (await git(repo, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`], { allowFail: true })).code === 0
+}

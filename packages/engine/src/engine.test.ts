@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { hostname } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Assignment, Task } from '@hydra/protocol'
@@ -59,6 +60,53 @@ async function until(engine: Engine, taskId: string, predicate: (t: Task) => boo
 const waiting = (t: Task) => t.status === 'waiting_input'
 
 describe('engine lifecycle', () => {
+  it('refuses a stale accept and re-asks after integrating a moved branch', async () => {
+    const { engine, repo, projectId } = await setup(script())
+    const task = await create(engine, projectId)
+    const ready = await until(engine, task.id, waiting)
+    const reviewed = ready.workspace!.headSha!
+    expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: 'b'.repeat(40) })).toMatchObject({ ok: false, error: { code: 'conflict' } })
+
+    // The user commits something unrelated before accepting.
+    writeFileSync(join(repo, 'NOTES.md'), 'user notes\n')
+    gitIn(repo, 'add', 'NOTES.md')
+    gitIn(repo, 'commit', '-qm', 'user notes')
+    await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: reviewed })
+    const again = await until(engine, task.id, (t) => waiting(t) && t.workspace!.headSha !== reviewed)
+    expect(again.error).toMatch(/integrated them and all checks pass/)
+    expect(readFileSync(join(repo, 'math.js'), 'utf8')).toContain('a - b') // still nothing applied
+    expect(engine.store.listEvidence(task.id).filter((e) => e.phase === 'verify' && e.commitSha === again.workspace!.headSha).at(-1)!.exitCode).toBe(0)
+
+    await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: again.workspace!.headSha! })
+    const done = await until(engine, task.id, (t) => t.status === 'completed')
+    expect(done.applied!.method).toBe('fast_forward')
+    expect(readFileSync(join(repo, 'math.js'), 'utf8')).toContain('a + b')
+    expect(readFileSync(join(repo, 'NOTES.md'), 'utf8')).toBe('user notes\n')
+  })
+
+  it('safe mode refuses to run checks whose definitions the agent changed after approval', async () => {
+    const adapter = script({ implementer: () => ({ files: { 'math.js': FIXED_MATH, 'package.json': JSON.stringify({ name: 'fixture', private: true, scripts: { test: 'node -e "process.exit(0)"' } }) }, structured: IMPL }) })
+    const { engine, projectId } = await setup(adapter)
+    const task = await create(engine, projectId, { mode: 'safe' })
+    await until(engine, task.id, (t) => waiting(t) && t.waitReason === 'plan_approval')
+    await engine.execute({ type: 'task.approve_plan', taskId: task.id, approve: true })
+    const ready = await until(engine, task.id, (t) => waiting(t) && t.waitReason === 'final_approval')
+    const verify = engine.store.listEvidence(task.id).filter((e) => e.phase === 'verify')
+    expect(verify.length).toBeGreaterThan(0)
+    expect(verify.every((e) => e.spawnError?.includes('definitions changed after approval'))).toBe(true)
+    expect(ready.demo!.deltas[0]!.after).toBe('error')
+  })
+
+  it('allows only one engine per data directory (different process)', async () => {
+    const { dataDir } = await setup(script())
+    const lock = JSON.parse(readFileSync(join(dataDir, 'engine.lock'), 'utf8')) as { pid: number }
+    expect(lock.pid).toBe(process.pid)
+    // A live foreign PID holding the lock blocks a second engine.
+    writeFileSync(join(dataDir, 'engine.lock'), JSON.stringify({ pid: process.ppid, host: hostname() }))
+    await expect(Engine.open({ dataDir, registry: new AdapterRegistry([script()]), skipProbe: true })).rejects.toThrow(/already using this data directory/)
+    writeFileSync(join(dataDir, 'engine.lock'), JSON.stringify({ pid: process.pid, host: hostname() }))
+  })
+
   it('runs PLAN→IMPLEMENT→REVIEW→VERIFY→DEMO→APPROVAL, applies only on accept, and rolls back', async () => {
     const { engine, repo, projectId } = await setup(script())
     const task = await create(engine, projectId)
@@ -81,7 +129,8 @@ describe('engine lifecycle', () => {
     const diff = await engine.taskDiff(task.id)
     expect(diff.files.map((f) => f.path)).toEqual(['math.js'])
 
-    expect((await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept' })).ok).toBe(true)
+    expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept' })).toMatchObject({ ok: false, error: { code: 'invalid' } })
+    expect((await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: ready.workspace!.headSha! })).ok).toBe(true)
     const applied = await until(engine, task.id, (t) => t.status === 'completed')
     expect(applied.outcome).toBe('applied')
     expect(readFileSync(join(repo, 'math.js'), 'utf8')).toContain('a + b')
@@ -187,7 +236,7 @@ describe('engine lifecycle', () => {
     expect(created.ok).toBe(true)
     const id = (created as { result: Task }).result.id
     await until(engine, id, waiting)
-    expect(await engine.execute({ type: 'task.decide', taskId: id, decision: 'accept' }, control)).toMatchObject({ ok: false, error: { code: 'forbidden' } })
+    expect(await engine.execute({ type: 'task.decide', taskId: id, decision: 'accept', headSha: 'a'.repeat(40) }, control)).toMatchObject({ ok: false, error: { code: 'forbidden' } })
   })
 
   it('rejects invalid commands and analysis-only tasks never create a workspace', async () => {

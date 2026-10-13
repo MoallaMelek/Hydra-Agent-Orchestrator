@@ -23,7 +23,11 @@ export const Command = z.discriminatedUnion('type', [
   z.object({ type: z.literal('task.cancel'), taskId: Id }),
   z.object({ type: z.literal('task.resume'), taskId: Id }),
   z.object({ type: z.literal('task.approve_plan'), taskId: Id, approve: z.boolean(), note: z.string().max(10_000).optional() }),
-  z.object({ type: z.literal('task.decide'), taskId: Id, decision: z.enum(['accept', 'request_changes', 'reject', 'keep_branch']), feedback: Feedback.optional() }),
+  z.object({
+    type: z.literal('task.decide'), taskId: Id, decision: z.enum(['accept', 'request_changes', 'reject', 'keep_branch']), feedback: Feedback.optional(),
+    /** The exact commit the person reviewed. Required to accept: stale decisions are refused. */
+    headSha: z.string().regex(/^[0-9a-f]{40}$/).optional()
+  }),
   z.object({ type: z.literal('task.rollback'), taskId: Id }),
   z.object({ type: z.literal('task.delete'), taskId: Id }),
   z.object({ type: z.literal('device.pair_start'), name: z.string().trim().min(1).max(80), scopes: z.array(DeviceScope).min(1) }),

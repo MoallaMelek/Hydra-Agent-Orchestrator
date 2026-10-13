@@ -1,7 +1,14 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/protocol" },
-    { "path": "packages/engine" }
+    {
+      "path": "packages/protocol"
+    },
+    {
+      "path": "packages/engine"
+    },
+    {
+      "path": "apps/hydrad"
+    }
   ]
 }

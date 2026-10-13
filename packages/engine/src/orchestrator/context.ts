@@ -9,6 +9,7 @@ export interface EnginePaths {
   dataDir: string
   database: string
   worktrees: string
+  checkouts: string
   logs: string
   scratch: string
   backups: string
@@ -19,6 +20,7 @@ export function enginePaths(dataDir: string): EnginePaths {
     dataDir,
     database: join(dataDir, 'hydra.db'),
     worktrees: join(dataDir, 'worktrees'),
+    checkouts: join(dataDir, 'checkouts'),
     logs: join(dataDir, 'logs'),
     scratch: join(dataDir, 'scratch'),
     backups: join(dataDir, 'backups')

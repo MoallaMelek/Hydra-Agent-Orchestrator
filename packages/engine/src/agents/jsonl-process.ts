@@ -1,4 +1,4 @@
-import { killTree, lineSplitter, spawnArgv } from '../process/spawn.js'
+import { killTree, lineSplitter, reapGroup, spawnArgv } from '../process/spawn.js'
 import type { AgentEvent } from './types.js'
 
 export interface JsonlProcessSpec {
@@ -83,6 +83,7 @@ export async function* runJsonlProcess(spec: JsonlProcessSpec, signal: AbortSign
       wake = null
     }
     const code = await exit
+    reapGroup(child)
     while (queue.length) yield queue.shift()!
     if (ending === 'canceled') yield { type: 'finished', status: 'canceled', detail: 'Canceled' }
     else if (ending === 'timed_out') yield { type: 'finished', status: 'timed_out', detail: `Timed out after ${Math.round(spec.timeoutMs / 1000)}s` }

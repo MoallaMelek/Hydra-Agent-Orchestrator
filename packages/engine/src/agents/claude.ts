@@ -113,7 +113,7 @@ export class ClaudeAdapter implements AgentAdapter {
     }
     const { translate, conclude } = claudeTranslator()
     yield* runJsonlProcess({
-      executable, args: claudeArgs(request), cwd: request.cwd, env: agentEnv(this.env),
+      executable, args: claudeArgs(request), cwd: request.cwd, env: agentEnv('claude', this.env),
       stdin: request.prompt, timeoutMs: request.timeoutMs, translate, conclude
     }, signal)
   }
