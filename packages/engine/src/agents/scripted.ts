@@ -12,6 +12,10 @@ export interface ScriptedStep {
   fail?: string
   /** Simulated work time; aborts are honoured while waiting. */
   delayMs?: number
+  /** When streaming, the reply is sent in pieces of this many characters... */
+  chunkSize?: number
+  /** ...with this pause between pieces (exercises live flushing). */
+  chunkDelayMs?: number
 }
 
 export type ScriptHandler = (request: AgentRunRequest, call: number) => ScriptedStep | Promise<ScriptedStep>
@@ -58,7 +62,13 @@ export class ScriptedAdapter implements AgentAdapter {
     }
     // Plain-text replies: the text itself, or an older-style structured { answer }.
     const reply = step.text ?? (!request.outputSchema && typeof (step.structured as { answer?: unknown } | undefined)?.answer === 'string' ? (step.structured as { answer: string }).answer : undefined)
-    if (reply && request.stream) for (const piece of reply.match(/[\s\S]{1,12}/g) ?? []) yield { type: 'text_delta', text: piece }
+    if (reply && request.stream) {
+      const size = step.chunkSize ?? 12
+      for (let i = 0; i < reply.length; i += size) {
+        yield { type: 'text_delta', text: reply.slice(i, i + size) }
+        if (step.chunkDelayMs) await new Promise((r) => setTimeout(r, step.chunkDelayMs))
+      }
+    }
     else if (step.text) yield { type: 'text', text: step.text }
     if (reply) yield { type: 'final_text', text: reply }
     if (step.usage) yield { type: 'usage', inputTokens: step.usage.inputTokens, outputTokens: step.usage.outputTokens, cachedTokens: 0, costUsd: step.usage.costUsd, model: 'scripted' }

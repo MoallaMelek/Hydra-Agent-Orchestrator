@@ -32,13 +32,25 @@ const CODE_REFERENCE = /[\w-]+\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|c|cc|cpp
 const SYMPTOM = /\b(crash(es|ed|ing)?|broken|breaks|fails?|failing|throws|hangs|freezes|doesn'?t work|does not work|not working|wrong|incorrect|regress(ion|ed)?)\b/i
 const HIGH_RISK = /\b(drop|truncate|wipe|purge|erase|destroy)\b|\bdelete\b.*\b(database|db|table|tables|all|everything|data|branch|repo(sitory)?|users?|records?|history)\b|rm\s+-rf|force[- ]push|push\s+(-f|--force)|reset\s+--hard|\b(prod|production)\b|\bdeploy\b|\b(credentials?|secrets?|passwords?|api[ -]?keys?|tokens?)\b|\bchmod\b|\bsudo\b/i
 
+// A destructive verb near something that holds data, in either order ("remove all records
+// from the users table", "the users table: clear it").
+const DESTROY_VERB = '(delete|deletes|deleting|remove|removes|removing|drop|dropping|truncate|wipe|wiping|purge|erase|clear|clearing|destroy|reset|overwrite|nuke)'
+const DATA_OBJECT = '(database|databases|db|table|tables|records?|rows?|data|dataset|users?|accounts?|customers?|collections?|buckets?|backups?|branch(es)?|repo(sitory)?|history|migrations?|volumes?|disk|everything|all)'
+const DESTROY_NEAR = new RegExp(`\\b${DESTROY_VERB}\\b(\\W+\\w+){0,6}?\\W+${DATA_OBJECT}\\b|\\b${DATA_OBJECT}\\b(\\W+\\w+){0,6}?\\W+${DESTROY_VERB}\\b`, 'i')
+
+/** True for text that asks for (or plans) destructive, secret-handling or production operations. */
+export function isHighRisk(text: string): boolean {
+  const t = text.replace(/\s+/g, ' ')
+  return HIGH_RISK.test(t) || DESTROY_NEAR.test(t)
+}
+
 /**
  * Deterministic, instant request classifier (no model call). Errs towards answering:
  * a misrouted question costs one cheap reply, and a reply can always be turned into a change.
  */
 export function classifyRequest(text: string): Omit<Route, 'auto'> {
   const t = text.trim()
-  const risk = HIGH_RISK.test(t) ? 'high' as const : 'normal' as const
+  const risk = isHighRisk(t) ? 'high' as const : 'normal' as const
   const words = t.split(/\s+/).filter(Boolean).length
   if (CHANGE_IMPERATIVE.test(t) || CHANGE_REQUEST.test(t)) {
     return { depth: 'deep', risk, reason: risk === 'high' ? 'A high-risk change: you will approve the plan first.' : 'Looks like a request to change the code.' }

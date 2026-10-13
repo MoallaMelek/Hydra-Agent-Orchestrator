@@ -99,6 +99,27 @@ Agents can lie, misreport, or run a different command than claimed. In v2 the en
 - A global scheduler limits concurrent agent runs (default 3) and concurrent tasks (default 4).
 - Tasks are isolated by worktree, so two tasks on the same project can run in parallel safely. APPLY is serialized per project (mutex) and requires a clean target tree.
 
+### 4.5 Adaptive execution (routing)
+Not every message needs the pipeline. `routeRequest()` in `packages/protocol/src/route.ts` is a deterministic classifier (regular expressions, under 0.5 ms, no model call). The UI runs it live to preview the route; the engine runs it again when it creates the task, and only the engine's result counts.
+
+| Depth | Typical message | Execution |
+|---|---|---|
+| `fast` | greeting, general question | one read-only agent call, plain-text reply streamed token by token; the prompt says to open files only if needed |
+| `standard` | question about this repository | one read-only agent call, streamed; reads the files it needs |
+| `deep` | request to change code, bug report | PLAN → IMPLEMENT → REVIEW → FIX → VERIFY → DEMO → APPROVAL |
+
+- **Risk is independent of depth.** A request that matches the high-risk patterns (deleting data, secrets, production, force-push, `sudo`…) and becomes a change always runs in Safe mode (plan approval), whatever mode or depth the user picked.
+- **Users may override** the depth (Quick answer / Code question / Full change). Overrides never remove the risk gate.
+- **Auto never fails a change in a folder without git**: it answers instead. A forced change there is refused with an explanation.
+- **The planner may answer.** If a "change" turns out to be a question, the planner returns a reply instead of a plan; the task finishes as answered and the unused worktree is removed.
+- **Follow-ups** (`task.followUpOf`) give the agent up to four earlier question/answer pairs.
+
+**Streaming.** Answers are plain text (`--include-partial-messages` for Claude), published as `run.output` events with `stream: 'answer'`. Text is redacted before it is published; an unfinished run of token-like characters is held back until it ends, so a secret split across chunks is never shown. The stored answer is redacted as a whole. Codex replies arrive at the end (its CLI does not stream text).
+
+**Pre-started agents.** Starting the Claude CLI takes seconds. The Claude adapter can start an answering process ahead of time (`--input-format stream-json`, same restricted read-only flags as any answer, spend cap $2). It is used only for plain-text read-only answers in the same directory whose own budget is at least that cap. At most two exist; each expires after 5 minutes idle; all are stopped when the engine closes. The composer pre-starts one when you focus it, and each answer pre-starts the next.
+
+Measured (TEST_EVIDENCE, real Claude): "hi" went from 5.1 s to 3.4 s total (median), with the first words after 2.5 s once warm. Hydra's own overhead is about 10 ms; the rest is the provider.
+
 ## 5. Agent adapter layer
 
 ```ts

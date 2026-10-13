@@ -150,3 +150,48 @@ Driven over the Chrome DevTools Protocol in the real Electron renderer, not a br
 An earlier run failed at "stop a running task" because the driver was still on the task page; that was a driver bug, fixed and rerun. The driver also had a false-pass bug (an empty step list passed); it now requires at least one step and records launch failures.
 
 **Not covered in the desktop run:** full accept and apply through the GUI with real agents (covered by `tools/live-e2e.mjs` and by browser-pane runs earlier), native folder picker (OS dialog), notifications, the packaged build (covered by CI installers), a crash mid-task in the GUI (the engine test covers crash recovery).
+
+## 2026-10-13 — Release hardening: performance, routing, history, remote replay
+
+### Performance (real Claude Code 2.1.282, Windows 11, `tools/bench-latency.mjs`)
+Same machine, same fixture, same day. "Provider alone" is the Claude CLI called directly with its default settings. The machine was busy (the Codex desktop app was running dozens of processes), so absolute numbers are pessimistic.
+
+| Scenario | Metric | Before (3 runs) | After (4 runs: 1 cold, 3 warm) |
+|---|---|---|---|
+| "hi" | Hydra overhead (ack → agent start) | ~10 ms | ~70 ms (git check; made lazy afterwards) |
+| "hi" | First visible answer text, median | 4.7 s (nothing streamed; text appeared at the end) | cold 3.3 s; warm 2.5 s median, 1.5 s best |
+| "hi" | Total, median | 5.1 s (p95 7.6 s) | 3.4 s |
+| "hi" | Provider alone, total median | 7.7 s | 7.2 s |
+| Repo question | Total, median | 10.6 s (p95 10.9 s) | 7.8 s |
+| Repo question | Provider alone, total median | 14.2 s | 11.8 s |
+
+Option experiment (2 runs each, "hi"): structured JSON output showed nothing until 5.9 s; plain streamed text first appeared at 3.2–3.6 s; disabling tools or low effort gave no gain; a pre-started process gave first text at 1.6–2.4 s. The 2-second first-output target is met only with a pre-started process and depends on provider conditions. Sample sizes are small; treat medians as indicative.
+
+### Routing and safety (automated)
+| Check | Result |
+|---|---|
+| Classifier on a 30-case table (greetings, code questions, changes, bug reports, risky requests) | VERIFIED 30/30, < 0.5 ms per call. The table was written alongside the classifier; this is not an independent accuracy measure |
+| Engine: greeting = one streamed read-only run, no worktree, no plan, no review | VERIFIED (`routing.test.ts`) |
+| Engine: high-risk change requested in Developer mode is forced to Safe and stops for plan approval | VERIFIED |
+| Manual depth overrides the classifier but never removes the risk gate | VERIFIED |
+| A secret split across streamed chunks is never published or stored | VERIFIED (12-character chunks of an Anthropic-format key) |
+| Follow-up carries the earlier question and answer | VERIFIED |
+| Question forced into the pipeline is answered by the planner, workspace removed | VERIFIED (`conversation.test.ts`, and live in the desktop app) |
+
+### Reliability and delivery (automated)
+| Check | Result |
+|---|---|
+| Unavailable provider: refused with `unavailable`, no task stored | VERIFIED (`delivery.test.ts`) |
+| Agent cannot start / crashes mid-change: task fails with the reason; workspace kept | VERIFIED |
+| Malformed commands: typed `invalid` errors | VERIFIED |
+| Phone reconnect: missed `task.log` events replayed after its cursor, other event types excluded | VERIFIED (`remote.test.ts`) |
+| Archive/restore a whole conversation; refused while running | VERIFIED (`history.test.ts`) |
+| Upgrade: a stored task without the new fields loads with defaults | VERIFIED |
+| A process that does not exit 10 s after being stopped is reported, not claimed stopped | Implemented; NOT exercised by a test (could not make a process ignore `taskkill /F` or SIGKILL portably) |
+
+### Real desktop app with a real agent (`npm run e2e:desktop`, Windows 11, dev build)
+VERIFIED 10/10 steps: first-run detection; add project; casual question routed to Quick answer (one run) with a natural, rendered reply; follow-up answered with context; question forced into the pipeline answered without a plan; a change routed to Full change, stopped for plan approval and rejected; a running change stopped; backup and export; quit releases the engine lock; relaunch keeps history. The no-agents run also passes.
+
+Driver bugs found and fixed while doing this (not product bugs): the click helper matched the sidebar "+" button's accessible label "Add project"; it now prefers visible text.
+
+`npm run check` → 145 passed, 1 skipped (Windows), typecheck, lint, originality.

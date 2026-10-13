@@ -1,62 +1,80 @@
-# Hydra v2 — User guide
+# Hydra — User guide
 
-Hydra lets AI coding agents (Claude Code and Codex CLI) work on your code **without touching your branch until you approve a verified result**.
+Hydra lets AI coding agents (Claude Code and Codex CLI) answer questions about your code and change it **without touching your branch until you approve a verified result**.
 
 ## 1. Install
-**Requirements:** Windows 10/11 x64 (tested), macOS or Linux (builds configured, not yet tested); git; and at least one of the agent CLIs below.
+**Requirements:** git, and at least one of the agent CLIs below. Installers exist for Windows 10/11 x64, macOS (Apple silicon) and Linux x64 (Debian/Ubuntu `.deb`, AppImage). They were installed and launched on fresh CI machines; only Windows has also been used daily.
 
-- **Windows:** run `Hydra-Setup-<version>-x64.exe`. Builds are currently **unsigned**, so Windows SmartScreen will warn you; choose *More info → Run anyway* only if you obtained the file from the official source.
+- **Windows:** run `Hydra-Setup-<version>-x64.exe` (installs for your user only). Builds are **unsigned**, so SmartScreen warns you: choose *More info → Run anyway* only if the file came from the official source.
+- **macOS:** open the DMG and copy Hydra to Applications. Unsigned: right-click Hydra → *Open* the first time.
+- **Linux:** `sudo apt install ./hydra-desktop_<version>_amd64.deb`, or make the AppImage executable and run it.
 - **From source:** `npm install`, `npm run build`, then `npm run desktop`.
 
 ## 2. Connect your agents (your accounts, your bill)
-Hydra does not include or resell AI access. It drives the CLIs installed on your computer, signed in with your own accounts:
+Hydra does not include or resell AI access. It drives the CLIs installed on your computer, signed in with your own accounts. The **Get started** panel on first launch shows what is missing:
 
 | Agent | Install | Sign in |
 |---|---|---|
-| Claude Code | per Anthropic's instructions | `claude auth login` (or `ANTHROPIC_API_KEY` in your environment) |
-| Codex CLI | per OpenAI's instructions | `codex login` |
+| Claude Code | `npm install -g @anthropic-ai/claude-code` | run `claude` and follow the prompt (or set `ANTHROPIC_API_KEY`) |
+| Codex CLI | `npm install -g @openai/codex` | `codex login` |
 
-Open **Agents & providers** in Hydra to see whether each one is installed, which version, and whether it is signed in. Hydra only asks the CLI "are you signed in?". It never reads, stores or sends your keys, tokens or account details.
+Press **Re-check** afterwards. Hydra only asks each CLI "are you signed in?". It never reads, stores or sends your keys, tokens or account details. To disconnect an account, sign out in the CLI (`claude auth logout`, `codex logout`); Hydra has nothing to revoke.
 
-## 3. Your first task
-1. **Add a project:** the `+` next to *Projects*, then choose a folder. Change tasks need a git repository with at least one commit.
-2. **Describe the task** in plain language. Choose:
-   - **Kind:** *Change code* or *Ask a question* (read-only).
-   - **Autonomy:**
-     - *Safe*: you approve the plan and the exact check commands before any code is written.
-     - *Developer*: agents work on their own inside the isolated copy.
-     - *Autonomous*: larger budgets and more fix rounds.
-     - Every mode needs your final approval.
-   - **Agents per role:** planner, implementer, reviewer. Using a different provider for the reviewer gives a more independent review.
-   - **Budget:** cost and active-time limits. Codex reports tokens but not prices, so Codex is limited by tokens.
-3. **Watch it work.** The pipeline shows PLAN → IMPLEMENT → REVIEW → FIX → VERIFY → DEMO → APPROVAL. The *Agents* tab streams output; *Activity* shows every stage.
+## 3. Ask or change: one box
+Add a project (any folder; changes need a git repository with at least one commit), then type in **Ask a question or describe a change**. Hydra shows how it will handle the message before you send it:
 
-## 4. Reviewing a result
-When a task says **Review result**:
+| Hydra picks (Auto) | When | What happens |
+|---|---|---|
+| **Quick answer** | Greetings and general questions | One agent replies; the reply appears as it is written. |
+| **Code question** | Questions about this repository | One agent reads the files it needs (read-only), then replies. |
+| **Full change** | Requests to change code ("fix…", "add…", a bug report) | Plan → isolated edit → independent review → Hydra runs your tests → you approve. |
+
+You can override Auto with the buttons under the box. Requests that look **risky** (deleting data, secrets, production, force-push) always stop for you to approve the plan first, whatever you choose. If you send a question as a change, Hydra simply answers it.
+
+For changes, choose how much freedom the agents get:
+- *Safe*: you approve the plan and the exact check commands before any code is written.
+- *Developer*: agents work on their own inside the isolated copy.
+- *Autonomous*: larger budgets and more fix rounds.
+
+Every mode needs your final approval. *Agents and limits* (folded by default) sets which agent plans, codes and reviews, and the cost and time limits.
+
+## 4. Conversations and history
+- Under an answer, **Ask a follow-up** continues the conversation; the agent sees the earlier questions and answers.
+- **Make this change** turns a question into a full change.
+- The project page lists your history as conversations, with **search** (questions, answers and changes) and paging.
+- **Archive** hides a conversation without deleting it; *Archived* shows and restores them. **Delete** asks first and removes the task and its logs (changes you accepted stay in your repository).
+- *Settings → Export as JSON* saves everything; *Back up now* saves a copy of the database.
+
+## 5. Reviewing a change
+When a change says **Review result**:
 - **Overview:** the plan, the review findings, and **Before → after**. Hydra ran your project's tests on the original commit and on the result.
-- **Changes:** the exact diff.
-- **Checks:** every command Hydra ran itself, with exit codes, the commit, and the full log.
-- **Warnings** appear above all of this. Examples: checks failing or missing, tests modified, build files changed, a same-provider review, regressions.
+- **Changes:** the exact diff. **Checks:** every command Hydra ran itself, with exit codes, the commit and the full log.
+- **Warnings** appear above all of this, for example failing or missing checks, modified tests, changed build files or a same-provider review.
 
-Then choose one:
-- **Accept** fast-forwards your branch to exactly the commit you reviewed. If your branch moved meanwhile, Hydra merges your changes into the task, re-runs the checks, and asks you again.
+Then choose:
+- **Accept** fast-forwards your branch to exactly the commit you reviewed. If your branch moved meanwhile, Hydra merges your changes into the task, re-runs the checks and asks you again.
 - **Request changes** sends your note to the implementer; the change is reviewed and verified again.
-- **Reject** discards the isolated copy.
-- **Keep branch** leaves a `hydra/…` branch for you to merge yourself.
+- **Reject** discards the isolated copy. **Keep branch** leaves a `hydra/…` branch for you to merge yourself.
 
-**Roll back** an applied task at any time. Hydra adds a revert commit; your history is never rewritten.
+**Roll back** an applied change at any time. Hydra adds a revert commit; your history is never rewritten.
 
-## 5. Your phone
-*Remote devices → Pair a phone.* Choose what the phone may do (view; start/cancel; approve/reject), then scan the QR code with the phone **on the same network**, or connected through your own VPN such as Tailscale. Check that the code on the phone matches the one on the desktop. Everything between phone and computer is end-to-end encrypted; no cloud service is involved. Revoke a phone at any time; it is cut off immediately. Pairings expire after 30 days.
+## 6. Your phone
+*Remote devices → Pair a phone.* Choose what the phone may do (view; start/cancel; approve/reject) and, if your computer has several networks, pick the one your phone is on (usually Wi-Fi). Scan the QR code with the phone **on the same Wi-Fi**, or through your own VPN such as Tailscale. Check that the code on the phone matches the desktop's.
 
-## 6. Where your data lives
-Everything is local: `%LOCALAPPDATA%\Hydra\v2` on Windows, `~/Library/Application Support/Hydra/v2` on macOS, `~/.local/share/hydra/v2` on Linux. That includes the SQLite database (backed up daily into `backups/`), the per-task worktrees, and the check logs. Prompts go only to the AI providers you selected, through your own accounts.
+- Everything between phone and computer is end-to-end encrypted; no cloud service is involved.
+- The phone works while Hydra is running on the computer. If it disconnects, it reconnects and catches up on what it missed.
+- Revoke a phone at any time; it is cut off immediately. Pairings expire after 30 days.
 
-## 7. Troubleshooting
+## 7. Where your data lives
+Everything is local: `%LOCALAPPDATA%\Hydra\v2` on Windows, `~/Library/Application Support/Hydra/v2` on macOS, `~/.local/share/hydra/v2` on Linux (readable only by your user on macOS and Linux). That includes the SQLite database (backed up daily into `backups/`), the per-task worktrees and the check logs. Prompts go only to the AI providers you selected, through your own accounts. Hydra has no telemetry.
+
+## 8. Troubleshooting
 | Symptom | What to do |
 |---|---|
-| A provider shows "not signed in" | Run its login command in a terminal, then *Re-check*. |
-| A task is **Paused**: "not accepting work right now" | Your provider account hit a usage or rate limit. Resume later, or start a new task with another provider. |
+| A provider shows "Not signed in" | Run its sign-in command in a terminal, then *Re-check*. |
+| A task is **Paused**: "not accepting work right now" | Your provider account hit a usage or rate limit. Resume later, or use another provider. |
 | "Your working tree has uncommitted changes" on Accept | Commit or stash your own work; Hydra never overwrites it. |
-| "No checks detected" | Add `.hydra/checks.json` listing the commands that verify your project, for example `{"checks":[{"label":"tests","kind":"test","argv":["npm","test"]}]}`. |
+| "No checks detected" | Add `.hydra/checks.json` listing the commands that verify your project, for example `{"checks":[{"label":"tests","kind":"test","argv":["npm","test"]}]}`. Node, Python, Go, Rust, Java and C/C++ are detected automatically. |
 | Hydra was closed during a task | The task is paused with completed stages kept; press **Resume**. |
+| The phone cannot open the pairing page | Same Wi-Fi? Pick another address under *Network* when pairing, and allow Hydra through the firewall on private networks. |
+| "Process … did not exit … may still be running" | An agent ignored the stop request; end it in Task Manager / Activity Monitor. |

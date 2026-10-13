@@ -15,6 +15,8 @@ export interface JsonlProcessSpec {
   conclude: (exitCode: number | null, stderrTail: string) => { status: 'succeeded' | 'failed'; detail: string | null }
   /** A process started ahead of time with the same arguments; used instead of spawning. */
   prestarted?: ChildProcess
+  /** How long a stopped process may take to exit before it is reported as still running. */
+  stopDeadlineMs?: number
 }
 
 /** How long a process may take to exit after being told to stop before Hydra reports it. */
@@ -29,12 +31,17 @@ export async function* runJsonlProcess(spec: JsonlProcessSpec, signal: AbortSign
   const queue: AgentEvent[] = []
   let wake: (() => void) | null = null
   let closed = false
+  let abandoned = false
   const push = (event: AgentEvent) => {
+    if (abandoned) return
     queue.push(event)
     wake?.()
   }
+  const deadlineMs = spec.stopDeadlineMs ?? STOP_DEADLINE_MS
 
   if (signal.aborted) {
+    // A process handed over to this run is ours to clean up, even if it never ran.
+    if (spec.prestarted) await killTree(spec.prestarted)
     yield { type: 'finished', status: 'canceled', detail: 'Canceled before start' }
     return
   }
@@ -58,7 +65,7 @@ export async function* runJsonlProcess(spec: JsonlProcessSpec, signal: AbortSign
     ending = why
     void killTree(child)
     // Never report a stop that did not happen: if the process outlives the deadline, say so.
-    const deadline = setTimeout(() => { if (!closed) { unstoppable = true; closed = true; wake?.() } }, STOP_DEADLINE_MS)
+    const deadline = setTimeout(() => { if (!closed) { unstoppable = true; closed = true; wake?.() } }, deadlineMs)
     deadline.unref?.()
   }
   const onAbort = () => stop('canceled')
@@ -73,8 +80,19 @@ export async function* runJsonlProcess(spec: JsonlProcessSpec, signal: AbortSign
     try { json = JSON.parse(line) } catch { return } // non-JSON diagnostics are ignored
     if (json && typeof json === 'object') for (const event of spec.translate(json as Record<string, unknown>)) push(event)
   })
-  child.stdout?.on('data', (chunk) => lines.push(chunk))
-  child.stderr?.on('data', (chunk) => { stderrTail = (stderrTail + chunk.toString()).slice(-4000) })
+  const onStdout = (chunk: Buffer) => lines.push(chunk)
+  const onStderr = (chunk: Buffer) => { stderrTail = (stderrTail + chunk.toString()).slice(-4000) }
+  child.stdout?.on('data', onStdout)
+  child.stderr?.on('data', onStderr)
+  /** Stops reading a process this run no longer follows; its output is drained and discarded. */
+  const detach = () => {
+    abandoned = true
+    queue.length = 0
+    child.stdout?.off('data', onStdout)
+    child.stderr?.off('data', onStderr)
+    child.stdout?.resume()
+    child.stderr?.resume()
+  }
   child.stdin?.on('error', () => { /* child may exit before reading stdin */ })
   child.stdin?.end(spec.stdin)
 
@@ -96,8 +114,10 @@ export async function* runJsonlProcess(spec: JsonlProcessSpec, signal: AbortSign
       wake = null
     }
     if (unstoppable) {
-      while (queue.length) yield queue.shift()!
-      yield { type: 'finished', status: 'failed', detail: `Process ${child.pid ?? '?'} did not exit within ${STOP_DEADLINE_MS / 1000}s of being stopped and may still be running; end it in your task manager.` }
+      const pending = queue.splice(0)
+      detach()
+      for (const event of pending) yield event
+      yield { type: 'finished', status: 'failed', detail: `Process ${child.pid ?? '?'} did not exit within ${Math.round(deadlineMs / 1000)}s of being stopped and may still be running; end it in your task manager.` }
       return
     }
     const code = await exit
@@ -113,5 +133,6 @@ export async function* runJsonlProcess(spec: JsonlProcessSpec, signal: AbortSign
     clearTimeout(timer)
     signal.removeEventListener('abort', onAbort)
     if (!closed) await killTree(child)
+    detach()
   }
 }

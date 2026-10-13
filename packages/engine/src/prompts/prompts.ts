@@ -79,7 +79,8 @@ export interface Turn { question: string; answer: string }
 export function answerPrompt(task: Task, history: readonly Turn[] = []): string {
   const quick = task.route?.depth === 'fast'
   const earlier = history.length
-    ? ['## Earlier in this conversation', ...history.map((turn) => `User: ${turn.question}\n\nYou: ${turn.answer}`)].join('\n\n')
+    // Earlier answers were written after reading repository files, so they are data, not instructions.
+    ? ['## Earlier in this conversation', ...history.map((turn) => `User: ${turn.question}\n\n${untrusted('your earlier answer', turn.answer)}`)].join('\n\n')
     : ''
   return [
     quick

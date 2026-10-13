@@ -183,11 +183,13 @@ export class Engine {
         const root = this.requireTask(command.taskId)
         // A conversation is archived as a whole: the task, what it follows up on, and its follow-ups.
         const all = this.store.listTasks(root.projectId)
+        const exists = new Set(all.map((t) => t.id))
         const ids = new Set<string>([root.id])
         for (let changed = true; changed;) {
           changed = false
           for (const t of all) {
-            if (ids.has(t.id) && t.followUpOf && !ids.has(t.followUpOf)) { ids.add(t.followUpOf); changed = true }
+            // Only tasks that still exist: a deleted earlier message must not abort the batch halfway.
+            if (ids.has(t.id) && t.followUpOf && exists.has(t.followUpOf) && !ids.has(t.followUpOf)) { ids.add(t.followUpOf); changed = true }
             if (t.followUpOf && ids.has(t.followUpOf) && !ids.has(t.id)) { ids.add(t.id); changed = true }
           }
         }
@@ -278,6 +280,10 @@ export class Engine {
     rmSync(join(this.ctx.paths.logs, taskId), { recursive: true, force: true })
     rmSync(join(this.ctx.paths.scratch, taskId), { recursive: true, force: true })
     this.store.audit(actorLabel, 'task.delete', { taskId })
+    // Keep the rest of the conversation connected: follow-ups now continue from the message before this one.
+    for (const t of this.store.listTasks(task.projectId)) {
+      if (t.followUpOf === taskId) updateTask(this.ctx, t.id, (draft) => { draft.followUpOf = task.followUpOf })
+    }
     this.store.deleteTask(taskId)
     return null
   }

@@ -131,6 +131,10 @@ export class ClaudeAdapter implements AgentAdapter {
       yield { type: 'finished', status: 'failed', detail: 'Claude Code CLI not found' }
       return
     }
+    if (signal.aborted) {
+      yield { type: 'finished', status: 'canceled', detail: 'Canceled before start' }
+      return
+    }
     const { translate, conclude } = claudeTranslator()
     const warm = this.takeWarm(request)
     yield* runJsonlProcess({

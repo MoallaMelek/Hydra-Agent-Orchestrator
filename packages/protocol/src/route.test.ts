@@ -32,6 +32,11 @@ const CASES: Array<[string, 'fast' | 'standard' | 'deep', 'normal' | 'high']> = 
   ['remove the API key from config.json', 'deep', 'high'],
   ['How do I rotate the API keys safely?', 'standard', 'high'],
   ['What happens if I delete the database?', 'standard', 'high'],
+  ['Remove all records from the users table', 'deep', 'high'],
+  ['clear   the\nproduction-like customers   data before the demo', 'deep', 'high'],
+  ['the old backups: please purge them', 'deep', 'high'],
+  ['Remove the unused import in utils.ts', 'deep', 'normal'],
+  ['Add a reset button to the form', 'deep', 'normal'],
   ['ok', 'fast', 'normal']
 ]
 

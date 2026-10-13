@@ -9,6 +9,7 @@ Status labels: **DONE** (fixed and covered by a regression test that fails on th
 | A1 | 2026-10-13 | Codex CLI (read-only sandbox) | Engine: isolation, verification, apply, adapters, budgets | Independent model, no write access | 11 findings, all fixed (DECISIONS D-013) |
 | A2 | 2026-10-13 | Claude (self-review) | Remote host | **Not independent** | 4 findings fixed (D-014) |
 | A3 | 2026-10-13 | Codex CLI (read-only sandbox) | Mobile remote control: `remote.ts`, `server.ts`, `security.ts`, `secure-channel`, store acks, docs | Independent model, no write access; reproduced 5 issues with in-memory harnesses | 7 findings, all fixed (D-015); 5 doc corrections made |
+| A4 | 2026-10-14 | Codex CLI (read-only sandbox) | Adaptive execution: router and risk gate, streamed answers and redaction, pre-started agents, process runner, remote replay, follow-ups, archive (`git diff 7267bb7..5f976e1`) | Independent model, no write access; reproduced 4 issues with in-memory harnesses | 6 findings (1 High, 4 Medium, 1 Low), all fixed (D-016) |
 
 No external human penetration test has been performed. That remains a release blocker for a paid product (see COMMERCIAL_READINESS.md).
 
@@ -39,6 +40,19 @@ Each fix has a regression test. Before committing, the tests were run against th
 ### Not established by A3
 
 The reviewer reported no concrete handshake/KDF flaw, reflection, nonce reuse, command-scope bypass, path traversal, stored XSS or Electron shell escape. This is the absence of a finding by one reviewer, not proof of absence.
+
+## A4 findings — adaptive execution
+
+| ID | Severity | Finding | Fix | Regression test | Status |
+|---|---|---|---|---|---|
+| A4-1 | High | Streamed answers could show a multi-line secret (a private key arriving line by line) before redaction could recognise it; the stored answer was redacted, hiding the exposure | Only whole words are streamed; everything from an unclosed `-----BEGIN …-----` is held until its `-----END …-----`; if redaction would ever change text already shown, streaming stops for that run (the stored answer is still redacted whole) | `review-fixes.test.ts` A4-1: unit cases, and a key streamed in 9-character pieces with 120 ms pauses (intermediate flushes) | DONE (the old code had no separate function to test against; the failure was reproduced by the reviewer) |
+| A4-2 | Medium | Destructive wording outside the pattern list ("Remove all records from the users table") skipped the forced plan approval | Destructive verb near a data object in either order, whitespace normalised; **and** the plan itself is checked: a risky plan stops for approval in every mode | `route.test.ts` new cases; A4-2 (plan-based escalation) | DONE (A4-2 fails on the old code) |
+| A4-3 | Medium | A cancelled run could orphan a pre-started process | Cancellation is checked before a pre-started process is claimed, and a claimed process is always cleaned up | A4-3 (real child process) | DONE (fails on the old code) |
+| A4-4 | Medium | After the stop deadline, output from a process that would not stop kept being parsed into an abandoned queue | Listeners are detached and further output is drained and discarded | A4-4 (stand-in process that ignores stops) | DONE (fails on the old code) |
+| A4-5 | Medium | On a phone reconnect, a live event could overtake the replay and make it skip the missed events; incomplete catch-up was reported as complete | `EventSequencer`: live journal events are held during catch-up and applied after it in order, once; incomplete catch-up is reported | `sequencer.test.ts` (the reviewer's exact scenario) | DONE |
+| A4-6 | Low | Archiving a follow-up whose first message was deleted partly succeeded, then failed | Only existing tasks are traversed; deleting a message re-links its follow-ups to the one before it | A4-6 | DONE (fails on the old code) |
+
+Also from A4: earlier answers given to follow-ups are now fenced as untrusted data (they were written after reading repository files).
 
 ## Residual risks (ACCEPTED, documented)
 

@@ -32,8 +32,21 @@ export interface AgentCallResult<T> {
 const OUTPUT_FLUSH_MS = 400
 /** Streamed replies are flushed faster so the user sees them appear. */
 const ANSWER_FLUSH_MS = 80
-/** An unfinished run of token-like characters this long is held back until it ends, so secrets are redacted whole. */
-const HOLD_BACK = /[A-Za-z0-9_\-+/=.]{8,}$/
+const PEM_BEGIN = /-----BEGIN [A-Z0-9 ]*-----/g
+const PEM_END = /-----END [A-Z0-9 ]*-----/
+
+/**
+ * How much of a streamed reply is safe to show now. Secrets must be redacted whole, so
+ * the unfinished last word is held back, and so is everything from an unclosed
+ * "-----BEGIN …-----" block (private keys arrive over many lines).
+ */
+export function streamableLength(text: string): number {
+  let end = Math.max(text.lastIndexOf(' '), text.lastIndexOf('\n'), text.lastIndexOf('\t')) + 1
+  for (const match of text.matchAll(PEM_BEGIN)) {
+    if (!PEM_END.test(text.slice(match.index + match[0].length))) { end = Math.min(end, match.index); break }
+  }
+  return end
+}
 
 /** A plain-text reply, streamed to the UI while it is written. Redacted before it is shown or stored. */
 export async function callAgentText(ctx: EngineContext, call: AgentCall<string>): Promise<{ text: string; run: AgentRunInfo }> {
@@ -82,15 +95,19 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
   let structured: unknown
   let finalText = ''
   let draft = ''
-  let published = 0
+  let shown = ''
+  let streamingStopped = false
   let answerTimer: ReturnType<typeof setTimeout> | null = null
   const flushAnswer = (final: boolean) => {
     answerTimer = null
-    const hold = final ? null : HOLD_BACK.exec(draft)
-    const ready = redact(hold ? draft.slice(0, hold.index) : draft)
-    if (ready.length <= published) return
-    const piece = ready.slice(published)
-    published = ready.length
+    if (streamingStopped) return
+    const ready = redact(final ? draft : draft.slice(0, streamableLength(draft)))
+    // Never contradict what was already shown: if redaction would change it, stop streaming.
+    // The final answer is still stored, redacted as a whole.
+    if (!ready.startsWith(shown)) { streamingStopped = true; return }
+    if (ready.length === shown.length) return
+    const piece = ready.slice(shown.length)
+    shown = ready
     run = { ...run, tail: (run.tail + piece).slice(-8000) }
     ctx.store.publish({ type: 'run.output', runId: run.id, taskId: call.taskId, text: piece.slice(-16_000), stream: 'answer' })
   }

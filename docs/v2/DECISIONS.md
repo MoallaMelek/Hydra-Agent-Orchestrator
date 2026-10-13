@@ -88,3 +88,13 @@ Format: ID · date · decision · alternatives considered · why · consequences
 - Accepted all 7 findings; no rebuttal was needed. Each fix has a regression test that was confirmed to fail on the previous code.
 - Design choices: device state is read from SQLite on every remote request rather than cached (one indexed lookup; correctness over micro-optimisation). Only successful command acks are persisted, because a failed command has no side effect to protect and storing failures let a view-only device grow the database. When the handshake table is full, new addresses are refused rather than evicting active ones; a determined LAN attacker can therefore delay new pairings by up to a minute (T11 residual).
 - Origin is now checked on every local HTTP request, not only WebSocket upgrades (T8 correction).
+
+### D-016 · 2026-10-13 · Adaptive execution: deterministic routing, streamed answers, pre-started agents
+- Problem: simple questions felt slow. Measured baseline: Hydra's own overhead was ~10 ms, but answers were returned as structured JSON (nothing visible until the end, ~5 s for "hi"), every question paid ~3–4 s of CLI start-up, and questions sent as changes went through the pipeline.
+- Alternatives considered: (a) a model call to classify each request (adds seconds, defeats the purpose); (b) keeping one long-lived Claude session per project (faster, but context carries over between unrelated tasks); (c) disabling tools or lowering effort for quick answers (measured: no gain).
+- Decision: a deterministic classifier shared by UI and engine; plain-text streamed answers; single-use pre-started read-only processes (no shared context). Risk is classified separately and enforced in the engine.
+- Consequences: the answer schema (`keyFindings`, `filesReferenced`) is gone; answers are Markdown. The classifier is heuristic: misrouting a change as a question costs one cheap reply and the user can press "Make this change"; misrouting a question as a change ends with the planner replying. Its accuracy was measured only on a 30-case table written alongside it.
+
+### D-017 · 2026-10-13 · The repository contains only Hydra v2 (owner request)
+- The archived earlier implementation, its audit and the provenance write-up were removed from the tree; `main` was fast-forwarded to the v2 branch (no force-push; history kept). A private copy of the provenance evidence and a full history bundle are kept on the owner's machine.
+- The originality check still runs in CI: it compares the code against the archived implementation in git history (tag) instead of a folder.

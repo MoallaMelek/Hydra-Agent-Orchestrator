@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Plan, Review, type DemoReport, type Evidence, type Task, type TaskStage } from '@hydra/protocol'
+import { isHighRisk, Plan, Review, type DemoReport, type Evidence, type Task, type TaskStage } from '@hydra/protocol'
 import { isAncestor } from '../isolation/git.js'
 import { answerPrompt, fixPrompt, implementPrompt, planPrompt, reviewPrompt, type Turn } from '../prompts/prompts.js'
 import { IMPLEMENT_SCHEMA, PLAN_SCHEMA, REVIEW_SCHEMA } from '../prompts/schemas.js'
@@ -99,7 +99,14 @@ export async function planStage({ ctx, taskId, signal }: StageInput): Promise<St
     return { stage: 'plan', ok: true }
   }
   const { reply: _reply, ...plan } = value
-  updateTask(ctx, taskId, (draft) => { draft.plan = Plan.parse(plan) })
+  // Second line of defence: judge the plan itself, not only how the request was worded.
+  const planText = [plan.summary, ...plan.steps, ...plan.filesLikelyTouched].join('\n')
+  const escalate = isHighRisk(planText) && task(ctx, taskId).route?.risk !== 'high'
+  updateTask(ctx, taskId, (draft) => {
+    draft.plan = Plan.parse(plan)
+    if (escalate) draft.route = { depth: 'deep', auto: draft.route?.auto ?? false, risk: 'high', reason: 'The plan includes a risky operation, so it needs your approval first.' }
+  })
+  if (escalate) logTask(ctx, taskId, 'warn', 'The plan includes a risky operation (deleting data, secrets, production or similar). Hydra is waiting for your approval before any code is written.')
   return { stage: 'plan', ok: true }
 }
 

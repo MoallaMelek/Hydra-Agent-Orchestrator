@@ -33,7 +33,8 @@ export function nextStep(task: Task, result: StageResult, policy: Policy): Step 
   switch (result.stage) {
     case 'plan':
       if (task.intent === 'analyze') return { kind: 'complete', outcome: 'answered' }
-      return policy.requirePlanApproval ? { kind: 'wait', reason: 'plan_approval' } : { kind: 'run', stage: 'implement' }
+      // High-risk work always stops for the person, whatever the mode.
+      return policy.requirePlanApproval || task.route?.risk === 'high' ? { kind: 'wait', reason: 'plan_approval' } : { kind: 'run', stage: 'implement' }
     case 'implement':
     case 'fix':
       return { kind: 'run', stage: 'review' }

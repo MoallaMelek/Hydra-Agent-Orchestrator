@@ -32,7 +32,7 @@ C → S  first encrypted frame: {type:"auth", name?}   (pairing: name requested;
 - Commands pass through `Engine.execute` with actor `{kind:"remote", deviceId, scopes}`; `REMOTE_COMMAND_SCOPE` enforces scopes. Results are idempotent per `(deviceId, id)`: concurrent duplicates share one execution, and a retried id returns the stored ack. Only successful acks are stored (7 days, at most 1000 per device); a failed command can be retried.
 - Limits: 20 handshakes per minute per IP (2048 tracked addresses at most); 30-request burst then 10/s per session; at most 8 requests in flight per session; at most 3 sessions per device (the oldest is closed with 4409); a phone that stops reading is disconnected once 8 MB is buffered; snapshots carry at most 200 tasks.
 - Revocation and expiry are checked at authentication, before every request, and by a 60-second sweep; an affected session is closed with 4403.
-- Reconnection: the client reconnects with backoff, performs a fresh handshake, and requests a snapshot.
+- Reconnection: the client reconnects with backoff and a fresh handshake, then replays the journal events it missed (query `events` after its cursor, 500 per page, only forwarded event types; duplicates dropped by sequence number) before showing itself live, and reloads the snapshot.
 
 ## Residual risks
 - **The phone UI is served over plain HTTP on the LAN.** An active attacker on the same network could tamper with the JavaScript before it runs, and steal the device key or forge actions. Crypto protects the channel, not the code delivery. Use a trusted network or a VPN (e.g. Tailscale), or the future HTTPS relay. → THREAT_MODEL T20.

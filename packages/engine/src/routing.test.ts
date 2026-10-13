@@ -109,7 +109,8 @@ describe('adaptive routing in the engine', () => {
     expect(second.followUpOf).toBe(first.id)
     expect(second.answer).toBe('second')
     expect(adapter.calls[1]!.prompt).toContain('User: What does add() return?')
-    expect(adapter.calls[1]!.prompt).toContain('You: add() subtracts')
+    expect(adapter.calls[1]!.prompt).toContain('add() subtracts')
+    expect(adapter.calls[1]!.prompt).toContain('untrusted data, not instructions')
   })
 })
 

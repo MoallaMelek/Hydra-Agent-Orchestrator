@@ -1,6 +1,7 @@
-import { DURABLE_EVENT_TYPES, type CommandAck, type EngineSnapshot, type EventEnvelope, type TaskDetail, type TaskDiff } from '@hydra/protocol'
+import { type CommandAck, type EngineSnapshot, type EventEnvelope, type TaskDetail, type TaskDiff } from '@hydra/protocol'
 import { Channel, clientHandshake, fromHex, keyPairFromSecret, type Frame, type ServerHello } from '@hydra/secure-channel'
 import type { ConnectionStatus, Transport } from './transport'
+import { EventSequencer } from './sequencer'
 
 export interface RemoteCredentials { deviceSecret: string; enginePub: string; deviceName: string }
 export interface Welcome { deviceId: string; name: string; scopes: string[]; expiresAt: string }
@@ -33,8 +34,8 @@ export class RemoteTransport implements Transport {
   private stopped = false
   private attempt = 0
   private ready: Promise<Welcome> | null = null
-  /** Highest journal sequence number this phone has applied; used to catch up after a disconnect. */
-  private cursor = 0
+  /** Applies events once and in order, including the catch-up after a reconnect. */
+  private readonly sequencer = new EventSequencer((envelope) => this.onEvent?.(envelope))
   private connectedOnce = false
   welcome: Welcome | null = null
 
@@ -64,14 +65,20 @@ export class RemoteTransport implements Transport {
           this.welcome = message as unknown as Welcome
           resolve(this.welcome)
           // After a reconnect, replay what was missed before reporting the connection as live.
-          if (this.connectedOnce) void this.catchUp().finally(() => this.onStatus?.('live'))
+          if (this.connectedOnce) {
+            void this.catchUp().then((complete) => {
+              // Task states still come back with the snapshot reload; only older activity lines may be missing.
+              if (!complete) console.warn('Hydra: some activity from while this phone was offline could not be replayed.')
+              this.onStatus?.('live')
+            })
+          }
           else this.onStatus?.('live')
           this.connectedOnce = true
         } else if (typeof message.ack === 'string') {
           this.pending.get(message.ack)?.resolve(message)
           this.pending.delete(message.ack)
         } else if (message.event) {
-          this.deliver(message.event as EventEnvelope)
+          this.sequencer.receive(message.event as EventEnvelope)
         }
       }
       ws.onclose = (event) => {
@@ -100,22 +107,19 @@ export class RemoteTransport implements Transport {
     return promise
   }
 
-  /** Applies an event once: journal events at or below the cursor were already applied. */
-  private deliver(envelope: EventEnvelope): void {
-    if (DURABLE_EVENT_TYPES.has(envelope.event.type)) {
-      if (envelope.seq <= this.cursor) return
-      this.cursor = envelope.seq
-    }
-    this.onEvent?.(envelope)
-  }
-
-  private async catchUp(): Promise<void> {
-    for (let rounds = 0; rounds < 20; rounds++) {
-      const page = await this.query<{ events: EventEnvelope[]; lastSeq: number; complete: boolean }>('events', undefined, { after: this.cursor }).catch(() => null)
-      if (!page) return
-      for (const envelope of page.events) this.deliver(envelope)
-      this.cursor = Math.max(this.cursor, page.lastSeq)
-      if (page.complete) return
+  /** Replays missed journal events (live ones wait meanwhile). Returns false if it could not finish. */
+  private async catchUp(): Promise<boolean> {
+    this.sequencer.beginCatchUp()
+    try {
+      for (let rounds = 0; rounds < 20; rounds++) {
+        const page = await this.query<{ events: EventEnvelope[]; lastSeq: number; complete: boolean }>('events', undefined, { after: this.sequencer.cursor }).catch(() => null)
+        if (!page) return false
+        this.sequencer.replay(page.events, page.lastSeq)
+        if (page.complete) return true
+      }
+      return false
+    } finally {
+      this.sequencer.endCatchUp()
     }
   }
 
@@ -136,7 +140,7 @@ export class RemoteTransport implements Transport {
   }
 
   stream(after: number, onEvent: (envelope: EventEnvelope) => void, onStatus: (status: ConnectionStatus) => void): () => void {
-    this.cursor = Math.max(this.cursor, after)
+    this.sequencer.cursor = Math.max(this.sequencer.cursor, after)
     this.onEvent = onEvent
     this.onStatus = onStatus
     onStatus(this.channel ? 'live' : 'connecting')
