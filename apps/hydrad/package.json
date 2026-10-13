@@ -12,7 +12,8 @@
   "dependencies": {
     "@hydra/engine": "2.0.0-alpha.0",
     "@hydra/protocol": "2.0.0-alpha.0",
-    "ws": "8.22.0"
+    "ws": "8.22.0",
+    "@hydra/secure-channel": "2.0.0-alpha.0"
   },
   "devDependencies": {
     "@types/ws": "^8.18.2",

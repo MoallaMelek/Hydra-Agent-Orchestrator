@@ -72,3 +72,18 @@ Build sizes: UI 284 KB JS (88 KB gzip), 18.6 KB CSS; hydrad bundle 1.0 MB. `npm 
 | D5 | Engine shutdown pauses running tasks (resumable) instead of canceling | VERIFIED (unit test) |
 | D6 | Native folder picker, notifications, close-while-running dialog | UNVERIFIED (needs a person at the window) |
 `npm run check` → 64/64 tests, typecheck (engine, hydrad, UI, desktop), lint, provenance pass.
+
+## 2026-10-13 — Milestone 4: remote control (end-to-end encrypted, no cloud)
+Automated (`npx vitest run packages/secure-channel apps/hydrad/src/remote.test.ts`):
+- Channel: round-trip both directions; replayed/reordered frames rejected; tampered ciphertext rejected; wrong pairing secret → unusable keys; client pinned to a wrong engine key cannot talk to the real engine; malformed pairing offers rejected. VERIFIED (6 tests)
+- Protocol over a real WebSocket: pairing → welcome with scopes; pairing link single use; known device reconnects without secret; desktop-only commands refused remotely; control commands work; command ids idempotent (replay returns stored ack, no duplicate task); approve-level commands refused without `approve`; snapshot hides device list; live task events delivered; revoke closes the live session (4403) and blocks reconnect; wrong secret / unknown device / impostor engine key refused; failed attempts do not consume the pairing. VERIFIED (2 tests)
+Live in the desktop browser pane (hydrad with `--remote-bind 127.0.0.1`):
+| # | Check | Result |
+|---|---|---|
+| R1 | Desktop "Pair a phone" shows a QR code, 5-min countdown and engine check code | VERIFIED |
+| R2 | Phone page (375×812) shows the same check code (D8CC-C8BA-0EFD), removes the secret from the URL, pairs | VERIFIED |
+| R3 | Phone shows the live task list over the encrypted channel; mobile layout renders | VERIFIED (screenshot) |
+| R4 | Phone starts a question task; real Claude answers ($0.06); result streams to the phone | VERIFIED |
+| R5 | Desktop revokes the phone → phone goes Offline immediately; reload refused with "no longer paired" | VERIFIED |
+| R6 | Real LAN access from a physical phone over Wi-Fi (`--remote-bind 0.0.0.0`) | UNVERIFIED (needs a physical device and a firewall prompt approval on this PC) |
+`npm run check` → 72/72 tests, typecheck, lint, provenance pass.

@@ -8,6 +8,7 @@ import { HttpTransport } from './api/transport'
 import { EngineStore } from './api/store'
 import { AppProvider, type HostBridge } from './app/context'
 import { Shell } from './app/Shell'
+import { RemoteEntry } from './remote/RemoteEntry'
 
 /** Exposed by the Electron preload script; absent in a plain browser. */
 declare global {
@@ -36,8 +37,10 @@ function connection(): { apiUrl: string; token: string } | null {
 }
 
 const root = createRoot(document.getElementById('root')!)
-const conn = connection()
-if (!conn) {
+const conn = window.location.pathname.startsWith('/remote') ? null : connection()
+if (window.location.pathname.startsWith('/remote')) {
+  root.render(<StrictMode><RemoteEntry /></StrictMode>)
+} else if (!conn) {
   root.render(<div className="hx-empty" style={{ height: '100%' }}><h3>Open Hydra from the desktop app</h3><p className="muted">This page needs a session from a running Hydra engine.</p></div>)
 } else {
   const store = new EngineStore(new HttpTransport(conn.apiUrl, conn.token))

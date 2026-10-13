@@ -208,6 +208,12 @@ export class Store {
     return { device: Device.parse(JSON.parse(String(row.doc))), keys: JSON.parse(String(row.keys)) as Record<string, string> }
   }
 
+  findDeviceByKey(publicKeyHex: string): { device: Device; keys: Record<string, string> } | null {
+    const row = this.db.prepare("SELECT doc, keys FROM devices WHERE json_extract(keys, '$.pub') = ?").get(publicKeyHex) as Row | undefined
+    if (!row) return null
+    return { device: Device.parse(JSON.parse(String(row.doc))), keys: JSON.parse(String(row.keys)) as Record<string, string> }
+  }
+
   rememberRemoteCommand(deviceId: string, commandId: string, ack: unknown): void {
     this.db.prepare('INSERT OR IGNORE INTO remote_commands (device_id, command_id, at, ack) VALUES (?, ?, ?, ?)')
       .run(deviceId, commandId, isoNow(), JSON.stringify(ack))

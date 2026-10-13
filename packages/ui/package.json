@@ -10,8 +10,10 @@
   "dependencies": {
     "@hydra/protocol": "2.0.0-alpha.0",
     "lucide-react": "1.55.0",
+    "qrcode-generator": "^2.0.4",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "@hydra/secure-channel": "2.0.0-alpha.0"
   },
   "devDependencies": {
     "@types/react": "19.3.0",

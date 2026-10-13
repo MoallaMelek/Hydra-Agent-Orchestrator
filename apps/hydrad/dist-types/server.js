@@ -9,6 +9,27 @@ const MIME = {
     '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
     '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json'
 };
+/** Serves a file from a built UI directory (SPA fallback to index.html), never escaping it. */
+export function serveStaticFile(res, staticDir, path, headers) {
+    const root = resolve(staticDir);
+    let decoded;
+    try {
+        decoded = decodeURIComponent(path);
+    }
+    catch {
+        return send(res, 400, { error: 'Bad path' });
+    }
+    let file = normalize(join(root, decoded));
+    if (!file.startsWith(root + sep) && file !== root)
+        return send(res, 403, { error: 'Forbidden' });
+    if (!existsSync(file) || statSync(file).isDirectory())
+        file = join(root, 'index.html');
+    if (!existsSync(file))
+        return send(res, 404, { error: 'Not found' });
+    const immutable = /[\\/]assets[\\/]/.test(file);
+    res.writeHead(200, { ...headers, 'Content-Type': MIME[extname(file)] ?? 'application/octet-stream', 'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache' });
+    createReadStream(file).pipe(res);
+}
 class HttpError extends Error {
     status;
     constructor(status, message) {
@@ -16,7 +37,7 @@ class HttpError extends Error {
         this.status = status;
     }
 }
-function send(res, status, body, type = 'application/json') {
+export function send(res, status, body, type = 'application/json') {
     const payload = type === 'application/json' ? JSON.stringify(body) : String(body);
     res.writeHead(status, { ...SECURITY_HEADERS, 'Content-Type': type, 'Cache-Control': 'no-store' });
     res.end(payload);
@@ -77,18 +98,7 @@ export async function startApiServer(options) {
     const serveStatic = (res, path) => {
         if (!options.staticDir)
             return send(res, 404, { error: 'UI not bundled' });
-        const root = resolve(options.staticDir);
-        const decoded = decodeURIComponent(path);
-        let file = normalize(join(root, decoded));
-        if (!file.startsWith(root + sep) && file !== root)
-            return send(res, 403, { error: 'Forbidden' });
-        if (!existsSync(file) || statSync(file).isDirectory())
-            file = join(root, 'index.html'); // SPA fallback
-        if (!existsSync(file))
-            return send(res, 404, { error: 'Not found' });
-        const immutable = /[\\/]assets[\\/]/.test(file);
-        res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': MIME[extname(file)] ?? 'application/octet-stream', 'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache' });
-        createReadStream(file).pipe(res);
+        serveStaticFile(res, options.staticDir, path, SECURITY_HEADERS);
     };
     const server = createServer((req, res) => {
         void (async () => {

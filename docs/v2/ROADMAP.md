@@ -6,7 +6,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done and verified (with
 - ☑ Repository preservation (tag `legacy-v0.2.61`, branch `v2-rebuild`, legacy moved to `legacy/`)
 - ☑ Provenance assessment (OWNERSHIP_AND_PROVENANCE.md)
 - ☑ Architecture, decisions, threat model
-- ◐ Independent architecture challenge by Codex (consultant, read-only)
+- ☑ Independent architecture challenge by Codex (consultant, read-only): D-013
 - Acceptance: documents exist; legacy is excluded from the build; provenance check runs in CI.
 
 ## M1 — Original core

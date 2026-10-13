@@ -33,7 +33,7 @@ function useTheme(): [string, () => void] {
 const same = (a: Route, b: Route) => JSON.stringify(a) === JSON.stringify(b)
 
 export function Shell() {
-  const { state, route, go, toasts } = useApp()
+  const { state, route, go, toasts, isRemote } = useApp()
   const [adding, setAdding] = useState(false)
   const [navOpen, setNavOpen] = useState(false)
   const [theme, toggleTheme] = useTheme()
@@ -56,7 +56,7 @@ export function Shell() {
         </div>
         <div className="sidebar__scroll">
           <div className="sidebar__section">
-            <div className="sidebar__heading">Projects <Button variant="ghost" size="sm" icon={<Plus size={14} />} aria-label="Add project" onClick={() => setAdding(true)} /></div>
+            <div className="sidebar__heading">Projects {!isRemote && <Button variant="ghost" size="sm" icon={<Plus size={14} />} aria-label="Add project" onClick={() => setAdding(true)} />}</div>
             {state.projects.length === 0 && <p className="faint" style={{ padding: '4px 8px', fontSize: 12 }}>No projects yet.</p>}
             {[...state.projects].sort((a, b) => a.name.localeCompare(b.name)).map((project) => {
               const waiting = tasks.some((t) => t.projectId === project.id && t.status === 'waiting_input')
@@ -68,7 +68,7 @@ export function Shell() {
           <div className="sidebar__section">
             <div className="sidebar__heading">System</div>
             {item({ view: 'providers' }, <Cpu size={15} />, 'Agents & providers')}
-            {item({ view: 'devices' }, <Smartphone size={15} />, 'Remote devices')}
+            {!isRemote && item({ view: 'devices' }, <Smartphone size={15} />, 'Remote devices')}
             {item({ view: 'settings' }, <Settings size={15} />, 'Settings')}
           </div>
         </div>

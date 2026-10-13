@@ -6,7 +6,10 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   resolve: {
-    alias: { '@hydra/protocol': fileURLToPath(new URL('../protocol/src/index.ts', import.meta.url)) }
+    alias: {
+      '@hydra/protocol': fileURLToPath(new URL('../protocol/src/index.ts', import.meta.url)),
+      '@hydra/secure-channel': fileURLToPath(new URL('../secure-channel/src/index.ts', import.meta.url))
+    }
   },
   build: {
     outDir: 'dist',

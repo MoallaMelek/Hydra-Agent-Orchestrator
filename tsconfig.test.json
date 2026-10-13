@@ -17,12 +17,17 @@
       "@hydra/secure-channel": [
         "./packages/secure-channel/src/index.ts"
       ]
-    }
+    },
+    "lib": [
+      "ES2023",
+      "DOM"
+    ]
   },
   "include": [
     "packages/protocol/src",
     "packages/engine/src",
     "vitest.config.ts",
-    "apps/hydrad/src"
+    "apps/hydrad/src",
+    "packages/secure-channel/src"
   ]
 }

@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { Engine } from '@hydra/engine';
 import { startApiServer } from './server.js';
+import { RemoteHost } from './remote.js';
 export const VERSION = '2.0.0-alpha.0';
 export function defaultDataDir() {
     if (process.env.HYDRA_DATA_DIR)
@@ -14,7 +15,7 @@ export function defaultDataDir() {
     return join(process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share'), 'hydra', 'v2');
 }
 function parseArgs(argv) {
-    const args = { dataDir: defaultDataDir(), port: 0, printToken: false };
+    const args = { dataDir: defaultDataDir(), port: 0, printToken: false, remotePort: 47900, remoteBind: '0.0.0.0' };
     for (let i = 0; i < argv.length; i++) {
         const value = argv[i + 1];
         switch (argv[i]) {
@@ -33,6 +34,18 @@ function parseArgs(argv) {
             case '--print-token':
                 args.printToken = true;
                 break;
+            case '--remote-port':
+                args.remotePort = Number(value);
+                i++;
+                break;
+            case '--remote-bind':
+                args.remoteBind = value;
+                i++;
+                break;
+            case '--remote-host':
+                args.remoteHost = value;
+                i++;
+                break;
             default: break;
         }
     }
@@ -49,6 +62,17 @@ export async function serve(argv = process.argv.slice(2)) {
     delete process.env.HYDRA_API_TOKEN; // never inherited by agents or checks
     const engine = await Engine.open({ dataDir: args.dataDir, version: VERSION });
     const server = await startApiServer({ engine, token, staticDir: args.staticDir, port: args.port });
+    // Remote control stays off until the user pairs a device; afterwards it starts with Hydra.
+    const remote = new RemoteHost({ engine, staticDir: args.staticDir, port: args.remotePort, bind: args.remoteBind, advertiseHost: args.remoteHost });
+    engine.setHooks({
+        pairStart: (name, scopes) => remote.pairStart(name, scopes),
+        revokeDevice: (deviceId) => remote.revoke(deviceId),
+        remoteStatus: () => remote.status()
+    });
+    const activeDevices = engine.store.listDevices().some((d) => !d.revokedAt && Date.parse(d.expiresAt) > Date.now());
+    if (engine.store.getKv('remote.enabled') === '1' && activeDevices) {
+        await remote.start().catch((error) => process.stderr.write(`Remote control not started: ${error.message}\n`));
+    }
     const backupTimer = setInterval(() => { try {
         engine.backup();
     }
@@ -64,6 +88,7 @@ export async function serve(argv = process.argv.slice(2)) {
         if (stopping)
             return;
         stopping = true;
+        await remote.stop();
         await server.close();
         await engine.close();
         process.exit(0);

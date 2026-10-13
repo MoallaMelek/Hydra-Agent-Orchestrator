@@ -6,7 +6,7 @@ import { NewTaskForm } from './NewTaskForm'
 import { ago, statusLabel, usageLine } from '../lib/format'
 
 export function ProjectView({ projectId }: { projectId: string }) {
-  const { state, go, run } = useApp()
+  const { state, go, run, isRemote } = useApp()
   const project = state.projects.find((p) => p.id === projectId)
   if (!project) return <div className="page"><EmptyState title="Project not found" /></div>
   const tasks = Object.values(state.tasks).filter((t) => t.projectId === projectId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -18,7 +18,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
           <h1>{project.name}</h1>
           <div className="row faint mono" style={{ fontSize: 12 }}>{project.root}{project.isGit ? <Badge tone="info" plain><GitBranch size={11} />git</Badge> : <Badge tone="warn">not a git repo</Badge>}</div>
         </div>
-        <Button variant="ghost" size="sm" icon={<Trash2 size={14} />} onClick={() => void run({ type: 'project.remove', projectId }, 'Project removed from Hydra (files untouched)').then((ack) => ack.ok && go({ view: 'home' }))}>Remove</Button>
+        {!isRemote && <Button variant="ghost" size="sm" icon={<Trash2 size={14} />} onClick={() => void run({ type: 'project.remove', projectId }, 'Project removed from Hydra (files untouched)').then((ack) => ack.ok && go({ view: 'home' }))}>Remove</Button>}
       </div>
       <Panel title="New task"><NewTaskForm projectId={projectId} isGit={project.isGit} /></Panel>
       <Panel title={`Tasks · ${tasks.length}`}>

@@ -7,7 +7,7 @@ import { shortSha } from '../../lib/format'
 
 /** The human control point: what Hydra is waiting for and the actions available right now. */
 export function DecisionBar({ task, blockingWarnings }: { task: Task; blockingWarnings: number }) {
-  const { run, go } = useApp()
+  const { run, go, isRemote } = useApp()
   const [busy, setBusy] = useState<string | null>(null)
   const [changes, setChanges] = useState(false)
   const [feedback, setFeedback] = useState('')
@@ -65,7 +65,7 @@ export function DecisionBar({ task, blockingWarnings }: { task: Task; blockingWa
     <div className="row" style={{ flexWrap: 'wrap' }}>
       {(task.status === 'paused' || task.status === 'failed') && <Button variant="primary" icon={<Play size={15} />} busy={busy === 'resume'} onClick={() => void act('resume', { type: 'task.resume' })}>Resume</Button>}
       {task.outcome === 'applied' && task.applied?.method === 'fast_forward' && <Button icon={<RotateCcw size={15} />} busy={busy === 'rollback'} onClick={() => void act('rollback', { type: 'task.rollback' }, 'Rolled back with a revert commit')}>Roll back</Button>}
-      {<Button variant="ghost" icon={<Trash2 size={15} />} busy={busy === 'delete'} onClick={() => void act('delete', { type: 'task.delete' }, 'Task deleted').then((ack) => ack.ok && go({ view: 'project', projectId: task.projectId }))}>Delete task</Button>}
+      {!isRemote && <Button variant="ghost" icon={<Trash2 size={15} />} busy={busy === 'delete'} onClick={() => void act('delete', { type: 'task.delete' }, 'Task deleted').then((ack) => ack.ok && go({ view: 'project', projectId: task.projectId }))}>Delete task</Button>}
     </div>
   )
 }

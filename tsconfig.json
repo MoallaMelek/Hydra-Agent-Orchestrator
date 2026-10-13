@@ -5,6 +5,9 @@
       "path": "packages/protocol"
     },
     {
+      "path": "packages/secure-channel"
+    },
+    {
       "path": "packages/engine"
     },
     {

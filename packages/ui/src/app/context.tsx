@@ -26,6 +26,8 @@ interface AppContextValue {
   run: (command: Record<string, unknown>, success?: string) => Promise<CommandAck>
   toasts: Toast[]
   host: HostBridge
+  /** True on the phone: desktop-only actions are hidden (the engine refuses them anyway). */
+  isRemote: boolean
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -53,7 +55,7 @@ export function AppProvider({ store, host, children }: { store: EngineStore; hos
     }
   }, [store, toast])
 
-  return <AppContext.Provider value={{ store, state, route, go: setRoute, run, toasts, host }}>{children}</AppContext.Provider>
+  return <AppContext.Provider value={{ store, state, route, go: setRoute, run, toasts, host, isRemote: store.transport.kind === 'remote' }}>{children}</AppContext.Provider>
 }
 
 export function useApp(): AppContextValue {

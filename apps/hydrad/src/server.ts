@@ -27,11 +27,25 @@ export interface ApiServer {
   close(): Promise<void>
 }
 
+/** Serves a file from a built UI directory (SPA fallback to index.html), never escaping it. */
+export function serveStaticFile(res: ServerResponse, staticDir: string, path: string, headers: Record<string, string>): void {
+  const root = resolve(staticDir)
+  let decoded: string
+  try { decoded = decodeURIComponent(path) } catch { return send(res, 400, { error: 'Bad path' }) }
+  let file = normalize(join(root, decoded))
+  if (!file.startsWith(root + sep) && file !== root) return send(res, 403, { error: 'Forbidden' })
+  if (!existsSync(file) || statSync(file).isDirectory()) file = join(root, 'index.html')
+  if (!existsSync(file)) return send(res, 404, { error: 'Not found' })
+  const immutable = /[\\/]assets[\\/]/.test(file)
+  res.writeHead(200, { ...headers, 'Content-Type': MIME[extname(file)] ?? 'application/octet-stream', 'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache' })
+  createReadStream(file).pipe(res)
+}
+
 class HttpError extends Error {
   constructor(readonly status: number, message: string) { super(message) }
 }
 
-function send(res: ServerResponse, status: number, body: unknown, type = 'application/json'): void {
+export function send(res: ServerResponse, status: number, body: unknown, type = 'application/json'): void {
   const payload = type === 'application/json' ? JSON.stringify(body) : String(body)
   res.writeHead(status, { ...SECURITY_HEADERS, 'Content-Type': type, 'Cache-Control': 'no-store' })
   res.end(payload)
@@ -80,15 +94,7 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
 
   const serveStatic = (res: ServerResponse, path: string): void => {
     if (!options.staticDir) return send(res, 404, { error: 'UI not bundled' })
-    const root = resolve(options.staticDir)
-    const decoded = decodeURIComponent(path)
-    let file = normalize(join(root, decoded))
-    if (!file.startsWith(root + sep) && file !== root) return send(res, 403, { error: 'Forbidden' })
-    if (!existsSync(file) || statSync(file).isDirectory()) file = join(root, 'index.html') // SPA fallback
-    if (!existsSync(file)) return send(res, 404, { error: 'Not found' })
-    const immutable = /[\\/]assets[\\/]/.test(file)
-    res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': MIME[extname(file)] ?? 'application/octet-stream', 'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache' })
-    createReadStream(file).pipe(res)
+    serveStaticFile(res, options.staticDir, path, SECURITY_HEADERS)
   }
 
   const server: Server = createServer((req, res) => {
