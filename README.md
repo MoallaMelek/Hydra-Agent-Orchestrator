@@ -15,7 +15,7 @@ Hydra orchestrates AI coding agents (Claude Code and Codex CLI) through a superv
 
 ## Status
 
-See [docs/v2/PROGRESS.md](docs/v2/PROGRESS.md) and [docs/v2/TEST_EVIDENCE.md](docs/v2/TEST_EVIDENCE.md). Pre-release. Nothing is published.
+**Alpha.** Engine, desktop app and encrypted phone control work and are verified with the real Claude Code and Codex CLIs. CI is green on Windows, macOS and Linux. Not yet released: installers are unsigned and an external beta is pending. See [COMMERCIAL_READINESS](docs/v2/COMMERCIAL_READINESS.md), [USER_GUIDE](docs/v2/USER_GUIDE.md) and [TEST_EVIDENCE](docs/v2/TEST_EVIDENCE.md).
 
 ## Develop
 
@@ -24,6 +24,7 @@ Requires Node ≥ 22.13 and git.
 ```bash
 npm install
 npm run check      # typecheck, lint, tests, provenance
+npm run desktop    # build and launch the desktop app
 ```
 
 ## Licence
