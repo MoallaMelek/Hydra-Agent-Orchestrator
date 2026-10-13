@@ -20,6 +20,10 @@ export function ConversationView({ task, detail }: { task: Task; detail: ReturnT
   const who = (t: Task) => state.providers.find((p) => p.id === t.assignment.planner)?.displayName ?? t.assignment.planner
   const thinking = task.status === 'running' || task.status === 'queued'
   const draft = state.drafts[task.id]
+  // What the agent is doing right now, from its latest tool call ("› Read src/app.ts").
+  const runId = detail?.runs.at(-1)?.id
+  const lastTool = runId ? (state.output[runId] ?? '').trimEnd().split('\n').reverse().find((line) => line.startsWith('› ')) : undefined
+  const activity = lastTool ? describeTool(lastTool.slice(2)) : null
   const used = task.usage.inputTokens + task.usage.outputTokens
   const project = state.projects.find((p) => p.id === task.projectId)
 
@@ -64,7 +68,7 @@ export function ConversationView({ task, detail }: { task: Task; detail: ReturnT
           Hydra · {who(t)}
           {t.route && <span className="chat__route" title={t.route.reason}>{DEPTH_LABEL[t.route.depth]}{t.route.auto ? ' (auto)' : ''}</span>}
         </div>
-        {live && thinking && !draft && <p className="muted row"><span className="hx-spinner" aria-hidden /> {t.status === 'queued' ? 'Starting…' : 'Thinking…'}</p>}
+        {live && thinking && !draft && <p className="muted row"><span className="hx-spinner" aria-hidden /> {t.status === 'queued' ? 'Starting…' : activity ?? 'Thinking…'}</p>}
         {live && thinking && draft && <Markdown text={draft} />}
         {t.answer && !(live && thinking) && <Markdown text={t.answer} />}
         {live && !thinking && !t.answer && t.error && <Callout tone={t.status === 'paused' ? 'warn' : 'bad'}>{t.error}</Callout>}
@@ -106,4 +110,12 @@ export function ConversationView({ task, detail }: { task: Task; detail: ReturnT
       )}
     </section>
   )
+}
+
+/** "Read src/app.ts" → "Reading src/app.ts…" */
+function describeTool(line: string): string {
+  const [name = '', ...rest] = line.split(' ')
+  const target = rest.join(' ').trim()
+  const verb: Record<string, string> = { Read: 'Reading', Glob: 'Looking for files', Grep: 'Searching for', shell: 'Running', edit: 'Editing' }
+  return `${verb[name] ?? 'Working'}${target ? ` ${target.length > 80 ? `…${target.slice(-80)}` : target}` : ''}…`
 }
