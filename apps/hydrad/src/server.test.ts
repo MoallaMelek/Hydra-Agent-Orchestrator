@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
+import { connect } from 'node:net'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { WebSocket } from 'ws'
@@ -126,4 +127,45 @@ describe('hydrad API security', () => {
     })
     expect(refused).toBe(true)
   })
+  // Regression tests for the independent security review (docs/v2/SECURITY_AUDIT.md, findings R2, R3, T8).
+  it('survives a malformed request target instead of crashing', async () => {
+    const { server } = await boot()
+    const reply = await rawRequest(server.port, `GET http://[ HTTP/1.1\r\nHost: 127.0.0.1:${server.port}\r\nConnection: close\r\n\r\n`)
+    expect(reply).toMatch(/^HTTP\/1\.1 400/)
+    const upgrade = await rawRequest(server.port, `GET http://[ HTTP/1.1\r\nHost: 127.0.0.1:${server.port}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n`)
+    expect(upgrade).toMatch(/^HTTP\/1\.1 403/)
+    expect((await call(server, '/api/health', { token: null })).status).toBe(200)
+  })
+
+  it('closes a stream whose first frame is JSON null and keeps serving', async () => {
+    const { server } = await boot()
+    const code = await new Promise<number>((resolve) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${server.port}/api/stream`)
+      ws.on('open', () => ws.send('null'))
+      ws.on('close', (c) => resolve(c))
+    })
+    expect(code).toBe(4400)
+    expect((await call(server, '/api/health', { token: null })).status).toBe(200)
+  })
+
+  it('refuses API requests carrying a foreign Origin even with the token', async () => {
+    const { server } = await boot()
+    const res = await new Promise<number>((resolve, reject) => {
+      const req = request({ host: '127.0.0.1', port: server.port, path: '/api/state', headers: { host: `127.0.0.1:${server.port}`, origin: 'https://evil.example', authorization: `Bearer ${TOKEN}` } }, (r) => { r.resume(); resolve(r.statusCode ?? 0) })
+      req.on('error', reject)
+      req.end()
+    })
+    expect(res).toBe(403)
+  })
 })
+
+function rawRequest(port: number, text: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const socket = connect(port, '127.0.0.1', () => socket.write(text))
+    let data = ''
+    socket.on('data', (c) => { data += String(c) })
+    socket.on('close', () => resolve(data))
+    socket.on('error', (e) => (data ? resolve(data) : reject(e)))
+    setTimeout(() => socket.destroy(), 2000)
+  })
+}

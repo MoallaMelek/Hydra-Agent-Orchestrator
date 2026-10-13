@@ -28,8 +28,10 @@ C → S  first encrypted frame: {type:"auth", name?}   (pairing: name requested;
 
 ## Messages (inside frames)
 - Client → server: `{id, kind:"command", command}` · `{id, kind:"query", query:"snapshot"|"task"|"diff", taskId?}`
-- Server → client: `{ack:id, ok, result|error}` · `{event: EventEnvelope}` (task, run and evidence events only)
-- Commands pass through `Engine.execute` with actor `{kind:"remote", deviceId, scopes}`; `REMOTE_COMMAND_SCOPE` enforces scopes. Results are idempotent per `(deviceId, id)`, and duplicates return the stored ack.
+- Server → client: `{ack:id, ok, result|error}` · `{event: EventEnvelope}` (task, run, evidence and project events; provider, settings and device events are not forwarded)
+- Commands pass through `Engine.execute` with actor `{kind:"remote", deviceId, scopes}`; `REMOTE_COMMAND_SCOPE` enforces scopes. Results are idempotent per `(deviceId, id)`: concurrent duplicates share one execution, and a retried id returns the stored ack. Only successful acks are stored (7 days, at most 1000 per device); a failed command can be retried.
+- Limits: 20 handshakes per minute per IP (2048 tracked addresses at most); 30-request burst then 10/s per session; at most 8 requests in flight per session; at most 3 sessions per device (the oldest is closed with 4409); a phone that stops reading is disconnected once 8 MB is buffered; snapshots carry at most 200 tasks.
+- Revocation and expiry are checked at authentication, before every request, and by a 60-second sweep; an affected session is closed with 4403.
 - Reconnection: the client reconnects with backoff, performs a fresh handshake, and requests a snapshot.
 
 ## Residual risks

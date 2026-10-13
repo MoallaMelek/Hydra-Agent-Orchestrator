@@ -83,3 +83,9 @@ Format: ID · date · decision · alternatives considered · why · consequences
 - The planned second independent Codex review of the remote channel could not run: the Codex account hit its usage limit. It is **still owed** before release.
 - Self-review (not independent) found and fixed: (1) **pairing race**: two phones completing the handshake on one link could both register; pairings are now claimed atomically at authentication (regression test added); (2) expired pairings were never pruned, and open pairings are now capped at 10; (3) the per-IP handshake-attempt map is pruned; (4) a per-session token-bucket rate limit (30 burst, 10/s) applies after authentication.
 - Noted residual: the per-launch API token reaches the renderer through Electron `additionalArguments`, visible in the process command line to same-user processes (already T8).
+
+### D-015 · 2026-10-13 · Remote control hardening after independent Codex review (A3)
+- The review owed by D-014 ran (Codex CLI, read-only sandbox). It reported 7 findings (2 High, 5 Medium) and 5 incorrect documentation claims; details and tests in SECURITY_AUDIT.md.
+- Accepted all 7 findings; no rebuttal was needed. Each fix has a regression test that was confirmed to fail on the previous code.
+- Design choices: device state is read from SQLite on every remote request rather than cached (one indexed lookup; correctness over micro-optimisation). Only successful command acks are persisted, because a failed command has no side effect to protect and storing failures let a view-only device grow the database. When the handshake table is full, new addresses are refused rather than evicting active ones; a determined LAN attacker can therefore delay new pairings by up to a minute (T11 residual).
+- Origin is now checked on every local HTTP request, not only WebSocket upgrades (T8 correction).

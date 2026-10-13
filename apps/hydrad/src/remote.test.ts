@@ -31,7 +31,7 @@ class Phone {
   closeCode: number | null = null
   constructor(readonly key: KeyPair = generateKeyPair()) {}
 
-  connect(url: string, enginePub: string, pairing: { id: string; secret: Uint8Array } | null, name = 'Test phone'): Promise<Record<string, unknown>> {
+  connect(url: string, enginePub: string, pairing: { id: string; secret: Uint8Array } | null, name = 'Test phone', beforeAuth?: () => Promise<unknown>): Promise<Record<string, unknown>> {
     return new Promise((resolve, reject) => {
       const hs = clientHandshake(this.key, fromHex(enginePub), pairing?.id ?? null)
       this.ws = new WebSocket(url.replace(/^http/, 'ws').replace(/\/remote.*$/, '/remote/channel'))
@@ -41,13 +41,28 @@ class Phone {
         const data = JSON.parse(String(raw)) as Record<string, unknown>
         if (!this.channel) {
           this.channel = new Channel(hs.finish(data as unknown as ServerHello, pairing?.secret ?? null))
-          this.ws.send(JSON.stringify(this.channel.seal({ type: 'auth', name })))
+          const auth = () => this.ws.send(JSON.stringify(this.channel.seal({ type: 'auth', name })))
+          if (beforeAuth) void beforeAuth().then(auth)
+          else auth()
           return
         }
         const message = this.channel.open<Record<string, unknown>>(data as never)
         if (message.type === 'welcome') resolve(message)
         else this.inbox.push(message)
       })
+    })
+  }
+
+  send(body: Record<string, unknown>): void { this.ws.send(JSON.stringify(this.channel.seal(body))) }
+
+  acks(id: string, count: number): Promise<Array<Record<string, unknown>>> {
+    return new Promise((resolve) => {
+      const check = () => {
+        const found = this.inbox.filter((m) => m.ack === id)
+        if (found.length >= count) resolve(found)
+        else setTimeout(check, 20)
+      }
+      check()
     })
   }
 
@@ -148,5 +163,81 @@ describe('remote control over the encrypted channel', () => {
     await expect(new Phone().connect(link.url, Buffer.from(impostor.publicKey).toString('hex'), pairing)).rejects.toThrow(/closed 4401/)
     // A failed attempt does not consume the pairing: the real phone can still pair.
     await expect(new Phone().connect(link.url, enginePub, pairing)).resolves.toMatchObject({ type: 'welcome' })
+  })})
+
+// Regression tests for the independent security review (docs/v2/SECURITY_AUDIT.md, findings R1, R4–R7).
+describe('remote control hardening', () => {
+  async function pairedPhone(scopes: Array<'control' | 'approve'> = ['control']) {
+    const booted = await boot()
+    const link = await booted.remote.pairStart('Phone', scopes)
+    const { enginePub, pairing } = parse(link.url)
+    const phone = new Phone()
+    const welcome = await phone.connect(link.url, enginePub, pairing)
+    return { ...booted, link, enginePub, phone, deviceId: String(welcome.deviceId) }
+  }
+
+  it('refuses a device revoked between the handshake and authentication', async () => {
+    const { engine, link, enginePub, phone, deviceId } = await pairedPhone()
+    const late = new Phone(phone.key)
+    await expect(late.connect(link.url, enginePub, null, 'Phone', () => engine.execute({ type: 'device.revoke', deviceId }))).rejects.toThrow(/closed 4401/)
+  })
+
+  it('ends a live session as soon as the device expires', async () => {
+    const { engine, phone, deviceId } = await pairedPhone()
+    const found = engine.store.getDeviceKeys(deviceId)!
+    engine.store.putDevice({ ...found.device, expiresAt: new Date(Date.now() - 1000).toISOString() }, found.keys)
+    const closed = phone.waitClosed()
+    phone.send({ id: 'q1', kind: 'query', query: 'snapshot' })
+    expect(await closed).toBe(4403)
+  })
+
+  it('runs a command once when the same id arrives twice concurrently', async () => {
+    const { engine, phone } = await pairedPhone()
+    const repo = makeRepo({ 'a.txt': 'a' })
+    dirs.push(repo)
+    const project = await engine.execute({ type: 'project.add', root: repo })
+    const projectId = (project as { result: { id: string } }).result.id
+    const command = { type: 'task.create', projectId, prompt: 'What is in a.txt?', intent: 'analyze', mode: 'safe', assignment: { planner: 'scripted', implementer: 'scripted', reviewer: 'scripted' } }
+    phone.send({ id: 'dup', kind: 'command', command })
+    phone.send({ id: 'dup', kind: 'command', command })
+    const acks = await phone.acks('dup', 2)
+    expect(acks.every((a) => a.ok === true)).toBe(true)
+    expect(engine.store.listTasks()).toHaveLength(1)
+  })
+
+  it('stores acknowledgements only for successful commands, within a bounded size', async () => {
+    const { engine, phone, deviceId } = await pairedPhone()
+    const refused = await phone.request({ id: 'f1', kind: 'command', command: { type: 'project.add', root: 'C:/nowhere' } })
+    expect(refused).toMatchObject({ ok: false })
+    expect(engine.store.countRemoteCommands(deviceId)).toBe(0)
+    for (let i = 0; i < 1010; i++) engine.store.rememberRemoteCommand(deviceId, `c${i}`, { ok: true, result: null })
+    expect(engine.store.countRemoteCommands(deviceId)).toBe(1000)
+    expect(engine.store.recallRemoteCommand(deviceId, 'c1009')).toBeTruthy()
+    expect(engine.store.recallRemoteCommand(deviceId, 'c0')).toBeUndefined()
+  })
+
+  it('throttles a flooding phone instead of queueing unbounded work', async () => {
+    const { phone } = await pairedPhone()
+    for (let i = 0; i < 60; i++) phone.send({ id: `s${i}`, kind: 'query', query: 'snapshot' })
+    const all = await Promise.all(Array.from({ length: 60 }, (_, i) => phone.acks(`s${i}`, 1).then((a) => a[0]!)))
+    expect(all.filter((a) => a.ok === false && (a.error as { code: string }).code === 'unavailable').length).toBeGreaterThan(0)
+    expect(all.filter((a) => a.ok === true).length).toBeGreaterThan(0)
+  })
+
+  it('keeps at most three sessions per device, closing the oldest', async () => {
+    const { link, enginePub, phone } = await pairedPhone()
+    const oldest = phone.waitClosed()
+    for (let i = 0; i < 3; i++) await new Phone(phone.key).connect(link.url, enginePub, null)
+    expect(await oldest).toBe(4409)
+  })
+
+  it('keeps the handshake limiter bounded under many source addresses', async () => {
+    const { remote } = await boot()
+    const allow = (remote as unknown as { allowAttempt(req: unknown): boolean }).allowAttempt.bind(remote)
+    for (let i = 0; i < 5000; i++) allow({ socket: { remoteAddress: `10.0.${i >> 8}.${i & 255}` } })
+    expect(remote.trackedAddresses).toBeLessThanOrEqual(2048)
+    const one = { socket: { remoteAddress: '192.0.2.1' } }
+    const results = Array.from({ length: 1000 }, () => allow(one))
+    expect(results.filter(Boolean).length).toBeLessThanOrEqual(20)
   })
 })

@@ -214,9 +214,17 @@ export class Store {
     return { device: Device.parse(JSON.parse(String(row.doc))), keys: JSON.parse(String(row.keys)) as Record<string, string> }
   }
 
+  /** Keeps acks for retried commands: 7 days, at most 1000 per device, so storage stays bounded. */
   rememberRemoteCommand(deviceId: string, commandId: string, ack: unknown): void {
     this.db.prepare('INSERT OR IGNORE INTO remote_commands (device_id, command_id, at, ack) VALUES (?, ?, ?, ?)')
       .run(deviceId, commandId, isoNow(), JSON.stringify(ack))
+    this.db.prepare('DELETE FROM remote_commands WHERE at < ?').run(new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString())
+    this.db.prepare(`DELETE FROM remote_commands WHERE device_id = ? AND command_id NOT IN
+      (SELECT command_id FROM remote_commands WHERE device_id = ? ORDER BY at DESC, rowid DESC LIMIT 1000)`).run(deviceId, deviceId)
+  }
+
+  countRemoteCommands(deviceId: string): number {
+    return Number((this.db.prepare('SELECT COUNT(*) AS n FROM remote_commands WHERE device_id = ?').get(deviceId) as Row).n)
   }
 
   recallRemoteCommand(deviceId: string, commandId: string): unknown {
