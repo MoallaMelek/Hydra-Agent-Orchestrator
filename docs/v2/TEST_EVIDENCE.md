@@ -208,3 +208,4 @@ Before the work, "hi" took 5.1 s and showed nothing until done; the repository q
 - `npm run e2e:desktop` with real Claude on the final code: VERIFIED 10/10.
 - Windows installer rebuilt from commit c426346: `Hydra-Setup-2.0.0-alpha.0-x64.exe`, 111.8 MB, sha256 `6df36e06f160c73e546ff59468fbd28e9fc96118f8157d4e4f58f11ffefdd3fb`; artifact scan clean; packaged smoke test passes. Not installed on the owner's PC.
 - `npm run check` → 159 passed, 1 skipped (Windows).
+- Installer validation on fresh CI runners for commit 332df07 (run 38484276163): Windows, macOS arm64 and Linux x64 all VERIFIED (install, launch with packaged smoke, uninstall keeping data, reinstall, no engine left running, clean artifact scan). The previous dispatch (38483650832) failed in the test stage on macOS and Linux; that found the process-group kill gap fixed in 332df07.
