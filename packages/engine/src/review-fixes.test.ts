@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import type { ChildProcess } from 'node:child_process'
@@ -8,7 +7,7 @@ import { Engine } from './engine.js'
 import { AdapterRegistry } from './agents/registry.js'
 import { ScriptedAdapter, type ScriptHandler } from './agents/scripted.js'
 import { runJsonlProcess } from './agents/jsonl-process.js'
-import { waitForExit } from './process/spawn.js'
+import { spawnArgv, waitForExit } from './process/spawn.js'
 import { streamableLength } from './orchestrator/agent-runner.js'
 import { BUGGY_NODE_PROJECT, cleanup, makeRepo, tempDir } from './testing/fixtures.js'
 
@@ -86,7 +85,7 @@ describe('A4-2: risky plans stop for approval even when the request sounded harm
 
 describe('A4-3: a pre-started process handed to a cancelled run is cleaned up', () => {
   it('kills the prestarted child when the run was already cancelled', async () => {
-    const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: ['pipe', 'pipe', 'pipe'] })
+    const child = spawnArgv(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { cwd: '.', env: process.env, stdin: 'pipe' })
     const abort = new AbortController()
     abort.abort()
     const events = []

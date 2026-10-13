@@ -2,6 +2,14 @@
 
 Newest entry first.
 
+## 2026-10-14 · session 4 · release hardening, performance, ownership
+- Ownership: the repository now contains only Hydra v2 (legacy code, its audit and provenance write-up removed from the tree; private copy kept by the owner); `main` fast-forwarded with approval (D-017).
+- Performance: measured first (Hydra overhead ~10 ms; time was in provider start-up and non-streamed JSON answers). Added a deterministic router (Auto / Quick answer / Code question / Full change), streamed plain-text answers, pre-started Claude processes, a risk gate on requests and on plans. "hi": 5.1 s → 3.0 s total, first words ~2 s warm.
+- UX: one composer with a live route preview; conversation view with streaming, follow-ups and "Make this change"; live "Reading …" activity; history with search, archive and paging; delete confirmation.
+- Reliability: phone replay after reconnect; honest reporting of processes that will not stop; delivery/failure tests; keep-alive ECONNRESET fix.
+- Independent Codex review A4: 6 findings, all fixed with regression tests.
+- Commits a1a0a8c → c426346 (see `git log`).
+
 ## 2026-10-13 · session 3 · final hardening, beta validation, release preparation
 - Independent Codex review of remote control: 7 findings (2 High), all fixed; 9 regression tests confirmed failing on the old code (D-015, SECURITY_AUDIT.md). Origin now checked on all local HTTP requests.
 - Installers validated on fresh CI runners (Windows NSIS, macOS DMG, Linux deb/AppImage). This found the engine outliving the app (stdin never resumed) and a .deb metadata failure; both are fixed. The first, hung run was cancelled and recorded.

@@ -195,3 +195,16 @@ VERIFIED 10/10 steps: first-run detection; add project; casual question routed t
 Driver bugs found and fixed while doing this (not product bugs): the click helper matched the sidebar "+" button's accessible label "Add project"; it now prefers visible text.
 
 `npm run check` → 145 passed, 1 skipped (Windows), typecheck, lint, originality.
+
+### Final numbers after the A4 fixes (`.hydra-dev/bench-final.json`, 4 runs per scenario)
+| Scenario | Ack (median) | First words: cold / warm median (best) | Total: warm median (p95) | Provider alone, total median |
+|---|---|---|---|---|
+| "hi" (routed fast, 1 run each) | 4 ms | 2.7 s / 2.1 s (1.6 s) | 3.0 s (5.1 s) | 6.6 s |
+| "What does add() in math.js return?" (routed standard, 1 run each) | 4 ms | 7.7 s / 7.5 s (6.0 s) | 9.0 s (9.7 s) | 11.6 s |
+
+Before the work, "hi" took 5.1 s and showed nothing until done; the repository question took 10.6 s. Repository questions spend most of their time reading files before the first words; the UI now shows what the agent is reading meanwhile. Samples are small and the machine was busy; medians are indicative.
+
+### Final desktop run and packages
+- `npm run e2e:desktop` with real Claude on the final code: VERIFIED 10/10.
+- Windows installer rebuilt from commit c426346: `Hydra-Setup-2.0.0-alpha.0-x64.exe`, 111.8 MB, sha256 `6df36e06f160c73e546ff59468fbd28e9fc96118f8157d4e4f58f11ffefdd3fb`; artifact scan clean; packaged smoke test passes. Not installed on the owner's PC.
+- `npm run check` → 159 passed, 1 skipped (Windows).

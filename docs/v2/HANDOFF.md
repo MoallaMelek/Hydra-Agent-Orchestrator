@@ -2,18 +2,18 @@
 
 **Branch:** `v2-rebuild` (worktree `C:\Users\moall\hydra-v2`), merged into `main` with the owner's approval on 2026-10-13.
 
-## Where things stand (end of session 3, 2026-10-13: final hardening)
-| Milestone | State | Evidence |
+## Where things stand (2026-10-14, release hardening and performance)
+| Area | State | Evidence |
 |---|---|---|
-| M0 originality and architecture | VERIFIED | originality check; D-001…D-015 |
-| M1 core engine | VERIFIED | unit, integration and reliability tests; live Claude/Codex runs |
-| M2 safe autonomous development | VERIFIED | live fixes; accept/rollback; concurrent and conflicting accepts |
-| M3 desktop | VERIFIED | real Electron E2E with a real agent (`npm run e2e:desktop`), onboarding checklist |
-| M4 remote | VERIFIED in automated tests; BLOCKED on a physical phone | independent review A3: 7/7 fixed (SECURITY_AUDIT.md) |
-| M5 hardening and packaging | VERIFIED (unsigned) | installers install/launch/uninstall/reinstall on fresh Windows, macOS arm64, Linux x64 runners; data ownership tests |
-| M6 commercial | Drafted; owner decisions pending | COMMERCIAL_READINESS (~55%), BETA_TEST_PLAN, RELEASE_CHECKLIST, AGENSI_SKILLS |
+| Core engine, isolation, verification | VERIFIED | engine, reliability, delivery and data tests; live Claude/Codex runs |
+| Adaptive execution (routing, streaming, pre-started agents) | VERIFIED | `route.test.ts`, `routing.test.ts`, real-Claude benchmark, desktop run |
+| History (conversations, follow-ups, search, archive) | VERIFIED | `history.test.ts`, desktop run |
+| Remote control | VERIFIED in automated tests; BLOCKED on a physical phone | SECURITY_AUDIT A3; replay (`remote.test.ts`, `sequencer.test.ts`) |
+| Independent reviews | A1 engine, A3 remote, A4 adaptive execution: all findings fixed | SECURITY_AUDIT.md |
+| Installers (unsigned) | VERIFIED on fresh CI runners for Windows, macOS arm64, Linux x64 | TEST_EVIDENCE |
+| Repository | Only Hydra v2; `main` fast-forwarded to dc6d6e7 with approval; later work is on `v2-rebuild` | D-017 |
 
-Tests: `npm run check` → 91 passed + 1 skipped on Windows (POSIX permissions test), typecheck, lint, originality. CI: `.github/workflows/v2-ci.yml`.
+Tests: `npm run check` → 159 passed + 1 skipped on Windows, typecheck, lint, originality. Benchmarks: `node tools/bench-latency.mjs` (uses your provider account).
 
 ## How to run
 - **Develop:** `npm install && npm run check`
@@ -49,6 +49,7 @@ Tests: `npm run check` → 91 passed + 1 skipped on Windows (POSIX permissions t
 
 ## Next engineering actions
 1. Real-phone session with the owner (BETA_TEST_PLAN §7); record the results.
+1b. Approve fast-forwarding `main` to the latest `v2-rebuild` (it stopped at dc6d6e7).
 2. Repeat `npm run e2e:desktop` on macOS and Linux; extend it to approve the plan and Accept.
 3. A single version source (RELEASE_CHECKLIST B6); an update mechanism (C7).
 4. Windows Job Objects (T16); a container profile for checks (T5); HTTPS phone UI (T20).

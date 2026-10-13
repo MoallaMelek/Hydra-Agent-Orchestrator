@@ -1,6 +1,8 @@
-# Hydra v2 — Commercial readiness (updated 2026-10-13, final hardening session)
+# Hydra — Commercial readiness (updated 2026-10-14, release-hardening and performance session)
 
 ## Verdict
+Since the previous assessment: simple questions are answered by one streamed agent call (median 3.0 s total, first words after about 2 s when warm, against 5.1 s with nothing shown before). Hydra routes each message automatically (quick answer, code question or full change) and forces plan approval for risky changes. History has conversations, follow-ups, search and archive. A phone that reconnects replays what it missed. A second independent review (A4) found 6 issues, all fixed with regression tests.
+
 Hydra v2 is a **working, independently written alpha that is ready for a closed beta once the owner approves distribution**. It is **not ready for a paid public release.** What changed in this session:
 - An independent security review of remote control found 7 issues. All are fixed with regression tests that fail on the old code.
 - Real installers were installed, launched, uninstalled and reinstalled on fresh Windows, macOS and Linux machines (CI runners). That run found and fixed a bug where the engine outlived the app.
@@ -22,6 +24,8 @@ Labels: VERIFIED (observed evidence in TEST_EVIDENCE.md) · DONE (implemented, t
 | Concurrency and failure handling | VERIFIED | `reliability.test.ts`: 2 concurrent tasks (disjoint and conflicting), a burst of 12 tasks, a check that cannot start |
 | Remote control secure | VERIFIED in automated tests; **real phone BLOCKED** | SECURITY_AUDIT A3 (7/7 fixed); manual checklist in BETA_TEST_PLAN §7 |
 | Desktop app usable | VERIFIED | `npm run e2e:desktop` (with real CLIs, and with CLIs hidden) on Windows; onboarding checklist |
+| Fast simple questions; adaptive execution | VERIFIED | Routing table 37/37; engine routing tests; real-Claude benchmark (TEST_EVIDENCE); desktop run picks Quick answer with one agent run |
+| Conversation history | VERIFIED | Follow-ups with context, search, archive/restore, delete confirmation, upgrade from older databases |
 | Installers per OS | VERIFIED on fresh CI runners (unsigned) | Windows NSIS x64, macOS DMG arm64, Linux deb/AppImage x64: install → launch → uninstall (data kept) → reinstall → no leftover engine |
 | Customer account isolation | VERIFIED | Provider-specific env allowlists; fake keys never reach the DB, logs, backups or exports; artifact scans of installed files; providers show "not installed" on clean machines |
 | Database ownership | VERIFIED | Local SQLite; migrations; 0700/0600 on macOS/Linux; backup and keyless JSON export from the UI; no network client code in the engine |
@@ -32,14 +36,14 @@ Labels: VERIFIED (observed evidence in TEST_EVIDENCE.md) · DONE (implemented, t
 ## Readiness estimate (judgement, not a measurement)
 | Area | Weight | Estimate | Main gap |
 |---|---|---|---|
-| Core function and safety model | 25% | 90% | Live multi-file run through the GUI with Accept not repeated this session |
-| Security | 20% | 70% | No external pentest; HTTP phone UI on LAN; Windows process trees |
+| Core function and safety model | 25% | 92% | Live multi-file change accepted through the GUI not repeated this session |
+| Security | 20% | 72% | No external pentest; HTTP phone UI on LAN; pattern-based risk gate and redaction; Windows process trees |
 | Packaging and distribution | 15% | 55% | Unsigned; no notarization; no auto-update; no Intel macOS build |
-| UX and onboarding | 10% | 70% | No real-user testing; phone UX not tried on a device |
+| UX and onboarding | 10% | 80% | No real-user testing; phone UX not tried on a device |
 | Validation with real users | 15% | 5% | No beta; no physical phone |
 | Legal and business (licence, trademark, privacy, support) | 15% | 20% | All drafted, none decided |
 
-**Weighted commercial readiness: about 55%.** For a closed beta with invited developers the core is in place. What blocks a beta is the owner's approvals in BETA_TEST_PLAN §10, not engineering work.
+**Weighted commercial readiness: about 57%** (was 55%). The engineering gaps that remain are small; what blocks selling is owner decisions and real-user validation (beta, phone, signing, licence, name, pentest).
 
 ## Blockers to a paid release
 1. Code signing (Windows) and Developer ID with notarization (macOS): OWNER, costs money.

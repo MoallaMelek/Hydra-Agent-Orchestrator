@@ -7,7 +7,7 @@ Nothing here authorises a release. Publishing, tagging a release, uploading inst
 
 | # | Gate | How | Status |
 |---|---|---|---|
-| A1 | Typecheck, lint, tests, originality | `npm run check` (CI on Windows, macOS, Linux) | VERIFIED: 91 passed + 1 skipped on Windows; green on 3 OS |
+| A1 | Typecheck, lint, tests, originality | `npm run check` (CI on Windows, macOS, Linux) | VERIFIED: 159 passed + 1 skipped on Windows; green on 3 OS |
 | A2 | Build UI, engine host and desktop shell | `npm run build` | VERIFIED |
 | A3 | No credentials, credential stores, env files or keys in build output and installed files | `tools/scan-artifacts.mjs` (CI, plus installed resources on each OS) | VERIFIED |
 | A4 | Shipped licences permissive | `npm run licenses` | VERIFIED: MIT/ISC only |

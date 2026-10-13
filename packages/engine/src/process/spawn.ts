@@ -84,7 +84,8 @@ export async function killTree(child: ChildProcess, graceMs = 1500): Promise<voi
     return
   }
   const signalGroup = (signal: NodeJS.Signals) => {
-    try { process.kill(-pid, signal) } catch { /* group gone */ }
+    // Hydra starts agents in their own process group; if this one has none, signal the process itself.
+    try { process.kill(-pid, signal) } catch { try { child.kill(signal) } catch { /* already gone */ } }
   }
   signalGroup('SIGTERM')
   const exited = await waitForExit(child, graceMs)
