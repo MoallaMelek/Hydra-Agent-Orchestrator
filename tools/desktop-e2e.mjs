@@ -25,6 +25,7 @@ mkdirSync(outDir, { recursive: true })
 const electron = createRequire(import.meta.url)('electron')
 const dataDir = mkdtempSync(join(tmpdir(), 'hydra-desktop-e2e-'))
 const report = { startedAt: new Date().toISOString(), dataDir, steps: [] }
+const pageErrors = []
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function makeRepo() {
@@ -63,8 +64,15 @@ async function connect() {
         await new Promise((ok, fail) => { ws.once('open', ok); ws.once('error', fail) })
         let next = 0
         const pending = new Map()
-        ws.on('message', (raw) => { const m = JSON.parse(String(raw)); if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id) } })
+        ws.on('message', (raw) => {
+          const m = JSON.parse(String(raw))
+          if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id) }
+          // Page errors are evidence: record them in the report.
+          if (m.method === 'Runtime.exceptionThrown') pageErrors.push(m.params.exceptionDetails?.exception?.description ?? m.params.exceptionDetails?.text)
+          if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') pageErrors.push(m.params.args.map((a) => a.value ?? a.description).join(' '))
+        })
         const send = (method, params = {}) => new Promise((ok) => { const id = ++next; pending.set(id, ok); ws.send(JSON.stringify({ id, method, params })) })
+        await send('Runtime.enable')
         return { ws, send }
       }
     } catch { /* not up yet */ }
@@ -89,8 +97,17 @@ function driver(cdp) {
     }
     throw new Error(`Timed out waiting for "${needle}"`)
   }
-  const click = (label) => evaluate(`(() => {
-    const els = [...document.querySelectorAll('button')].filter((b) => !b.disabled && (b.textContent.trim() === ${JSON.stringify(label)} || b.getAttribute('aria-label') === ${JSON.stringify(label)}))
+  // Retries briefly: React may not have re-rendered the button yet after typing.
+  const click = async (label) => {
+    for (let i = 0; ; i++) {
+      try { return await clickNow(label) } catch (error) { if (i >= 20) throw error; await sleep(150) }
+    }
+  }
+  const clickNow = (label) => evaluate(`(() => {
+    const enabled = [...document.querySelectorAll('button')].filter((b) => !b.disabled)
+    // Visible text first: an icon button's accessible label can repeat a visible label elsewhere.
+    const byText = enabled.filter((b) => b.textContent.trim() === ${JSON.stringify(label)})
+    const els = byText.length ? byText : enabled.filter((b) => b.getAttribute('aria-label') === ${JSON.stringify(label)})
     if (!els.length) throw new Error('No enabled button ' + ${JSON.stringify(label)})
     els[0].click(); return true })()`)
   const type = (selector, value) => evaluate(`(() => {
@@ -120,7 +137,8 @@ async function step(name, fn) {
     report.steps.push({ name, result: 'PASS', ms: Date.now() - started, ...(detail ? { detail } : {}) })
     console.log(`PASS ${name}`)
   } catch (error) {
-    report.steps.push({ name, result: 'FAIL', ms: Date.now() - started, error: error.message })
+    report.steps.push({ name, result: 'FAIL', ms: Date.now() - started, error: error.message, pageErrors: pageErrors.slice(-5) })
+    await ui?.shot(`fail-${report.steps.length}`).catch(() => {})
     console.log(`FAIL ${name}: ${error.message}`)
     throw error
   }
@@ -149,57 +167,67 @@ try {
     await ui.shot('02-project')
   })
   if (useAgents) {
-    await step('a casual question gets a natural, rendered reply', async () => {
-      await ui.click('Ask a question')
+    const toProject = async () => {
+      await ui.evaluate(`[...document.querySelectorAll('.nav-item')].find((b) => b.textContent.includes(${JSON.stringify(basename(repo))})).click()`)
+      await ui.waitText('Ask a question or describe a change')
+    }
+    const openLimits = () => ui.evaluate("document.querySelector('#budget-cost') || [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Agents and limits')).click()")
+    await step('a casual question: Auto picks a quick answer, the reply streams in and reads naturally', async () => {
       await ui.type('#task-prompt', 'hi! what does this project do, in a sentence or two?')
+      await ui.waitText('Auto → Quick answer')
       await ui.click('Ask')
       const task = await ui.until((s) => s.tasks.find((t) => t.intent === 'analyze' && t.status !== 'running' && t.status !== 'queued'), 240_000)
       if (task.status !== 'completed' || !task.answer) throw new Error(`question ${task.status}: ${task.error}`)
+      if (task.route?.depth !== 'fast' || task.usage.agentRuns !== 1) throw new Error(`expected one quick run, got ${task.route?.depth} with ${task.usage.agentRuns} runs`)
       await ui.waitText('Hydra ·')
       await ui.shot('03a-question')
       const narrated = /\b(pipeline|this stage|read-only (mode|access)|structured output)\b/i.test(task.answer)
-      const page = await ui.text()
       if (narrated) throw new Error('the reply narrates how it was run')
-      if (/^#{1,6} /m.test(page)) throw new Error('raw Markdown headings are visible')
-      return { answer: task.answer.slice(0, 400), costUsd: task.usage.costUsd }
+      if (/^#{1,6} /m.test(await ui.text())) throw new Error('raw Markdown headings are visible')
+      return { answer: task.answer.slice(0, 300), costUsd: task.usage.costUsd }
     })
-    await step('a question sent as a change is answered without a plan', async () => {
-      await ui.evaluate(`[...document.querySelectorAll('.nav-item')].find((b) => b.textContent.includes(${JSON.stringify(basename(repo))})).click()`)
-      await ui.waitText('New task')
-      await ui.click('Change code')
+    await step('a follow-up continues the conversation', async () => {
+      await ui.type('textarea[aria-label="Ask a follow-up"]', 'and which file holds the main logic?')
+      await ui.click('Send')
+      const task = await ui.until((s) => s.tasks.find((t) => t.followUpOf && t.status !== 'running' && t.status !== 'queued'), 240_000)
+      if (task.status !== 'completed' || !/math\.js/.test(task.answer ?? '')) throw new Error(`follow-up ${task.status}: ${(task.answer ?? task.error ?? '').slice(0, 200)}`)
+      await ui.shot('03b-follow-up')
+      return { answer: task.answer.slice(0, 300) }
+    })
+    await step('a question forced into the full pipeline is answered without a plan', async () => {
+      await toProject()
       await ui.type('#task-prompt', 'are you a good tool for this repo?')
-      await ui.click('Start task')
+      await ui.click('Full change')
+      await ui.click('Start change')
       const task = await ui.until((s) => s.tasks.find((t) => t.prompt.startsWith('are you a good tool') && t.status !== 'running' && t.status !== 'queued'), 240_000)
-      await ui.shot('03b-question-as-change')
+      await ui.shot('03c-question-as-change')
       if (task.status !== 'completed' || task.outcome !== 'answered') throw new Error(`expected an answer, got ${task.status}/${task.outcome}/${task.waitReason}`)
-      return { answer: task.answer.slice(0, 400), workspaceRemoved: task.workspace?.removed ?? null }
+      return { answer: task.answer.slice(0, 300), workspaceRemoved: task.workspace?.removed ?? null }
     })
-    await step('Safe task stops for plan approval; rejecting discards it', async () => {
-      await ui.evaluate(`[...document.querySelectorAll('.nav-item')].find((b) => b.textContent.includes(${JSON.stringify(basename(repo))})).click()`)
-      await ui.waitText('New task')
-      await ui.click('Change code')
+    await step('a change: Auto picks the full pipeline; Safe stops for plan approval; rejecting discards it', async () => {
+      await toProject()
       await ui.type('#task-prompt', 'Fix add() in math.js so the test passes. Keep the change minimal.')
+      await ui.waitText('Auto → Full change')
       await ui.click('Safe')
-      await ui.evaluate("document.querySelector('#budget-cost') || [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Agents and limits')).click()")
+      await openLimits()
       await ui.type('#budget-cost', '0.5')
-      await ui.click('Start task')
-      const task = await ui.until((s) => s.tasks.find((t) => t.intent === 'change' && (t.status === 'waiting_input' || t.status === 'failed' || t.status === 'paused')), 300_000)
+      await ui.click('Start change')
+      const task = await ui.until((s) => s.tasks.find((t) => t.intent === 'change' && t.prompt.startsWith('Fix add()') && (t.status === 'waiting_input' || t.status === 'failed' || t.status === 'paused')), 300_000)
       if (task.status !== 'waiting_input') throw new Error(`task ${task.status}: ${task.error}`)
       await ui.waitText('Approve the plan and checks?')
       await ui.shot('03-plan-approval')
       await ui.click('Reject')
       const done = await ui.until((s) => s.tasks.find((t) => t.id === task.id && t.status === 'completed'))
       await ui.shot('04-rejected')
-      return { waitReason: task.waitReason, outcome: done.outcome, costUsd: done.usage.costUsd, planSteps: done.plan?.steps?.length ?? null }
+      return { route: task.route?.depth, waitReason: task.waitReason, outcome: done.outcome, costUsd: done.usage.costUsd }
     })
-    await step('a running task stops promptly', async () => {
-    await ui.evaluate(`[...document.querySelectorAll('.nav-item')].find((b) => b.textContent.includes(${JSON.stringify(basename(repo))})).click()`)
-    await ui.waitText('New task')
-      await ui.click('Developer')
+    await step('a running change stops promptly', async () => {
+      await toProject()
       await ui.type('#task-prompt', 'Add a short comment above add() explaining what it does.')
-      await ui.evaluate("document.querySelector('#budget-cost') || [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Agents and limits')).click()")
+      await ui.click('Developer')
+      await openLimits()
       await ui.type('#budget-cost', '0.5')
-      await ui.click('Start task')
+      await ui.click('Start change')
       const task = await ui.until((s) => s.tasks.find((t) => t.status === 'running' && t.mode === 'developer'))
       await ui.waitText('Stop')
       await ui.click('Stop')
