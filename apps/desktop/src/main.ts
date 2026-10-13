@@ -30,7 +30,7 @@ function startEngine(): Promise<string> {
   const ui = app.isPackaged ? resource('ui') : resource('ui')
   if (!existsSync(entry)) throw new Error(`Engine not found at ${entry}. Run "npm run build" first.`)
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [entry, '--static', ui], {
+    const child = spawn(process.execPath, [entry, '--static', ui, '--stdin-lifeline'], {
       env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', HYDRA_API_TOKEN: token },
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true

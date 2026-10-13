@@ -14,10 +14,10 @@ export function defaultDataDir(): string {
   return join(process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share'), 'hydra', 'v2')
 }
 
-interface Args { dataDir: string; port: number; staticDir?: string; printToken: boolean; remotePort: number; remoteBind: string; remoteHost?: string }
+interface Args { dataDir: string; port: number; staticDir?: string; printToken: boolean; remotePort: number; remoteBind: string; remoteHost?: string; stdinLifeline: boolean }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { dataDir: defaultDataDir(), port: 0, printToken: false, remotePort: 47900, remoteBind: '0.0.0.0' }
+  const args: Args = { dataDir: defaultDataDir(), port: 0, printToken: false, remotePort: 47900, remoteBind: '0.0.0.0', stdinLifeline: false }
   for (let i = 0; i < argv.length; i++) {
     const value = argv[i + 1]
     switch (argv[i]) {
@@ -28,6 +28,7 @@ function parseArgs(argv: string[]): Args {
       case '--remote-port': args.remotePort = Number(value); i++; break
       case '--remote-bind': args.remoteBind = value!; i++; break
       case '--remote-host': args.remoteHost = value; i++; break
+      case '--stdin-lifeline': args.stdinLifeline = true; break
       default: break
     }
   }
@@ -76,9 +77,12 @@ export async function serve(argv = process.argv.slice(2)): Promise<void> {
   process.on('SIGINT', () => void stop())
   process.on('SIGTERM', () => void stop())
   process.on('disconnect', () => void stop()) // parent shell went away
-  // The desktop shell closes our stdin when it quits. 'end' only fires on a flowing stream,
-  // so stdin must be resumed or the engine would outlive the app and keep the data lock.
-  process.stdin.on('end', () => void stop())
-  process.stdin.on('error', () => void stop())
-  process.stdin.resume()
+  if (args.stdinLifeline) {
+    // The desktop shell closes our stdin when it quits. 'end' only fires on a flowing stream,
+    // so stdin must be resumed or the engine would outlive the app and keep the data lock.
+    // Opt-in: a standalone engine started with stdin closed must keep running.
+    process.stdin.on('end', () => void stop())
+    process.stdin.on('error', () => void stop())
+    process.stdin.resume()
+  }
 }
