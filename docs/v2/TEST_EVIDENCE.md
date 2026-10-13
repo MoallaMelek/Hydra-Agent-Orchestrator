@@ -96,6 +96,40 @@ Live in the desktop browser pane (hydrad with `--remote-bind 127.0.0.1`):
 | P3 | `tools/scan-artifacts.mjs` on UI, hydrad and shell bundles and on packaged resources | VERIFIED clean; positive control (planted `.codex/` dir and API-key string) correctly fails |
 | P4 | `electron-builder --win dir`: packaged `Hydra.exe` smoke test (engine from bundled resources) | VERIFIED same smoke report as D2 (UI live, 4-key bridge, no Node in renderer) |
 | P5 | `electron-builder --win nsis`: installer built, `Hydra-Setup-2.0.0-alpha.0-x64.exe` 111.8 MB, sha256 984f9084c007f901…0491 | VERIFIED built (unsigned) |
-| P6 | Running the installer (install, launch, uninstall) | UNVERIFIED: would modify this PC; awaiting owner approval |
-| P7 | macOS dmg and Linux AppImage/deb | UNVERIFIED: configured in electron-builder.yml and the CI `package` job (manual dispatch); not built locally |
-| P8 | CI workflow `.github/workflows/v2-ci.yml` (Windows, macOS, Linux) | Pending first run after push |
+| P6 | Running the installer (install, launch, uninstall) | Not run on this PC (owner approval needed). Run on disposable CI runners instead: see "Installer validation" below |
+| P7 | macOS dmg and Linux AppImage/deb | VERIFIED on CI runners (see below); not built locally |
+| P8 | CI workflow `.github/workflows/v2-ci.yml` (Windows, macOS, Linux) | VERIFIED green on all three (runs 38373152737, 38376204470) |
+
+## 2026-10-13 — Final hardening: independent remote review, installers, data ownership
+
+### Independent security review of remote control (Codex, read-only)
+7 findings (2 High, 5 Medium), all fixed; details in SECURITY_AUDIT.md. The 9 new regression tests were run against the previous `remote.ts`/`server.ts`: **9/9 failed on the old code**, 19/19 hydrad tests pass on the new code.
+
+### Installer validation on fresh GitHub-hosted runners (workflow_dispatch run 38376214916, commit e47e388)
+Nothing was installed on the owner's PC. Each runner is a disposable VM. Packages are unsigned.
+
+| OS | Package creation | Install | Launch (packaged smoke) | Uninstall | Data kept | Reinstall + relaunch | No engine left running | Artifact scan of installed files |
+|---|---|---|---|---|---|---|---|---|
+| Windows (x64) | VERIFIED NSIS `Hydra-Setup-2.0.0-alpha.0-x64.exe` 111.8 MB | VERIFIED silent per-user install to `%LOCALAPPDATA%ProgramsHydra` | VERIFIED | VERIFIED program files removed | VERIFIED `hydra.db` kept | VERIFIED | VERIFIED | VERIFIED clean |
+| macOS (arm64) | VERIFIED DMG 128.4 MB | VERIFIED app copied from the mounted DMG | VERIFIED | VERIFIED app removed | VERIFIED | VERIFIED | VERIFIED | VERIFIED clean |
+| Linux (x64) | VERIFIED .deb 99.4 MB + AppImage 125.4 MB | VERIFIED `apt install` → `/opt/Hydra/hydra` | VERIFIED under Xvfb | VERIFIED `apt remove` | VERIFIED | VERIFIED via AppImage | VERIFIED | VERIFIED clean |
+
+The smoke report checks: the page loads and the stream is live, the renderer has the 4-key bridge and no Node, the app and engine versions match, the data directory and database exist, and providers are reported as not installed on a clean machine (missing-provider detection).
+
+**Not covered:** Gatekeeper/SmartScreen behaviour for downloaded unsigned files (CI bypasses quarantine), double-click GUI install, auto-update (none exists), real provider sign-in on a clean machine.
+
+**Bugs found by this validation and fixed:**
+- The engine outlived the app (stdin `end` never fired without `resume()`). The old build was still running 8 s after stdin closed; the new one exits in 55 ms. On macOS the relaunch then blocked on a modal dialog. Two back-to-back local Electron smoke runs now pass.
+- The .deb build failed (missing `homepage`).
+- The first dispatch (38373164754) was cancelled after macOS hung; this is recorded here, not hidden.
+
+### Data ownership and credential isolation (`packages/engine/src/data.test.ts`)
+| Check | Result |
+|---|---|
+| New database migrates to the current schema | VERIFIED |
+| Data dir 0700, database/backups/exports 0600 | VERIFIED by test on macOS and Linux CI (run 38380290732, 5/5); skipped on Windows (per-user profile ACL) |
+| JSON export has projects, tasks, runs, devices and contains neither the remote identity key nor device keys | VERIFIED |
+| No network client code in engine sources (no telemetry) | VERIFIED by a static scan test; the UI and desktop shell only call the local engine (manual grep) |
+| Fake `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` in the environment never appear in the database, WAL, logs, backups or exports after a full task | VERIFIED (scripted agents; real CLIs read their own credential stores) |
+
+`npm run check` → 87 passed, 1 skipped (Windows), typecheck, lint, provenance pass.
