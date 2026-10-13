@@ -133,3 +133,20 @@ The smoke report checks: the page loads and the stream is live, the renderer has
 | Fake `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` in the environment never appear in the database, WAL, logs, backups or exports after a full task | VERIFIED (scripted agents; real CLIs read their own credential stores) |
 
 `npm run check` → 87 passed, 1 skipped (Windows), typecheck, lint, provenance pass.
+
+### Real Electron desktop app (`npm run e2e:desktop`, Windows 11, dev build of commit 37f2534)
+Driven over the Chrome DevTools Protocol in the real Electron renderer, not a browser, with a fresh data directory each run. Screenshots are in `.hydra-dev/desktop-e2e*/` (not committed).
+
+| Step | With real CLIs (Claude Code + Codex signed in) | CLIs hidden (`--simulate-missing-providers`) |
+|---|---|---|
+| First run shows "Get started" with real provider detection | VERIFIED: both Ready | VERIFIED: both "Not installed", with install and sign-in commands; Overview later warns "No agent is ready" |
+| Add a project by typing its path | VERIFIED | VERIFIED |
+| Safe task with a real agent stops at plan approval; Reject discards it | VERIFIED: Claude planned (2 steps), $0.036 reported, outcome `discarded` | not applicable |
+| Stop a running task | VERIFIED: canceled during planning | not applicable |
+| Settings → Back up now / Export as JSON | VERIFIED: both files exist | VERIFIED |
+| Quit (window close) stops the engine and releases `engine.lock` | VERIFIED | VERIFIED |
+| Relaunch keeps the project and task history | VERIFIED (`canceled`, `completed/discarded`) | VERIFIED |
+
+An earlier run failed at "stop a running task" because the driver was still on the task page; that was a driver bug, fixed and rerun. The driver also had a false-pass bug (an empty step list passed); it now requires at least one step and records launch failures.
+
+**Not covered in the desktop run:** full accept and apply through the GUI with real agents (covered by `tools/live-e2e.mjs` and by browser-pane runs earlier), native folder picker (OS dialog), notifications, the packaged build (covered by CI installers), a crash mid-task in the GUI (the engine test covers crash recovery).
