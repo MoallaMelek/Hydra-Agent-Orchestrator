@@ -116,6 +116,11 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
     })()
   })
 
+  // Node closes idle keep-alive sockets after 5 s; a client reusing one at that moment
+  // gets ECONNRESET. Keep idle sockets longer than clients do (they time out first).
+  server.keepAliveTimeout = 65_000
+  server.headersTimeout = 66_000
+
   // ── live event stream ────────────────────────────────────────
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 })
   server.on('clientError', (_error, socket) => socket.destroy())
