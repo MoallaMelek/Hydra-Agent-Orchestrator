@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import {
   Budget, Command, emptyUsage, PROTOCOL_VERSION, REMOTE_COMMAND_SCOPE,
@@ -14,6 +14,7 @@ import { Store } from './store/store.js'
 import { InstanceLock } from './process/instance.js'
 import { conflict, errorMessage, forbidden, HydraError, invalid, notFound, unavailable } from './util/errors.js'
 import { isoNow, newId } from './util/ids.js'
+import { ownerOnly } from './util/permissions.js'
 import { policyFor } from './workflow/policy.js'
 
 export type Actor = { kind: 'desktop' } | { kind: 'remote'; deviceId: string; scopes: readonly DeviceScope[] }
@@ -46,10 +47,14 @@ export class Engine {
 
   private constructor(options: EngineOptions) {
     const paths = enginePaths(options.dataDir)
-    for (const dir of [paths.dataDir, paths.worktrees, paths.checkouts, paths.logs, paths.scratch, paths.backups]) mkdirSync(dir, { recursive: true })
+    for (const dir of [paths.dataDir, paths.worktrees, paths.checkouts, paths.logs, paths.scratch, paths.backups]) {
+      mkdirSync(dir, { recursive: true })
+      ownerOnly(dir, 0o700)
+    }
     this.lock = new InstanceLock(paths.dataDir)
     this.lock.acquire()
     this.store = new Store(paths.database)
+    for (const file of [paths.database, `${paths.database}-wal`, `${paths.database}-shm`]) ownerOnly(file, 0o600)
     this.version = options.version ?? '2.0.0-alpha.0'
     this.hooks = options.hooks ?? {}
     this.ctx = {
@@ -245,8 +250,25 @@ export class Engine {
   backup(keep = 7): string {
     const file = join(this.ctx.paths.backups, `hydra-${isoNow().replace(/[:.]/g, '-')}.db`)
     this.store.backupTo(file)
+    ownerOnly(file, 0o600)
     const all = readdirSync(this.ctx.paths.backups).filter((f) => /^hydra-.*\.db$/.test(f)).sort()
     for (const old of all.slice(0, Math.max(0, all.length - keep))) rmSync(join(this.ctx.paths.backups, old), { force: true })
+    return file
+  }
+
+  /**
+   * Portable JSON copy of the user's projects, tasks, runs, evidence and audit trail.
+   * Secrets are left out: the remote identity key and device public keys stay in the database.
+   */
+  exportData(): string {
+    const file = join(this.ctx.paths.backups, `hydra-export-${isoNow().replace(/[:.]/g, '-')}.json`)
+    const tasks = this.store.listTasks().map((task) => ({ ...task, runs: this.store.listRuns(task.id), evidence: this.store.listEvidence(task.id) }))
+    const data = {
+      format: 'hydra-export', formatVersion: 1, engineVersion: this.version, schemaVersion: this.store.schemaVersion, exportedAt: isoNow(),
+      projects: this.store.listProjects(), tasks, devices: this.store.listDevices(), audit: this.store.listAudit(100_000)
+    }
+    writeFileSync(file, JSON.stringify(data, null, 2), { mode: 0o600 })
+    ownerOnly(file, 0o600)
     return file
   }
 

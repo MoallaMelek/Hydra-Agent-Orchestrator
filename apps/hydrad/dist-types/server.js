@@ -80,6 +80,8 @@ export async function startApiServer(options) {
         }
         if (method === 'POST' && path === '/api/backup')
             return send(res, 200, { file: engine.backup() });
+        if (method === 'POST' && path === '/api/export')
+            return send(res, 200, { file: engine.exportData() });
         if (method === 'GET' && (match = /^\/api\/tasks\/([0-9a-z]{26})$/.exec(path)))
             return send(res, 200, engine.taskDetail(match[1]));
         if (method === 'GET' && (match = /^\/api\/tasks\/([0-9a-z]{26})\/diff$/.exec(path)))

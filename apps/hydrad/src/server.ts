@@ -79,6 +79,7 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
       return send(res, ack.ok ? 200 : ack.error.code === 'not_found' ? 404 : ack.error.code === 'internal' ? 500 : 400, ack)
     }
     if (method === 'POST' && path === '/api/backup') return send(res, 200, { file: engine.backup() })
+    if (method === 'POST' && path === '/api/export') return send(res, 200, { file: engine.exportData() })
     if (method === 'GET' && (match = /^\/api\/tasks\/([0-9a-z]{26})$/.exec(path))) return send(res, 200, engine.taskDetail(match[1]!))
     if (method === 'GET' && (match = /^\/api\/tasks\/([0-9a-z]{26})\/diff$/.exec(path))) return send(res, 200, await engine.taskDiff(match[1]!))
     if (method === 'GET' && (match = /^\/api\/evidence\/([0-9a-z]{26})\/log$/.exec(path))) {

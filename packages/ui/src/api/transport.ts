@@ -39,6 +39,8 @@ export class HttpTransport implements Transport {
   taskDetail(taskId: string) { return this.request<TaskDetail>(`/api/tasks/${taskId}`) }
   taskDiff(taskId: string) { return this.request<TaskDiff>(`/api/tasks/${taskId}/diff`) }
   execute(command: Record<string, unknown>) { return this.request<CommandAck>('/api/commands', { method: 'POST', body: JSON.stringify(command) }) }
+  /** Desktop only: writes a database backup or a JSON export next to the daily backups. */
+  saveData(kind: 'backup' | 'export') { return this.request<{ file: string }>(`/api/${kind}`, { method: 'POST' }) }
 
   async evidenceLog(evidenceId: string): Promise<string> {
     const response = await fetch(`${this.baseUrl}/api/evidence/${evidenceId}/log`, { headers: { Authorization: `Bearer ${this.token}` } })
