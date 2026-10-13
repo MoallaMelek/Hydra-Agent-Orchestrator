@@ -1,4 +1,4 @@
-import type { CommandAck, EngineSnapshot, EventEnvelope, TaskDetail, TaskDiff } from '@hydra/protocol'
+import { DURABLE_EVENT_TYPES, type CommandAck, type EngineSnapshot, type EventEnvelope, type TaskDetail, type TaskDiff } from '@hydra/protocol'
 import { Channel, clientHandshake, fromHex, keyPairFromSecret, type Frame, type ServerHello } from '@hydra/secure-channel'
 import type { ConnectionStatus, Transport } from './transport'
 
@@ -33,6 +33,9 @@ export class RemoteTransport implements Transport {
   private stopped = false
   private attempt = 0
   private ready: Promise<Welcome> | null = null
+  /** Highest journal sequence number this phone has applied; used to catch up after a disconnect. */
+  private cursor = 0
+  private connectedOnce = false
   welcome: Welcome | null = null
 
   constructor(private readonly origin: string, private readonly credentials: RemoteCredentials, private pairing: { id: string; secret: Uint8Array } | null = null) {}
@@ -59,13 +62,16 @@ export class RemoteTransport implements Transport {
           this.attempt = 0
           this.pairing = null // pairing is single use; later connections authenticate by device key
           this.welcome = message as unknown as Welcome
-          this.onStatus?.('live')
           resolve(this.welcome)
+          // After a reconnect, replay what was missed before reporting the connection as live.
+          if (this.connectedOnce) void this.catchUp().finally(() => this.onStatus?.('live'))
+          else this.onStatus?.('live')
+          this.connectedOnce = true
         } else if (typeof message.ack === 'string') {
           this.pending.get(message.ack)?.resolve(message)
           this.pending.delete(message.ack)
         } else if (message.event) {
-          this.onEvent?.(message.event as EventEnvelope)
+          this.deliver(message.event as EventEnvelope)
         }
       }
       ws.onclose = (event) => {
@@ -94,8 +100,27 @@ export class RemoteTransport implements Transport {
     return promise
   }
 
-  private async query<T>(query: string, taskId?: string): Promise<T> {
-    const reply = await this.request({ kind: 'query', query, taskId })
+  /** Applies an event once: journal events at or below the cursor were already applied. */
+  private deliver(envelope: EventEnvelope): void {
+    if (DURABLE_EVENT_TYPES.has(envelope.event.type)) {
+      if (envelope.seq <= this.cursor) return
+      this.cursor = envelope.seq
+    }
+    this.onEvent?.(envelope)
+  }
+
+  private async catchUp(): Promise<void> {
+    for (let rounds = 0; rounds < 20; rounds++) {
+      const page = await this.query<{ events: EventEnvelope[]; lastSeq: number; complete: boolean }>('events', undefined, { after: this.cursor }).catch(() => null)
+      if (!page) return
+      for (const envelope of page.events) this.deliver(envelope)
+      this.cursor = Math.max(this.cursor, page.lastSeq)
+      if (page.complete) return
+    }
+  }
+
+  private async query<T>(query: string, taskId?: string, extra: Record<string, unknown> = {}): Promise<T> {
+    const reply = await this.request({ kind: 'query', query, taskId, ...extra })
     if (!reply.ok) throw new Error((reply.error as { message?: string } | undefined)?.message ?? 'Request failed')
     return reply.result as T
   }
@@ -110,7 +135,8 @@ export class RemoteTransport implements Transport {
     return reply.ok ? { ok: true, result: reply.result } : { ok: false, error: reply.error as { code: 'invalid'; message: string } }
   }
 
-  stream(_after: number, onEvent: (envelope: EventEnvelope) => void, onStatus: (status: ConnectionStatus) => void): () => void {
+  stream(after: number, onEvent: (envelope: EventEnvelope) => void, onStatus: (status: ConnectionStatus) => void): () => void {
+    this.cursor = Math.max(this.cursor, after)
     this.onEvent = onEvent
     this.onStatus = onStatus
     onStatus(this.channel ? 'live' : 'connecting')

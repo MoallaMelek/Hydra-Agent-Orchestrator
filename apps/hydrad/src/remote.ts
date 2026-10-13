@@ -22,6 +22,8 @@ const MAX_IN_FLIGHT = 8
 /** A phone that stops reading is disconnected before its send buffer grows past this. */
 const MAX_BUFFERED_BYTES = 8 * 1024 * 1024
 const SNAPSHOT_TASK_LIMIT = 200
+/** Journal events replayed per request to a phone catching up after a disconnect. */
+const REPLAY_LIMIT = 500
 const FORWARDED: ReadonlySet<EngineEvent['type']> = new Set(['task.updated', 'task.deleted', 'task.log', 'run.updated', 'run.output', 'evidence.recorded', 'project.updated', 'project.removed'])
 
 /** The phone UI is served from this origin; WebSockets go to the same origin. */
@@ -312,6 +314,13 @@ export class RemoteHost {
         if (message.query === 'snapshot') {
           const snapshot = engine.snapshot()
           return { ack: id, ok: true, result: { ...snapshot, devices: [], tasks: snapshot.tasks.slice(0, SNAPSHOT_TASK_LIMIT) } }
+        }
+        if (message.query === 'events') {
+          // Catch-up after a disconnect: journal events after the phone's cursor, oldest first.
+          const after = typeof message.after === 'number' && message.after >= 0 ? Math.floor(message.after) : engine.store.lastSeq
+          const batch = engine.store.eventsAfter(after, REPLAY_LIMIT)
+          const lastSeq = batch.at(-1)?.seq ?? after
+          return { ack: id, ok: true, result: { events: batch.filter((e) => FORWARDED.has(e.event.type)), lastSeq, complete: batch.length < REPLAY_LIMIT } }
         }
         if (message.query === 'task') return { ack: id, ok: true, result: engine.taskDetail(taskId) }
         if (message.query === 'diff') return { ack: id, ok: true, result: await engine.taskDiff(taskId) }

@@ -78,6 +78,8 @@ class Phone {
     })
   }
 
+  close(): void { this.ws.close() }
+
   waitClosed(): Promise<number> {
     return new Promise((resolve) => {
       if (this.closeCode !== null) return resolve(this.closeCode)
@@ -229,6 +231,24 @@ describe('remote control hardening', () => {
     const oldest = phone.waitClosed()
     for (let i = 0; i < 3; i++) await new Phone(phone.key).connect(link.url, enginePub, null)
     expect(await oldest).toBe(4409)
+  })
+
+  it('lets a reconnecting phone replay the activity it missed, without other event types', async () => {
+    const { engine, link, enginePub, phone } = await pairedPhone()
+    const before = engine.store.lastSeq
+    phone.close()
+    // While the phone is away: activity it may see, and a device event it may not.
+    for (let i = 0; i < 3; i++) engine.store.publish({ type: 'task.log', taskId: 't-missed', level: 'info', message: `missed ${i}` })
+    engine.store.publish({ type: 'device.updated', device: engine.store.listDevices()[0]! })
+    const back = new Phone(phone.key)
+    await back.connect(link.url, enginePub, null)
+    const reply = await back.request({ id: 'r1', kind: 'query', query: 'events', after: before })
+    const result = reply.result as { events: Array<{ seq: number; event: { type: string; message?: string } }>; lastSeq: number; complete: boolean }
+    expect(reply.ok).toBe(true)
+    expect(result.events.map((e) => e.event.message)).toEqual(['missed 0', 'missed 1', 'missed 2'])
+    expect(result.events.every((e) => e.event.type === 'task.log')).toBe(true)
+    expect(result.lastSeq).toBe(engine.store.lastSeq)
+    expect(result.complete).toBe(true)
   })
 
   it('keeps the handshake limiter bounded under many source addresses', async () => {
