@@ -2,24 +2,26 @@
 
 **Branch:** `v2-rebuild` (worktree `C:\Users\moall\hydra-v2`). The owner's main checkout (`OneDrive\Desktop\Projects\hydra`) stays on `main`, untouched. **Legacy:** tag `legacy-v0.2.61`, folder `legacy/`. Never read legacy code when writing v2 (CLAUDE.md). The audit that motivated v2 is in `docs/audit/`.
 
-## Where things stand (end of session 2, 2026-10-13)
+## Where things stand (end of session 3, 2026-10-13: final hardening)
 | Milestone | State | Evidence |
 |---|---|---|
-| M0 originality and architecture | ☑ | provenance overlap 0% with a positive control; D-001…D-013 |
-| M1 core engine | ☑ | unit and integration tests; live Claude/Codex runs |
-| M2 safe autonomous development | ☑ | live Node and Python fixes; accept/rollback; integrate + re-verify; Codex review fixes |
-| M3 desktop | ☑ UI and shell | browser-pane E2E; Electron smoke test; packaged app smoke test |
-| M4 remote | ☑ LAN/localhost | 8 protocol tests; live pairing, phone-driven task, revocation. ⛔ physical phone over Wi-Fi not tested |
-| M5 hardening | ◐ | CI green on Windows/macOS/Linux; 0 production vulnerabilities; artifact scan; Windows installer built. Installer run, signing, mac/linux packages pending |
-| M6 commercial | ◐ | user guide; 3 Agensi skills (not submitted); readiness report |
+| M0 originality and architecture | VERIFIED | provenance overlap 0%; D-001…D-015 |
+| M1 core engine | VERIFIED | unit, integration and reliability tests; live Claude/Codex runs |
+| M2 safe autonomous development | VERIFIED | live fixes; accept/rollback; concurrent and conflicting accepts |
+| M3 desktop | VERIFIED | real Electron E2E with a real agent (`npm run e2e:desktop`), onboarding checklist |
+| M4 remote | VERIFIED in automated tests; BLOCKED on a physical phone | independent review A3: 7/7 fixed (SECURITY_AUDIT.md) |
+| M5 hardening and packaging | VERIFIED (unsigned) | installers install/launch/uninstall/reinstall on fresh Windows, macOS arm64, Linux x64 runners; data ownership tests |
+| M6 commercial | Drafted; owner decisions pending | COMMERCIAL_READINESS (~55%), BETA_TEST_PLAN, RELEASE_CHECKLIST, AGENSI_SKILLS, licensing and trademark (OWNERSHIP_AND_PROVENANCE §7–8) |
 
-Tests: `npm run check` → 72 tests, typecheck (6 projects), lint, provenance. CI: `.github/workflows/v2-ci.yml`.
+Tests: `npm run check` → 91 passed + 1 skipped on Windows (POSIX permissions test), typecheck, lint, provenance. CI: `.github/workflows/v2-ci.yml`.
 
 ## How to run
 - **Develop:** `npm install && npm run check`
 - **Desktop app:** `npm run desktop` (builds UI, hydrad and shell, then launches Electron)
 - **Engine and UI in a browser:** `npm run build`, then `HYDRA_API_TOKEN=<random> node apps/hydrad/dist/hydrad.mjs --static packages/ui/dist --port 47821`, then open `http://127.0.0.1:47821/#token=<random>`
 - **Remote on localhost only:** add `--remote-bind 127.0.0.1 --remote-host 127.0.0.1`
+- **Real desktop end to end:** `npm run build && npm run e2e:desktop` (add `--simulate-missing-providers` or `--no-agents`); screenshots in `.hydra-dev/desktop-e2e/`
+- **Installer validation:** Actions → v2 CI → Run workflow with `installers: true` (fresh runners; nothing uploaded)
 - **Live agent acceptance:** `npx tsc -b && node tools/live-e2e.mjs out.json node python analyze` (uses your provider accounts)
 - **Windows installer:** `npm run build && cd apps/desktop && npx electron-builder --win nsis --x64 --config electron-builder.yml`
 
@@ -28,11 +30,26 @@ Tests: `npm run check` → 72 tests, typecheck (6 projects), lint, provenance. C
 - Git for Windows hides a worktree's `.git` file, so open it with `r+`, not `w`. Test repos need `core.autocrlf=false`.
 - `git worktree remove` with a junction inside: always `unlinkDependencies` first (tested).
 - Compare **canonical** paths (macOS `/var` → `/private/var`; Windows 8.3 short names on CI).
+- `innerText` follows CSS `text-transform`: panel titles read as UPPERCASE, so match text case-insensitively.
+- hydrad must `resume()` stdin or its `end` event never fires (the engine outlived the app on macOS).
+- `git reset` after `git rm --cached` silently re-tracks files; check `git ls-files` before committing.
+- A test driver must never report success with zero steps.
 - Navigating to the same URL with only a new `#fragment` does not reload the page in the browser pane.
 
-## Next actions
-1. Act on the second Codex review (`.hydra-dev/codex-consult-remote.md`, local only): fix confirmed findings and record D-014.
-2. Owner-approved: run the installer on a test machine or VM; test pairing with a physical phone over Wi-Fi.
-3. Run the CI `package` job (workflow_dispatch) for macOS and Linux installers; smoke-test them.
-4. Optional container execution profile for checks (THREAT_MODEL T5).
-5. External beta (owner).
+
+## Decisions needing approval (owner)
+1. Distribute unsigned beta builds to named testers (BETA_TEST_PLAN §10); choose the security contact; approve the privacy statement.
+2. Licence for v2 and for the skills (OWNERSHIP_AND_PROVENANCE §7). Nothing is committed.
+3. Product name, after a professional trademark search (§8).
+4. Buy code-signing certificates (Windows) and an Apple Developer ID.
+5. Submit the Agensi skills at the proposed prices (AGENSI_SKILLS.md).
+6. An external penetration test (paid).
+7. Merge `v2-rebuild` into `main` (not done; needs approval).
+8. Any relay or HTTPS infrastructure for remote access outside the LAN (none deployed).
+
+## Next engineering actions
+1. Real-phone session with the owner (BETA_TEST_PLAN §7); record the results.
+2. Repeat `npm run e2e:desktop` on macOS and Linux; extend it to approve the plan and Accept.
+3. A single version source (RELEASE_CHECKLIST B6); an update mechanism (C7).
+4. Windows Job Objects (T16); a container profile for checks (T5); HTTPS phone UI (T20).
+5. Intel macOS build.
