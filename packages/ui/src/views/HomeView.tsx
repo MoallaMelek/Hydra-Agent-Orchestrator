@@ -9,7 +9,7 @@ import { ago, statusLabel } from '../lib/format'
 export function HomeView({ onAddProject }: { onAddProject: () => void }) {
   const { state, go } = useApp()
   const anyReady = state.providers.some(providerReady)
-  const tasks = Object.values(state.tasks).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  const tasks = Object.values(state.tasks).filter((t) => !t.archivedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   const needsYou = tasks.filter((t) => t.status === 'waiting_input')
   const running = tasks.filter((t) => t.status === 'running' || t.status === 'queued')
   const projectName = (id: string) => state.projects.find((p) => p.id === id)?.name ?? 'Unknown project'

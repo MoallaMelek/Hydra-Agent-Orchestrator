@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, GitBranch, MessageSquareText, Play, RotateCcw, Square, Trash2, X } from 'lucide-react'
+import { Archive, ArchiveRestore, Check, GitBranch, MessageSquareText, Play, RotateCcw, Square, Trash2, X } from 'lucide-react'
 import type { Task } from '@hydra/protocol'
 import { Button, Dialog, Field } from '../../design/components'
 import { useApp } from '../../app/context'
@@ -11,6 +11,7 @@ export function DecisionBar({ task, blockingWarnings }: { task: Task; blockingWa
   const [busy, setBusy] = useState<string | null>(null)
   const [changes, setChanges] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const act = async (key: string, command: Record<string, unknown>, success?: string) => {
     setBusy(key)
     const ack = await run({ taskId: task.id, ...command }, success)
@@ -65,7 +66,14 @@ export function DecisionBar({ task, blockingWarnings }: { task: Task; blockingWa
     <div className="row" style={{ flexWrap: 'wrap' }}>
       {(task.status === 'paused' || task.status === 'failed') && <Button variant="primary" icon={<Play size={15} />} busy={busy === 'resume'} onClick={() => void act('resume', { type: 'task.resume' })}>Resume</Button>}
       {task.outcome === 'applied' && task.applied?.method === 'fast_forward' && <Button icon={<RotateCcw size={15} />} busy={busy === 'rollback'} onClick={() => void act('rollback', { type: 'task.rollback' }, 'Rolled back with a revert commit')}>Roll back</Button>}
-      {!isRemote && <Button variant="ghost" icon={<Trash2 size={15} />} busy={busy === 'delete'} onClick={() => void act('delete', { type: 'task.delete' }, 'Task deleted').then((ack) => ack.ok && go({ view: 'project', projectId: task.projectId }))}>Delete task</Button>}
+      <Button variant="ghost" icon={task.archivedAt ? <ArchiveRestore size={15} /> : <Archive size={15} />} busy={busy === 'archive'}
+        onClick={() => void act('archive', { type: 'task.archive', archived: !task.archivedAt }, task.archivedAt ? 'Restored to history' : 'Archived')}>{task.archivedAt ? 'Restore' : 'Archive'}</Button>
+      {!isRemote && <Button variant="ghost" icon={<Trash2 size={15} />} onClick={() => setConfirmDelete(true)}>Delete</Button>}
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete this task?"
+        footer={<><Button onClick={() => setConfirmDelete(false)}>Cancel</Button><Button variant="danger" busy={busy === 'delete'}
+          onClick={() => void act('delete', { type: 'task.delete' }, 'Task deleted').then((ack) => { setConfirmDelete(false); if (ack.ok) go({ view: 'project', projectId: task.projectId }) })}>Delete permanently</Button></>}>
+        <p>This removes the task, its history and its logs from Hydra. Changes you already accepted stay in your repository. To hide it instead, use Archive.</p>
+      </Dialog>
     </div>
   )
 }

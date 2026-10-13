@@ -38,6 +38,8 @@ export const Command = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('task.rollback'), taskId: Id }),
   z.object({ type: z.literal('task.delete'), taskId: Id }),
+  /** Archives (or restores) a task and the rest of its conversation. */
+  z.object({ type: z.literal('task.archive'), taskId: Id, archived: z.boolean() }),
   z.object({ type: z.literal('device.pair_start'), name: z.string().trim().min(1).max(80), scopes: z.array(DeviceScope).min(1), host: z.string().regex(/^\d{1,3}(\.\d{1,3}){3}$/).optional() }),
   z.object({ type: z.literal('device.revoke'), deviceId: Id }),
   z.object({ type: z.literal('providers.refresh') })
@@ -61,6 +63,7 @@ export type CommandAck = z.infer<typeof CommandAck>
 export const REMOTE_COMMAND_SCOPE: Partial<Record<CommandType, 'control' | 'approve'>> = {
   'task.create': 'control',
   'agent.prewarm': 'control',
+  'task.archive': 'control',
   'task.cancel': 'control',
   'task.resume': 'control',
   'task.approve_plan': 'approve',

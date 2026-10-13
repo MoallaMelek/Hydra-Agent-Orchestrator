@@ -8,7 +8,7 @@ import { AdapterRegistry } from './agents/registry.js'
 import { headSha, isRepository } from './isolation/git.js'
 import { validateProjectRoot } from './isolation/roots.js'
 import { WorkspaceManager } from './isolation/workspace.js'
-import { enginePaths, type EngineContext, logTask, Semaphore } from './orchestrator/context.js'
+import { enginePaths, type EngineContext, logTask, Semaphore, updateTask } from './orchestrator/context.js'
 import { Orchestrator } from './orchestrator/orchestrator.js'
 import { Store } from './store/store.js'
 import { InstanceLock } from './process/instance.js'
@@ -179,6 +179,24 @@ export class Engine {
       case 'task.decide': this.requireTask(command.taskId); this.orchestrator.decide(command.taskId, command.decision, command.feedback, command.headSha, source); return null
       case 'task.rollback': this.requireTask(command.taskId); return this.orchestrator.rollback(command.taskId, source)
       case 'task.delete': return this.deleteTask(command.taskId, actorLabel)
+      case 'task.archive': {
+        const root = this.requireTask(command.taskId)
+        // A conversation is archived as a whole: the task, what it follows up on, and its follow-ups.
+        const all = this.store.listTasks(root.projectId)
+        const ids = new Set<string>([root.id])
+        for (let changed = true; changed;) {
+          changed = false
+          for (const t of all) {
+            if (ids.has(t.id) && t.followUpOf && !ids.has(t.followUpOf)) { ids.add(t.followUpOf); changed = true }
+            if (t.followUpOf && ids.has(t.followUpOf) && !ids.has(t.id)) { ids.add(t.id); changed = true }
+          }
+        }
+        if ([...ids].some((id) => this.orchestrator.isRunning(id))) throw conflict('Stop the running task before archiving it')
+        const at = command.archived ? isoNow() : null
+        for (const id of ids) updateTask(this.ctx, id, (t) => { t.archivedAt = at })
+        this.store.audit(actorLabel, command.archived ? 'task.archive' : 'task.restore', { taskIds: [...ids] })
+        return { count: ids.size }
+      }
       case 'device.pair_start':
         if (!this.hooks.pairStart) throw unavailable('Remote pairing is not available in this host')
         this.store.audit(actorLabel, 'device.pair_start', { name: command.name, scopes: command.scopes })
@@ -239,7 +257,7 @@ export class Engine {
     const now = isoNow()
     const task: Task = {
       id: newId(), projectId: project.id, title: (command.title || firstLine).trim().slice(0, 120), prompt: command.prompt,
-      intent, route, followUpOf, mode, assignment: command.assignment, budget,
+      intent, route, followUpOf, archivedAt: null, mode, assignment: command.assignment, budget,
       status: 'queued', stage: 'plan', waitReason: null, outcome: null, fixRound: 0,
       plan: null, review: null, checks: [], checksApproved: !policyFor(mode).requireCheckApproval, checkDigest: null, applyIntent: null, demo: null, answer: null,
       workspace: null, applied: null, usage: emptyUsage(), stages: [], feedback: [], error: null, createdAt: now, updatedAt: now

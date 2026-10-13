@@ -214,6 +214,8 @@ export const Task = z.object({
   route: Route.nullable().default(null),
   /** The question this one follows up on (questions only). */
   followUpOf: Id.nullable().default(null),
+  /** Hidden from the default history views; restorable. */
+  archivedAt: IsoTime.nullable().default(null),
   mode: AutonomyMode,
   assignment: Assignment,
   budget: Budget,

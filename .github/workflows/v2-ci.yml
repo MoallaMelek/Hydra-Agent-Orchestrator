@@ -2,9 +2,9 @@ name: v2 CI
 
 on:
   push:
-    branches: [v2-rebuild]
+    branches: [v2-rebuild, main]
   pull_request:
-    branches: [v2-rebuild]
+    branches: [v2-rebuild, main]
   workflow_dispatch:
     inputs:
       installers:

@@ -138,3 +138,7 @@
 .chat__reply .hx-textarea { flex: 1; min-height: 44px; }
 .route-preview { font-size: 13px; color: var(--text-2); margin: -4px 0 0; }
 .route-preview b { color: var(--text); }
+
+/* History search */
+.history-search { display: inline-flex; align-items: center; gap: 6px; color: var(--text-3); }
+.history-search .hx-input { height: 30px; min-width: 240px; }
