@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "types": ["node"],
+    "paths": {
+      "@hydra/protocol": ["./packages/protocol/src/index.ts"],
+      "@hydra/engine": ["./packages/engine/src/index.ts"],
+      "@hydra/secure-channel": ["./packages/secure-channel/src/index.ts"]
+    }
+  },
+  "include": ["packages/protocol/src", "packages/engine/src", "vitest.config.ts"]
+}

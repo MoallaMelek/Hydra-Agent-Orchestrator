@@ -1,0 +1,72 @@
+{
+  "generatedAt": "2026-10-13T00:40:45.396Z",
+  "method": "normalized 6-line shingles, comments/whitespace/imports removed",
+  "legacyFiles": 254,
+  "v2Files": 41,
+  "v2Shingles": 2387,
+  "sharedWithLegacy": 0,
+  "overallOverlap": 0,
+  "topFiles": [
+    {
+      "file": "packages/engine/src/agents/adapters.test.ts",
+      "shingles": 61,
+      "shared": 0,
+      "ratio": 0
+    },
+    {
+      "file": "packages/engine/src/agents/auth.ts",
+      "shingles": 17,
+      "shared": 0,
+      "ratio": 0
+    },
+    {
+      "file": "packages/engine/src/agents/claude.ts",
+      "shingles": 81,
+      "shared": 0,
+      "ratio": 0
+    },
+    {
+      "file": "packages/engine/src/agents/codex.ts",
+      "shingles": 88,
+      "shared": 0,
+      "ratio": 0
+    },
+    {
+      "file": "packages/engine/src/agents/jsonl-process.ts",
+      "shingles": 61,
+      "shared": 0,
+      "ratio": 0
+    },
+    {
+      "file": "packages/engine/src/agents/registry.ts",
+      "shingles": 21,
+      "shared": 0,
+      "ratio": 0
+    },
+    {
+      "file": "packages/engine/src/agents/resolve.ts",
+      "shingles": 31,
+      "shared": 0,
+      "ratio": 0
+    },
+    {
+      "file": "packages/engine/src/agents/scripted.ts",
+      "shingles": 37,
+      "shared": 0,
+      "ratio": 0
+    },
+    {
+      "file": "packages/engine/src/agents/types.ts",
+      "shingles": 26,
+      "shared": 0,
+      "ratio": 0
+    },
+    {
+      "file": "packages/engine/src/engine.test.ts",
+      "shingles": 154,
+      "shared": 0,
+      "ratio": 0
+    }
+  ],
+  "problems": []
+}

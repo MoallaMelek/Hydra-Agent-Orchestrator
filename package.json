@@ -1,0 +1,39 @@
+{
+  "name": "hydra-v2",
+  "private": true,
+  "version": "2.0.0-alpha.0",
+  "description": "Hydra v2 — engine-first orchestration of AI coding agents with isolated workspaces, engine-run verification and human approval.",
+  "author": "Melek Moalla",
+  "type": "module",
+  "workspaces": [
+    "packages/protocol",
+    "packages/secure-channel",
+    "packages/engine",
+    "packages/ui",
+    "apps/hydrad",
+    "apps/relay",
+    "apps/desktop"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "typecheck": "tsc -b tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "npm run build -w @hydra/ui && npm run build -w @hydra/hydrad && npm run build -w @hydra/relay && npm run build -w @hydra/desktop",
+    "dev": "node apps/hydrad/scripts/dev.mjs",
+    "provenance": "node tools/provenance-check.mjs",
+    "licenses": "node tools/license-report.mjs",
+    "check": "npm run typecheck && npm run lint && npm test && npm run provenance"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.4"
+  }
+}
