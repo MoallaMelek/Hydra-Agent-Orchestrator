@@ -9,6 +9,7 @@ import { ChangesTab } from './task/ChangesTab'
 import { ChecksTab } from './task/ChecksTab'
 import { AgentsTab } from './task/AgentsTab'
 import { ActivityTab } from './task/ActivityTab'
+import { ConversationView } from './task/ConversationView'
 import { useTaskDetail, useTaskDiff } from './task/useTaskData'
 import { approvalWarnings } from './task/warnings'
 import { MODE_INFO, money, shortSha, statusLabel, tokens } from '../lib/format'
@@ -36,8 +37,9 @@ export function TaskView({ taskId }: { taskId: string }) {
       <div className="crumbs">
         <button onClick={() => go({ view: 'home' })}>Overview</button><span>/</span>
         {project && <><button onClick={() => go({ view: 'project', projectId: project.id })}>{project.name}</button><span>/</span></>}
-        <span>Task {task.id.slice(-8)}</span>
+        <span className="truncate" style={{ maxWidth: 360 }} title={task.title}>{task.title}</span>
       </div>
+      {task.intent === 'analyze' ? <ConversationView task={task} detail={detail} /> : (
       <section className="hx-panel">
         <div className="task-head">
           <div className="page__head">
@@ -50,9 +52,9 @@ export function TaskView({ taskId }: { taskId: string }) {
               </div>
             </div>
             <div className="stats">
-              <div className="stat"><span className="stat__value">{money(task.usage.costUsd)}</span><span className="stat__label">of {money(task.budget.maxCostUsd)}</span></div>
+              <div className="stat"><span className="stat__value">{money(task.usage.costUsd)}</span><span className="stat__label">cost (limit {money(task.budget.maxCostUsd)})</span></div>
               <div className="stat"><span className="stat__value">{tokens(tokenTotal)}</span><span className="stat__label">tokens{task.usage.unpricedTokens ? ` (${tokens(task.usage.unpricedTokens)} unpriced)` : ''}</span></div>
-              <div className="stat"><span className="stat__value">{task.usage.agentRuns}/{task.budget.maxAgentRuns}</span><span className="stat__label">agent runs</span></div>
+              <div className="stat"><span className="stat__value">{task.usage.agentRuns}</span><span className="stat__label">agent runs (limit {task.budget.maxAgentRuns})</span></div>
             </div>
           </div>
           <Meter value={Math.max(task.usage.costUsd / task.budget.maxCostUsd, tokenTotal / task.budget.maxTokens) * 100} max={100} label="Budget used" />
@@ -76,6 +78,7 @@ export function TaskView({ taskId }: { taskId: string }) {
           {tab === 'activity' && <ActivityTab task={task} />}
         </div>
       </section>
+      )}
     </div>
   )
 }

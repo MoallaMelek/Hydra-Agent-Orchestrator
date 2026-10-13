@@ -13,6 +13,8 @@ export interface AppState {
   tasks: Record<string, Task>
   providers: ProviderStatus[]
   devices: Device[]
+  /** Remote-control listener status, including the addresses a phone could use. */
+  remote: EngineSnapshot['remote'] | null
   /** Live agent output per run (bounded). */
   output: Record<string, string>
   logs: Record<string, LogLine[]>
@@ -21,7 +23,7 @@ export interface AppState {
 }
 
 const initial: AppState = {
-  ready: false, error: null, connection: 'connecting', engineVersion: '', projects: [], tasks: {}, providers: [], devices: [], output: {}, logs: {}, revision: {}
+  ready: false, error: null, connection: 'connecting', engineVersion: '', projects: [], tasks: {}, providers: [], devices: [], remote: null, output: {}, logs: {}, revision: {}
 }
 
 /** Minimal observable store: the engine's event stream is the only writer. */
@@ -63,7 +65,7 @@ export class EngineStore {
   private load(snapshot: EngineSnapshot): void {
     this.set({
       ready: true, error: null, engineVersion: snapshot.engineVersion, projects: snapshot.projects,
-      tasks: Object.fromEntries(snapshot.tasks.map((t) => [t.id, t])), providers: snapshot.providers, devices: snapshot.devices
+      tasks: Object.fromEntries(snapshot.tasks.map((t) => [t.id, t])), providers: snapshot.providers, devices: snapshot.devices, remote: snapshot.remote
     })
   }
 

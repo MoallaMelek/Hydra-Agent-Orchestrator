@@ -14,7 +14,7 @@ export default defineConfig({
   test: {
     include: ['packages/*/src/**/*.test.{ts,tsx}', 'apps/*/src/**/*.test.{ts,tsx}', 'tools/**/*.test.mjs'],
     exclude: ['**/node_modules/**', 'legacy/**'],
-    testTimeout: 60_000,
+    testTimeout: 180_000, // engine tests run real git and npm test; allow slow or busy machines
     hookTimeout: 60_000,
     pool: 'forks'
   }

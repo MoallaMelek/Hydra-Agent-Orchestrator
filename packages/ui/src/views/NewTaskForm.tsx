@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Sparkles } from 'lucide-react'
+import { ChevronDown, ChevronRight, Sparkles } from 'lucide-react'
 import type { AutonomyMode, ProviderId, Task } from '@hydra/protocol'
 import { Button, Callout, Field, Segmented } from '../design/components'
 import { useApp } from '../app/context'
@@ -22,6 +22,7 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
   const [cost, setCost] = useState<number | ''>('')
   const [minutes, setMinutes] = useState<number | ''>('')
   const [busy, setBusy] = useState(false)
+  const [advanced, setAdvanced] = useState(false)
 
   const label = (id: string) => state.providers.find((p) => p.id === id)?.displayName ?? id
   const select = (role: keyof typeof assignment, hint: string) => (
@@ -44,9 +45,9 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
 
   return (
     <div className="composer">
-      <Field label="What should happen?" htmlFor="task-prompt">
+      <Field label={intent === 'change' ? 'Describe the change' : 'Your question'} htmlFor="task-prompt">
         <textarea id="task-prompt" className="hx-textarea" rows={4} value={prompt} onChange={(e) => setPrompt(e.target.value)}
-          placeholder={intent === 'change' ? 'Describe the change, e.g. "Cart totals ignore quantity; fix total() and add a test."' : 'Ask about the code, e.g. "How is authentication wired?"'}
+          placeholder={intent === 'change' ? 'e.g. "Cart totals ignore quantity. Fix total() and add a test."' : 'e.g. "How is authentication wired?"'}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && prompt.trim()) void submit() }} />
       </Field>
       <div className="spread" style={{ flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -54,27 +55,35 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
           <Segmented label="Task kind" value={intent} onChange={setIntent} options={[{ value: 'change', label: 'Change code' }, { value: 'analyze', label: 'Ask a question' }]} />
         </Field>
         {intent === 'change' && (
-          <Field label="Autonomy">
+          <Field label="How much freedom">
             <Segmented label="Autonomy mode" value={mode} onChange={setMode} options={(['safe', 'developer', 'autonomous'] as const).map((m) => ({ value: m, label: MODE_INFO[m].label }))} />
           </Field>
         )}
       </div>
-      {intent === 'change' && <p className="faint" style={{ fontSize: 12.5, marginTop: -6 }}>{MODE_INFO[mode].detail}</p>}
+      {intent === 'change' && <p className="faint" style={{ fontSize: 12.5, marginTop: -6 }}>{MODE_INFO[mode].detail} If your message turns out to be a question, Hydra just answers it.</p>}
       {intent === 'change' && !isGit && <Callout tone="warn">This folder is not a git repository. Change tasks need git so Hydra can isolate work; run <code>git init</code> and commit first.</Callout>}
-      {intent === 'change' ? (
+      <button type="button" className="chat__toggle" aria-expanded={advanced} onClick={() => setAdvanced(!advanced)}>
+        {advanced ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Agents and limits
+        <span className="faint" style={{ marginLeft: 6 }}>
+          {intent === 'change' ? `${label(assignment.planner)} plans · ${label(assignment.implementer)} codes · ${label(assignment.reviewer)} reviews` : `${label(assignment.planner)} answers`} · up to ${cost === '' ? DEFAULT_BUDGET[mode].cost : cost}
+        </span>
+      </button>
+      {advanced && (intent === 'change' ? (
         <div className="composer__row">
           {select('planner', 'Reads the code, writes the plan')}
           {select('implementer', 'Edits files in the isolated worktree')}
           {select('reviewer', assignment.reviewer === assignment.implementer ? 'Same provider as the implementer: less independent' : 'Independent review of the diff + real test results')}
         </div>
-      ) : <div className="composer__row">{select('planner', 'Answers using read-only access')}</div>}
-      <div className="composer__row">
+      ) : <div className="composer__row">{select('planner', 'Answers using read-only access')}</div>)}
+      {advanced && <div className="composer__row">
         <Field label="Cost limit (USD)" htmlFor="budget-cost" hint={`Default $${DEFAULT_BUDGET[mode].cost}. Codex usage is limited by tokens (its CLI reports no price).`}>
           <input id="budget-cost" className="hx-input" type="number" min={0.1} step={0.5} placeholder={String(DEFAULT_BUDGET[mode].cost)} value={cost} onChange={(e) => setCost(e.target.value === '' ? '' : Number(e.target.value))} />
         </Field>
         <Field label="Active time limit (min)" htmlFor="budget-min" hint={`Default ${DEFAULT_BUDGET[mode].minutes}. Waiting for you does not count.`}>
           <input id="budget-min" className="hx-input" type="number" min={1} step={5} placeholder={String(DEFAULT_BUDGET[mode].minutes)} value={minutes} onChange={(e) => setMinutes(e.target.value === '' ? '' : Number(e.target.value))} />
         </Field>
+      </div>}
+      <div className="composer__row" style={{ justifyContent: 'flex-end' }}>
         <div className="col" style={{ justifyContent: 'flex-end' }}>
           <Button variant="primary" size="lg" icon={<Sparkles size={16} />} busy={busy} disabled={!prompt.trim() || (intent === 'change' && !isGit) || !ready.length} onClick={() => void submit()}>
             {intent === 'change' ? 'Start task' : 'Ask'}

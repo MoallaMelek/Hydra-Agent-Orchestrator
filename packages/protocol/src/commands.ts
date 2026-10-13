@@ -30,7 +30,7 @@ export const Command = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('task.rollback'), taskId: Id }),
   z.object({ type: z.literal('task.delete'), taskId: Id }),
-  z.object({ type: z.literal('device.pair_start'), name: z.string().trim().min(1).max(80), scopes: z.array(DeviceScope).min(1) }),
+  z.object({ type: z.literal('device.pair_start'), name: z.string().trim().min(1).max(80), scopes: z.array(DeviceScope).min(1), host: z.string().regex(/^\d{1,3}(\.\d{1,3}){3}$/).optional() }),
   z.object({ type: z.literal('device.revoke'), deviceId: Id }),
   z.object({ type: z.literal('providers.refresh') })
 ])

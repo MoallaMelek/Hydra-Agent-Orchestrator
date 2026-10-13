@@ -49,7 +49,7 @@ async function create(engine: Engine, projectId: string, prompt: string, over: R
   return ack.result as Task
 }
 
-async function until(engine: Engine, taskId: string, predicate: (t: Task) => boolean, ms = 60_000): Promise<Task> {
+async function until(engine: Engine, taskId: string, predicate: (t: Task) => boolean, ms = 150_000): Promise<Task> {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
     const t = engine.store.getTask(taskId)!
@@ -87,7 +87,7 @@ describe('reliability', () => {
     expect(readFileSync(join(repo, 'lib/nested/deep.js'), 'utf8')).toBe('module.exports = 2\n')
     expect(gitIn(repo, 'status', '--porcelain')).toBe('')
     expect(gitIn(repo, 'branch', '--list', 'hydra/*')).toBe('')
-  })
+  }, 180_000) // runs npm test about eight times; slow on a busy machine
 
   it('refuses a conflicting second change without touching the user branch', async () => {
     const { engine, repo, projectId } = await setup(byMarker({

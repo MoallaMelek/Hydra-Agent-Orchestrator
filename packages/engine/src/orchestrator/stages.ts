@@ -12,7 +12,13 @@ import { callAgent } from './agent-runner.js'
 import { runChecksAt } from './checks.js'
 import { type EngineContext, logTask, updateTask } from './context.js'
 
-const Answer = z.object({ answer: z.string().min(1), keyFindings: z.array(z.string()), filesReferenced: z.array(z.string()) })
+const Answer = z.object({ answer: z.string().min(1), filesReferenced: z.array(z.string()) })
+/** Planner output: a plan, or (steps empty) a direct reply when the message was not a change request. */
+const PlannerOutput = Plan.extend({
+  steps: z.array(z.string().min(1).max(1000)).max(30),
+  acceptanceCriteria: z.array(z.string().min(1).max(1000)).max(20),
+  reply: z.string().max(20_000).default('')
+})
 const ImplementReport = z.object({ summary: z.string(), followUps: z.array(z.string()) })
 const MAX_DIFF_CHARS = 120_000
 
@@ -50,8 +56,7 @@ export async function planStage({ ctx, taskId, signal }: StageInput): Promise<St
       taskId, stage: 'plan', role: 'planner', provider: t.assignment.planner, access: 'read', cwd: projectRoot(ctx, t),
       prompt: answerPrompt(t), jsonSchema: ANSWER_SCHEMA, parse: Answer, signal
     })
-    const findings = value.keyFindings.length ? `\n\n**Key findings**\n${value.keyFindings.map((f) => `- ${f}`).join('\n')}` : ''
-    updateTask(ctx, taskId, (draft) => { draft.answer = `${value.answer}${findings}` })
+    updateTask(ctx, taskId, (draft) => { draft.answer = value.answer })
     return { stage: 'plan', ok: true }
   }
   if (!t.workspace) {
@@ -72,9 +77,18 @@ export async function planStage({ ctx, taskId, signal }: StageInput): Promise<St
     : 'No build or test commands detected. Add .hydra/checks.json to declare them; without checks Hydra cannot verify behaviour.')
   const { value } = await callAgent(ctx, {
     taskId, stage: 'plan', role: 'planner', provider: t.assignment.planner, access: 'read', cwd: ws.path,
-    prompt: planPrompt(task(ctx, taskId)), jsonSchema: PLAN_SCHEMA, parse: Plan, signal
+    prompt: planPrompt(task(ctx, taskId)), jsonSchema: PLAN_SCHEMA, parse: PlannerOutput, signal
   })
-  updateTask(ctx, taskId, (draft) => { draft.plan = value })
+  if (!value.steps.length) {
+    if (!value.reply.trim()) throw new Error('The planner returned neither a plan nor a reply')
+    // A question sent as a change: answer it, drop the unused workspace, finish as answered.
+    const discarded = await ctx.workspaces.discard(projectRoot(ctx, t), ws)
+    updateTask(ctx, taskId, (draft) => { draft.intent = 'analyze'; draft.answer = value.reply; draft.workspace = discarded; draft.checks = [] })
+    logTask(ctx, taskId, 'info', 'This was a question rather than a change, so Hydra answered it and made no changes.')
+    return { stage: 'plan', ok: true }
+  }
+  const { reply: _reply, ...plan } = value
+  updateTask(ctx, taskId, (draft) => { draft.plan = Plan.parse(plan) })
   return { stage: 'plan', ok: true }
 }
 

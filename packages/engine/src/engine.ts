@@ -21,9 +21,9 @@ export type Actor = { kind: 'desktop' } | { kind: 'remote'; deviceId: string; sc
 
 /** Hooks implemented by the host (hydrad) for features that live outside the engine. */
 export interface HostHooks {
-  pairStart?(name: string, scopes: DeviceScope[]): Promise<unknown>
+  pairStart?(name: string, scopes: DeviceScope[], host?: string): Promise<unknown>
   revokeDevice?(deviceId: string): Promise<unknown>
-  remoteStatus?(): { relayUrl: string | null; connected: boolean }
+  remoteStatus?(): { relayUrl: string | null; connected: boolean; addresses?: Array<{ address: string; label: string }> }
 }
 
 export interface EngineOptions {
@@ -103,7 +103,7 @@ export class Engine {
       tasks: this.store.listTasks(),
       providers: this.ctx.registry.status(),
       devices: this.store.listDevices(),
-      remote: this.hooks.remoteStatus?.() ?? { relayUrl: null, connected: false }
+      remote: { addresses: [], ...(this.hooks.remoteStatus?.() ?? { relayUrl: null, connected: false }) }
     }
   }
 
@@ -176,7 +176,7 @@ export class Engine {
       case 'device.pair_start':
         if (!this.hooks.pairStart) throw unavailable('Remote pairing is not available in this host')
         this.store.audit(actorLabel, 'device.pair_start', { name: command.name, scopes: command.scopes })
-        return this.hooks.pairStart(command.name, command.scopes)
+        return this.hooks.pairStart(command.name, command.scopes, command.host)
       case 'device.revoke':
         if (!this.hooks.revokeDevice) throw unavailable('Remote control is not available in this host')
         this.store.audit(actorLabel, 'device.revoke', { deviceId: command.deviceId })

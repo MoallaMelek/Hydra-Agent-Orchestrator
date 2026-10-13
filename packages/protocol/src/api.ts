@@ -10,7 +10,7 @@ export const EngineSnapshot = z.object({
   tasks: z.array(Task),
   providers: z.array(ProviderStatus),
   devices: z.array(Device),
-  remote: z.object({ relayUrl: z.string().nullable(), connected: z.boolean() })
+  remote: z.object({ relayUrl: z.string().nullable(), connected: z.boolean(), addresses: z.array(z.object({ address: z.string(), label: z.string() })).default([]) })
 })
 export type EngineSnapshot = z.infer<typeof EngineSnapshot>
 

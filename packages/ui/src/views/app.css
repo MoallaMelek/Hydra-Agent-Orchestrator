@@ -110,3 +110,26 @@
 .setup-step { border: 1px solid var(--border); border-radius: 8px; padding: var(--space-3); }
 .setup-commands { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
 .setup-commands code { user-select: all; word-break: break-all; }
+
+/* Questions: shown as a conversation */
+.chat { display: flex; flex-direction: column; }
+.chat__msg { padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border); }
+.chat__msg--user { background: var(--surface-hover); }
+.chat__who { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
+.chat__foot { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); flex-wrap: wrap; }
+.chat__toggle { background: none; border: 0; color: inherit; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font: inherit; font-size: 13px; opacity: .8; }
+.chat__toggle:hover { opacity: 1; }
+
+/* Rendered Markdown in agent replies */
+.md { line-height: 1.6; overflow-wrap: anywhere; }
+.md > * + * { margin-top: 10px; }
+.md h3, .md h4, .md h5, .md h6 { margin: 16px 0 6px; font-size: 15px; }
+.md ul, .md ol { padding-left: 22px; }
+.md li + li { margin-top: 4px; }
+.md code { font-family: var(--font-mono); font-size: .9em; padding: 1px 5px; border-radius: 4px; background: var(--surface-hover); }
+.md pre { padding: 12px; border-radius: 8px; overflow-x: auto; background: var(--surface-hover); }
+.md pre code { padding: 0; background: none; }
+.md-table { overflow-x: auto; }
+.md table { border-collapse: collapse; font-size: 13px; }
+.md th, .md td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+.md a { color: var(--accent); }

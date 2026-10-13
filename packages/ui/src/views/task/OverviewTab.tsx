@@ -2,6 +2,7 @@ import { ArrowRight } from 'lucide-react'
 import type { DemoReport, Task } from '@hydra/protocol'
 import { Badge, Callout, Panel, type Tone } from '../../design/components'
 import type { Warning } from './warnings'
+import { Markdown } from '../../lib/markdown'
 
 const SEVERITY_TONE: Record<string, Tone> = { blocker: 'bad', major: 'warn', minor: 'info', nit: 'neutral' }
 const OUTCOME_TONE: Record<DemoReport['deltas'][number]['before'], Tone> = { pass: 'ok', fail: 'bad', error: 'warn', missing: 'neutral' }
@@ -13,7 +14,7 @@ export function OverviewTab({ task, warnings }: { task: Task; warnings: Warning[
       {warnings.length > 0 && task.status === 'waiting_input' && task.waitReason === 'final_approval' && (
         <div className="stack" style={{ gap: 8 }}>{warnings.map((w, i) => <Callout key={i} tone={w.tone}>{w.text}</Callout>)}</div>
       )}
-      {task.answer && <Panel title="Answer"><div className="prose">{task.answer}</div></Panel>}
+      {task.answer && <Panel title="Answer"><Markdown text={task.answer} /></Panel>}
       <div className="grid-2">
         <div className="stack">
           {task.plan && (

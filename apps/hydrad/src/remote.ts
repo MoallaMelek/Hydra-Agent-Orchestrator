@@ -1,5 +1,4 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http'
-import { networkInterfaces } from 'node:os'
 import { WebSocketServer, type WebSocket } from 'ws'
 import type { Engine } from '@hydra/engine'
 import { newId } from '@hydra/engine'
@@ -10,6 +9,7 @@ import {
 } from '@hydra/secure-channel'
 import { send, serveStaticFile } from './server.js'
 import { safePath, SECURITY_HEADERS } from './security.js'
+import { lanAddresses, type LanAddress } from './addresses.js'
 
 const PAIRING_TTL_MS = 5 * 60_000
 const DEVICE_TTL_MS = 30 * 24 * 60 * 60_000
@@ -43,12 +43,6 @@ export interface RemoteHostOptions {
   advertiseHost?: string
 }
 
-export function lanAddress(): string {
-  for (const list of Object.values(networkInterfaces())) {
-    for (const entry of list ?? []) if (entry.family === 'IPv4' && !entry.internal) return entry.address
-  }
-  return '127.0.0.1'
-}
 
 /** True when the device exists, is not revoked and has not expired, judged from the database now. */
 function deviceActive(engine: Engine, deviceId: string): boolean {
@@ -75,13 +69,26 @@ export class RemoteHost {
     const stored = options.engine.store.getKv('remote.identity')
     this.identity = keyPairFromSecret(stored ? fromHex(stored) : randomBytes(32))
     if (!stored) options.engine.store.setKv('remote.identity', toHex(this.identity.secretKey))
+    // Known before the first pairing so the UI can offer a choice of network.
+    if (!options.advertiseHost) void lanAddresses().then((found) => { if (!this.addresses.length) this.addresses = found })
   }
 
+  /** Addresses a phone could use, best first; refreshed when the host starts and at each pairing. */
+  private addresses: LanAddress[] = []
+
   get running(): boolean { return this.server !== null }
+
+  private advertised(): string {
+    return this.options.advertiseHost ?? this.addresses[0]?.address ?? '127.0.0.1'
+  }
   get engineFingerprint(): string { return fingerprint(this.identity.publicKey) }
 
   status() {
-    return { relayUrl: this.server ? `http://${this.options.advertiseHost ?? lanAddress()}:${this.port}` : null, connected: this.sessions.size > 0 }
+    return {
+      relayUrl: this.server ? `http://${this.advertised()}:${this.port}` : null,
+      connected: this.sessions.size > 0,
+      addresses: this.options.advertiseHost ? [] : this.addresses.map((a) => ({ address: a.address, label: `${a.interface}${a.virtual ? ' (virtual adapter)' : ''}` }))
+    }
   }
 
   async start(): Promise<void> {
@@ -111,6 +118,7 @@ export class RemoteHost {
     server.on('close', () => clearInterval(sweep))
     await new Promise<void>((done) => server.listen(this.options.port, this.options.bind, done))
     this.port = (server.address() as { port: number }).port
+    if (!this.options.advertiseHost) this.addresses = await lanAddresses()
     this.server = server
     this.options.engine.store.setKv('remote.enabled', '1')
   }
@@ -124,8 +132,14 @@ export class RemoteHost {
   }
 
   /** Creates a single-use pairing link (5 minutes). */
-  async pairStart(name: string, scopes: DeviceScope[]): Promise<{ url: string; expiresAt: string; engineFingerprint: string }> {
+  async pairStart(name: string, scopes: DeviceScope[], requestedHost?: string): Promise<{ url: string; expiresAt: string; engineFingerprint: string; host: string }> {
     await this.start()
+    if (!this.options.advertiseHost) this.addresses = await lanAddresses()
+    // Only this computer's own addresses may be put into a pairing link.
+    if (requestedHost && requestedHost !== this.options.advertiseHost && !this.addresses.some((a) => a.address === requestedHost)) {
+      throw new Error('That address does not belong to this computer')
+    }
+    const host = requestedHost ?? this.advertised()
     for (const [key, pending] of this.pairings) if (pending.expiresAt < Date.now()) this.pairings.delete(key)
     if (this.pairings.size >= MAX_OPEN_PAIRINGS) throw new Error('Too many open pairing codes; wait for them to expire')
     const id = newId()
@@ -133,8 +147,7 @@ export class RemoteHost {
     const expiresAt = Date.now() + PAIRING_TTL_MS
     this.pairings.set(id, { secret, name, scopes: [...new Set<DeviceScope>(['view', ...scopes])], expiresAt })
     const offer = encodeOffer({ v: 1, e: toHex(this.identity.publicKey), i: id, s: toHex(secret) })
-    const host = this.options.advertiseHost ?? lanAddress()
-    return { url: `http://${host}:${this.port}/remote#p=${offer}`, expiresAt: new Date(expiresAt).toISOString(), engineFingerprint: this.engineFingerprint }
+    return { url: `http://${host}:${this.port}/remote#p=${offer}`, expiresAt: new Date(expiresAt).toISOString(), engineFingerprint: this.engineFingerprint, host }
   }
 
   async revoke(deviceId: string): Promise<Device> {

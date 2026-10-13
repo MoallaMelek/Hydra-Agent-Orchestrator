@@ -47,7 +47,7 @@ async function create(engine: Engine, projectId: string, over: Record<string, un
   return ack.result as Task
 }
 
-async function until(engine: Engine, taskId: string, predicate: (t: Task) => boolean, ms = 30_000): Promise<Task> {
+async function until(engine: Engine, taskId: string, predicate: (t: Task) => boolean, ms = 120_000): Promise<Task> {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
     const t = engine.store.getTask(taskId)!

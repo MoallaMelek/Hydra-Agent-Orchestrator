@@ -9,15 +9,16 @@ const obj = (properties: Record<string, unknown>) => ({ type: 'object', addition
 
 export const PLAN_SCHEMA = obj({
   summary: str(4000),
-  steps: { ...strList(30), minItems: 1 },
-  acceptanceCriteria: { ...strList(20), minItems: 1 },
+  steps: strList(30),
+  acceptanceCriteria: strList(20),
   risks: strList(20),
-  filesLikelyTouched: strList(100, 500)
+  filesLikelyTouched: strList(100, 500),
+  /** Non-empty only when the message was a question, not a change: the reply to show the user. */
+  reply: str(20_000)
 })
 
 export const ANSWER_SCHEMA = obj({
   answer: str(20_000),
-  keyFindings: strList(20),
   filesReferenced: strList(50, 500)
 })
 

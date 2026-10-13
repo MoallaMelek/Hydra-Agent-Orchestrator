@@ -50,7 +50,7 @@ export async function serve(argv = process.argv.slice(2)): Promise<void> {
   // Remote control stays off until the user pairs a device; afterwards it starts with Hydra.
   const remote = new RemoteHost({ engine, staticDir: args.staticDir, port: args.remotePort, bind: args.remoteBind, advertiseHost: args.remoteHost })
   engine.setHooks({
-    pairStart: (name, scopes) => remote.pairStart(name, scopes),
+    pairStart: (name, scopes, host) => remote.pairStart(name, scopes, host),
     revokeDevice: (deviceId) => remote.revoke(deviceId),
     remoteStatus: () => remote.status()
   })
