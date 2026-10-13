@@ -4,7 +4,7 @@
 // operator's own provider accounts (and their usage). Never touches real projects.
 // Usage: node tools/live-e2e.mjs <out.json> [scenario...]   scenarios: node python analyze
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { Engine } from '@hydra/engine'

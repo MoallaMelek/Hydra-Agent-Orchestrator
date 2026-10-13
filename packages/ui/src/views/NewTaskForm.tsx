@@ -17,7 +17,7 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
     planner: (ready.includes('claude') ? 'claude' : ready[0] ?? 'claude') as ProviderId,
     implementer: (ready.includes('codex') ? 'codex' : ready[0] ?? 'codex') as ProviderId,
     reviewer: (ready.includes('claude') ? 'claude' : ready[0] ?? 'claude') as ProviderId
-  }), [ready.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
+  }), [ready.join(',')])
   const [assignment, setAssignment] = useState(defaults)
   const [cost, setCost] = useState<number | ''>('')
   const [minutes, setMinutes] = useState<number | ''>('')

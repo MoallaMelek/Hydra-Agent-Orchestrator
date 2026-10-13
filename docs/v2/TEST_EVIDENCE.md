@@ -44,3 +44,20 @@ Run 1 (before hardening) and run 2 (after commit d5b515a), temp git fixtures, op
 Auth detection live: Claude `authenticated: true, method claude.ai`; Codex `authenticated: true, method ChatGPT`; no identity fields kept.
 Totals after hardening: `npx vitest run packages apps` → 62/62 pass; `tsc -b`, `tsc -p tsconfig.test.json`, `eslint packages apps` clean.
 Observation: in the Python run the implementer also modified the test file and the reviewer approved it. The UI now warns about modified test files (packages/ui/src/views/task/warnings.ts — not yet compiled).
+
+## 2026-10-13 — Milestone 3: desktop UI against the real engine (browser pane)
+Setup: `npm run build -w @hydra/ui`, `npm run build -w @hydra/hydrad`, `node apps/hydrad/dist/hydrad.mjs --static packages/ui/dist --port 47821` with a fresh data dir and a throwaway `cart-service` repo; UI opened at `http://127.0.0.1:47821/#token=…` in the Claude desktop browser pane (1440×900).
+| # | Check | Result |
+|---|---|---|
+| U1 | UI loads, authenticates over HTTP + WebSocket, token scrubbed from URL | VERIFIED (sidebar "Live") |
+| U2 | Add project via dialog | VERIFIED |
+| U3 | Composer defaults to ready providers; mode text; same-provider reviewer hint | VERIFIED |
+| U4 | Safe-mode task: live pipeline, real Claude plan shown, Approve/Reject gate, sidebar "needs you" dot, cost meter ($0.07) | VERIFIED |
+| U5 | Approve → Codex implement **failed: the Codex account's usage limit was reached** ("try again at 6:46 AM"). Task shows Failed with the provider's message and a Resume button; nothing written | VERIFIED (real provider failure handled; improvement: pause instead of fail, see PROGRESS) |
+| U6 | Developer-mode task, Claude in all roles: Plan→Implement→Review→(Fix skipped)→Verify→Demo→Approval in < 60 s, $0.18; same-provider warning; Before→After `npm run test` fail→pass | VERIFIED |
+| U7 | Changes tab shows the exact one-line diff | VERIFIED (page text) |
+| U8 | Accept from UI → status Applied, workspace removed; on disk `main` fast-forwarded to the reviewed SHA, test passes | VERIFIED |
+| U9 | Roll back from UI → revert commit, history kept, test fails again | VERIFIED |
+| U10 | Providers page shows live version, signed-in method, capabilities | VERIFIED |
+| U11 | Phone-width layout | UNVERIFIED (screenshots timed out in the pane; layout CSS has a ≤900 px breakpoint) |
+Build sizes: UI 284 KB JS (88 KB gzip), 18.6 KB CSS; hydrad bundle 1.0 MB. `npm run check` passes (typecheck incl. UI, lint, 62 tests, provenance).

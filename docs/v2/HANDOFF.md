@@ -6,7 +6,7 @@
 - **M0 done:** provenance, architecture, decisions D-001…D-013, threat model T1–T19, roadmap.
 - **M1/M2 engine done and verified:** `packages/protocol`, `packages/engine`. 62 automated tests pass. Live acceptance with real Claude Code 2.1.282 and Codex CLI 0.162 passed twice (before and after hardening): Node and Python bug fixes went PLAN→…→APPROVAL, tree untouched until Accept, Accept fast-forwards, independent test passes, Rollback restores. Details in TEST_EVIDENCE.md.
 - **Independent Codex review** (25 findings) addressed in commit `d5b515a`; residual risks listed in D-013.
-- **M3 in progress:**
+- **M3 UI done and verified in the browser pane** (see TEST_EVIDENCE M3 table). Electron shell not started.
   - `apps/hydrad` (API server) done and tested (6 security tests).
   - `packages/ui` is **incomplete WIP**: design system, store, transport, Shell, Home, Project, NewTaskForm, DecisionBar, OverviewTab and ChangesTab are written.
   - **Missing:** `views/TaskView.tsx`, `task/ChecksTab.tsx`, `task/AgentsTab.tsx`, `task/ActivityTab.tsx`, `ProvidersView.tsx`, `DevicesView.tsx`, `SettingsView.tsx`, `src/main.tsx`, `index.html`, `vite.config.ts`, the UI tsconfig, and `npm install` of the UI deps (react 19.3, vite 8.3.4, lucide-react 1.55, @vitejs/plugin-react 6.1.2).

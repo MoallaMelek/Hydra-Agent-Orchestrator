@@ -18,10 +18,10 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "typecheck": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json && tsc -p tsconfig.test.json && tsc -p packages/ui/tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
-    "build": "npm run build -w @hydra/ui && npm run build -w @hydra/hydrad && npm run build -w @hydra/relay && npm run build -w @hydra/desktop",
+    "build": "npm run build -w @hydra/ui && npm run build -w @hydra/hydrad",
     "dev": "node apps/hydrad/scripts/dev.mjs",
     "provenance": "node tools/provenance-check.mjs",
     "licenses": "node tools/license-report.mjs",
