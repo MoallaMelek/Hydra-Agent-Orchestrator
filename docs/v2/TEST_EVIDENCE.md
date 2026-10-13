@@ -33,3 +33,14 @@ Environment for all entries unless stated: Windows 11 Pro 10.0.26200 · Node 22.
 - Live Claude Code / Codex runs through the engine (next: M1 live acceptance).
 - Python fixture executed live (detector unit-tested only so far).
 - Go, Rust, Java and C/C++ execution: UNVERIFIED (toolchains not installed on this machine; detectors unit-tested only).
+
+## 2026-10-13 — Live acceptance with real CLIs (`node tools/live-e2e.mjs`)
+Run 1 (before hardening) and run 2 (after commit d5b515a), temp git fixtures, operator's own accounts:
+| Scenario | Roles | Result | Evidence (Hydra-run) | Accept → test | Rollback → test | Time / cost |
+|---|---|---|---|---|---|---|
+| Node cart bug | plan Claude, impl Codex, review Claude | VERIFIED all 5 stages, final approval | `npm run test` base exit 1 → final exit 0 | fast-forward, pass | revert commit, fails again | 51 s · $0.075 + 27k unpriced Codex tokens |
+| Python slugify | plan Codex, impl Claude, review Codex | VERIFIED | `unittest` exit 1 → exit 0 | fast-forward, pass | fails again | 64 s · $0.053 + 54k unpriced |
+| Analyze (run 1) | Codex | VERIFIED correct answer, tree clean | — | — | — | 25 s |
+Auth detection live: Claude `authenticated: true, method claude.ai`; Codex `authenticated: true, method ChatGPT`; no identity fields kept.
+Totals after hardening: `npx vitest run packages apps` → 62/62 pass; `tsc -b`, `tsc -p tsconfig.test.json`, `eslint packages apps` clean.
+Observation: in the Python run the implementer also modified the test file and the reviewer approved it. The UI now warns about modified test files (packages/ui/src/views/task/warnings.ts — not yet compiled).

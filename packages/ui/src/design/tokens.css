@@ -1,0 +1,66 @@
+/* Hydra v2 design tokens. Dark is the primary theme; light mirrors it. */
+:root {
+  --font-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "SF Mono", ui-monospace, Consolas, monospace;
+
+  --text-xs: 11px; --text-sm: 12.5px; --text-md: 13.5px; --text-lg: 15px; --text-xl: 19px; --text-2xl: 24px;
+  --lh: 1.5;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px;
+  --radius-sm: 5px; --radius-md: 8px; --radius-lg: 12px;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --dur-fast: 120ms; --dur: 200ms;
+
+  /* Dark (default) — deep ink with a cool cyan signal colour */
+  --bg: #0b0d12;
+  --bg-raised: #11141b;
+  --bg-sunken: #080a0e;
+  --surface: #151923;
+  --surface-hover: #1b2030;
+  --border: #232a39;
+  --border-strong: #2f3850;
+  --text: #e6e9f0;
+  --text-2: #a4acbe;
+  --text-3: #6f7890;
+  --accent: #39c6d6;
+  --accent-strong: #5ee0ee;
+  --accent-ink: #062a2f;
+  --accent-soft: rgba(57, 198, 214, .12);
+  --ok: #3ccf8e; --ok-soft: rgba(60, 207, 142, .12);
+  --warn: #f2b84b; --warn-soft: rgba(242, 184, 75, .13);
+  --bad: #f2617a; --bad-soft: rgba(242, 97, 122, .13);
+  --info: #8f9cff; --info-soft: rgba(143, 156, 255, .13);
+  --diff-add-bg: rgba(60, 207, 142, .10); --diff-add-fg: #9be8c4;
+  --diff-del-bg: rgba(242, 97, 122, .10); --diff-del-fg: #f6a9b6;
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.35);
+  --focus: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg: #f6f7f9;
+  --bg-raised: #ffffff;
+  --bg-sunken: #eef0f4;
+  --surface: #ffffff;
+  --surface-hover: #f1f3f7;
+  --border: #e1e5ec;
+  --border-strong: #cbd2de;
+  --text: #141821;
+  --text-2: #4c5468;
+  --text-3: #7c869c;
+  --accent: #0e8f9e;
+  --accent-strong: #0a7581;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(14, 143, 158, .10);
+  --ok: #138a59; --ok-soft: rgba(19, 138, 89, .10);
+  --warn: #a96b00; --warn-soft: rgba(169, 107, 0, .10);
+  --bad: #c62848; --bad-soft: rgba(198, 40, 72, .09);
+  --info: #4c5bd4; --info-soft: rgba(76, 91, 212, .09);
+  --diff-add-bg: rgba(19, 138, 89, .09); --diff-add-fg: #0d6b45;
+  --diff-del-bg: rgba(198, 40, 72, .08); --diff-del-fg: #9c1f39;
+  --shadow: 0 1px 2px rgba(20,24,33,.06), 0 8px 24px rgba(20,24,33,.06);
+  color-scheme: light;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur: 0ms; }
+}
