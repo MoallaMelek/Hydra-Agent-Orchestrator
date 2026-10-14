@@ -1,6 +1,8 @@
-# Hydra — Commercial readiness (updated 2026-10-14, release-hardening and performance session)
+# Hydra — Commercial readiness (updated 2026-10-14, pre-beta hardening session)
 
 ## Verdict
+Pre-beta hardening (session 5): Windows process trees are now held in OS job objects (verified with real processes); phone access is off unless turned on, for a limited time, on one address; links leaving the project block checks and Accept; provider sign-in, limit and network failures pause with guidance; the router was measured on 114 labelled requests; verification commands are editable; a local outcome history drives transparent recommendations; a signed-update foundation exists but no release is published. A fifth independent review (A5) found 10 issues: 9 fixed with regression tests, 1 mitigated. Five real engineering tasks with Claude Code and Codex all succeeded. Still no real users, no physical phone, no signing, no pentest.
+
 Since the previous assessment: simple questions are answered by one streamed agent call (median 3.0 s total, first words after about 2 s when warm, against 5.1 s with nothing shown before). Hydra routes each message automatically (quick answer, code question or full change) and forces plan approval for risky changes. History has conversations, follow-ups, search and archive. A phone that reconnects replays what it missed. A second independent review (A4) found 6 issues, all fixed with regression tests.
 
 Hydra v2 is a **working, independently written alpha that is ready for a closed beta once the owner approves distribution**. It is **not ready for a paid public release.** What changed in this session:
@@ -36,14 +38,14 @@ Labels: VERIFIED (observed evidence in TEST_EVIDENCE.md) · DONE (implemented, t
 ## Readiness estimate (judgement, not a measurement)
 | Area | Weight | Estimate | Main gap |
 |---|---|---|---|
-| Core function and safety model | 25% | 92% | Live multi-file change accepted through the GUI not repeated this session |
-| Security | 20% | 72% | No external pentest; HTTP phone UI on LAN; pattern-based risk gate and redaction; Windows process trees |
-| Packaging and distribution | 15% | 55% | Unsigned; no notarization; no auto-update; no Intel macOS build |
-| UX and onboarding | 10% | 80% | No real-user testing; phone UX not tried on a device |
+| Core function and safety model | 25% | 92% | Repair rounds and merge conflicts not exercised live; pattern-based risk gate |
+| Security | 20% | 76% | No external pentest; HTTP phone page while access is on; pattern-based risk gate and redaction; checks run with user permissions; A5-4 race mitigated only |
+| Packaging and distribution | 15% | 57% | Unsigned; no notarization; update foundation only (no key, hosting or release); no Intel macOS build |
+| UX and onboarding | 10% | 82% | No real-user testing; phone UX not tried on a device |
 | Validation with real users | 15% | 5% | No beta; no physical phone |
 | Legal and business (licence, trademark, privacy, support) | 15% | 20% | All drafted, none decided |
 
-**Weighted commercial readiness: about 57%** (was 55%). The engineering gaps that remain are small; what blocks selling is owner decisions and real-user validation (beta, phone, signing, licence, name, pentest).
+**Weighted commercial readiness: about 59%** (was 57%). The engineering gaps that remain are small; what blocks selling is owner decisions and real-user validation (beta, phone, signing, licence, name, pentest).
 
 ## Blockers to a paid release
 1. Code signing (Windows) and Developer ID with notarization (macOS): OWNER, costs money.

@@ -2,6 +2,14 @@
 
 Newest entry first.
 
+## 2026-10-14 · session 5 · pre-beta hardening and intelligence
+- P0: Windows job objects (koffi) with real-process tests; phone access off by default, explicit, time-limited and bound to one address; links leaving the project refused for checks and Accept; crash leftovers swept safely; EXECUTION_BOUNDARIES.md.
+- P1/P2: provider failures classified (sign-in, limit, network with one retry, missing CLI) and paused with guidance; router evaluated on 114 labelled requests (dev 98.7%, held-out 94.7%, 0 risky missed); editable verification commands; local outcome history with transparent recommendations; plain-language failure explanations.
+- P3: signed-update foundation (verification and download only; release key, hosting and signing BLOCKED on the owner); Grand Prix design (GRAND_PRIX.md, design only).
+- Five real engineering scenarios with Claude Code and Codex, all succeeded.
+- Independent Codex review A5: 10 findings, 9 fixed with regression tests, 1 mitigated (A5-4). CI found a macOS/Linux validator defect (red since 2cb317a), fixed in e75be53.
+- Commits 1b95e21 → e75be53.
+
 ## 2026-10-14 · session 4 · release hardening, performance, ownership
 - Ownership: the repository now contains only Hydra v2 (legacy code, its audit and provenance write-up removed from the tree; private copy kept by the owner); `main` fast-forwarded with approval (D-017).
 - Performance: measured first (Hydra overhead ~10 ms; time was in provider start-up and non-streamed JSON answers). Added a deterministic router (Auto / Quick answer / Code question / Full change), streamed plain-text answers, pre-started Claude processes, a risk gate on requests and on plans. "hi": 5.1 s → 3.0 s total, first words ~2 s warm.

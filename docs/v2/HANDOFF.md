@@ -2,18 +2,20 @@
 
 **Branch:** `v2-rebuild` (worktree `C:\Users\moall\hydra-v2`), merged into `main` with the owner's approval on 2026-10-13.
 
-## Where things stand (2026-10-14, release hardening and performance)
+## Where things stand (2026-10-14, pre-beta hardening, session 5)
+Latest: commits 1b95e21 → e75be53 on `v2-rebuild` (not merged into `main`). Job objects, explicit phone access, link screening, provider-failure pauses, router evaluation, editable checks, outcome history, update foundation, Grand Prix design, review A5 (9/10 fixed, A5-4 mitigated). See PROGRESS.md and TEST_EVIDENCE.md.
+
 | Area | State | Evidence |
 |---|---|---|
 | Core engine, isolation, verification | VERIFIED | engine, reliability, delivery and data tests; live Claude/Codex runs |
 | Adaptive execution (routing, streaming, pre-started agents) | VERIFIED | `route.test.ts`, `routing.test.ts`, real-Claude benchmark, desktop run |
 | History (conversations, follow-ups, search, archive) | VERIFIED | `history.test.ts`, desktop run |
 | Remote control | VERIFIED in automated tests; BLOCKED on a physical phone | SECURITY_AUDIT A3; replay (`remote.test.ts`, `sequencer.test.ts`) |
-| Independent reviews | A1 engine, A3 remote, A4 adaptive execution: all findings fixed | SECURITY_AUDIT.md |
+| Independent reviews | A1 engine, A3 remote, A4 adaptive execution: all fixed; A5 pre-beta sprint: 9 of 10 fixed, A5-4 mitigated | SECURITY_AUDIT.md |
 | Installers (unsigned) | VERIFIED on fresh CI runners for Windows, macOS arm64, Linux x64 | TEST_EVIDENCE |
 | Repository | Only Hydra v2; `main` fast-forwarded to dc6d6e7 with approval; later work is on `v2-rebuild` | D-017 |
 
-Tests: `npm run check` → 159 passed + 1 skipped on Windows, typecheck, lint, originality. Benchmarks: `node tools/bench-latency.mjs` (uses your provider account).
+Tests: `npm run check` → 243 passed + 1 skipped on Windows, typecheck, lint, originality. Benchmarks: `node tools/bench-latency.mjs` (uses your provider account).
 
 ## How to run
 - **Develop:** `npm install && npm run check`
@@ -22,6 +24,7 @@ Tests: `npm run check` → 159 passed + 1 skipped on Windows, typecheck, lint, o
 - **Remote on localhost only:** add `--remote-bind 127.0.0.1 --remote-host 127.0.0.1`
 - **Real desktop end to end:** `npm run build && npm run e2e:desktop` (add `--simulate-missing-providers` or `--no-agents`); screenshots in `.hydra-dev/desktop-e2e/`
 - **Installer validation:** Actions → v2 CI → Run workflow with `installers: true` (fresh runners; nothing uploaded)
+- **Real engineering scenarios:** `node tools/live-scenarios.mjs` (five tasks with Claude Code and Codex; uses your provider accounts)
 - **Live agent acceptance:** `npx tsc -b && node tools/live-e2e.mjs out.json node python analyze` (uses your provider accounts)
 - **Windows installer:** `npm run build && cd apps/desktop && npx electron-builder --win nsis --x64 --config electron-builder.yml`
 

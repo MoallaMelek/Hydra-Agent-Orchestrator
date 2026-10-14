@@ -10,6 +10,7 @@ Status labels: **DONE** (fixed and covered by a regression test that fails on th
 | A2 | 2026-10-13 | Claude (self-review) | Remote host | **Not independent** | 4 findings fixed (D-014) |
 | A3 | 2026-10-13 | Codex CLI (read-only sandbox) | Mobile remote control: `remote.ts`, `server.ts`, `security.ts`, `secure-channel`, store acks, docs | Independent model, no write access; reproduced 5 issues with in-memory harnesses | 7 findings, all fixed (D-015); 5 doc corrections made |
 | A4 | 2026-10-14 | Codex CLI (read-only sandbox) | Adaptive execution: router and risk gate, streamed answers and redaction, pre-started agents, process runner, remote replay, follow-ups, archive (`git diff 7267bb7..5f976e1`) | Independent model, no write access; reproduced 4 issues with in-memory harnesses | 6 findings (1 High, 4 Medium, 1 Low), all fixed (D-016) |
+| A5 | 2026-10-14 | Codex CLI (read-only sandbox) | Pre-beta sprint: job objects, phone access, link screening, sweep, provider failures, router, check validation, outcomes, updater (`git diff 1b95e21..27a89aa`) | Independent model, no write access; probed the router and validator | 10 findings (3 High, 6 Medium, 1 Low): 9 fixed, 1 partly (A5-4) |
 
 No external human penetration test has been performed. That remains a release blocker for a paid product (see COMMERCIAL_READINESS.md).
 
@@ -54,6 +55,25 @@ The reviewer reported no concrete handshake/KDF flaw, reflection, nonce reuse, c
 
 Also from A4: earlier answers given to follow-ups are now fenced as untrusted data (they were written after reading repository files).
 
+## A5 findings — pre-beta sprint (process containment, phone access, links, router, checks, updater, outcomes)
+
+| ID | Severity | Finding | Fix | Regression test | Status |
+|---|---|---|---|---|---|
+| A5-1 | High | The risk gate missed "Remove all files", "Delete src/ recursively", "Disable access control", "Change login to accept any username"; the plan gate ignored the plan's own risk list | Bulk and path deletion, recursive deletion and protection-weakening patterns; the plan gate also reads `plan.risks` | `route.test.ts` (`REVIEW_PROBES`: 15 risky, 8 everyday look-alikes, written after the review, so a regression set, not an accuracy measure); `review-fixes.test.ts` A5-1 (risk named only in the plan's risk list) | DONE. Dev 98.7% and held-out 94.7% unchanged, 0 risky requests missed. Still pattern-based: unseen wording can be missed (the plan gate and final approval remain) |
+| A5-2 | High | Turning phone access off left sockets still in their handshake open; one could finish signing in afterwards and keep command access | Every upgraded socket is tracked and terminated when access stops; a generation counter stops a socket from an earlier access period from authenticating or sending requests | `remote.test.ts` A5-2: access turned off and on between key exchange and sign-in | DONE (fails on the old code: the socket stayed open until the handshake timeout, code 4408) |
+| A5-3 | High | Link screening normalised paths lexically, so `alias -> .` plus `docs/leak -> ../alias/../secret` passed both the checks and Accept | Targets are resolved component by component through every link in the destination tree, as the filesystem does; cycles and over-long chains count as outside | `links.test.ts` A5-3 (real git) and resolution-rule cases | DONE |
+| A5-4 | Medium | Windows: a child can start descendants in the instant before it is put in its job; those were outside the job | On cancel, the live tree is also ended by parentage (`taskkill /T`) before the job is terminated; the engine-wide job still ends everything when the engine exits | Existing real-process tests | PARTIAL: Node cannot create a process already inside a job (or suspended), so a descendant that starts in that instant **and** whose parent has already exited could survive until the engine exits. Not reproduced |
+| A5-5 | Medium | Cleanup success was overstated: POSIX reported success when the parent exited even if descendants ignored SIGTERM; a failed job query read as "empty"; callers ignored the result | POSIX requires the whole process group to be gone (escalates to SIGKILL); an unreadable job is "unknown"; incomplete cleanup is reported in the run's and the check's result | `containment.test.ts` grandchildren now report their pid only once they ignore signals (the old test could pass by killing them during start-up); CI on macOS and Linux | DONE |
+| A5-6 | Medium | The start-up sweep followed a leftover copy that was a link and could remove the project's own linked `node_modules` | Each leftover is `lstat`ed; a link is unlinked without being entered; a copies folder that is itself a link is left alone | `links.test.ts` A5-6 (two cases) | DONE (both fail on the old code; the old code emptied the temporary test project through the link) |
+| A5-7 | Medium | `git -C <dir> clean -fdx` passed check validation (only the second argument was examined); the editor implied stronger protection than a denylist gives | Forbidden subcommands are matched in any argument; the editor and the guide say checks run with your permissions and that the denylist is a safety net, not a sandbox | `custom.test.ts` (four commands with options first) | DONE for the reported bypass. Renamed programs and script files still bypass a denylist (ACCEPTED, documented) |
+| A5-8 | Medium | A download could hang forever on a disk error or a stalled server | Each write is awaited and fails on error; the response and every read have a deadline | `updater.test.ts` A5-8 (stalled server, unwritable folder) | DONE |
+| A5-9 | Medium | Downloads were written to the final, predictable name, following a link placed there; concurrent downloads clobbered each other | Exclusive, randomly named `.part` file; verified and closed before being renamed into place (a link at the final name is replaced, never written through); file names must be plain names (no `.`/`..`) | `updater.test.ts` A5-9 and file-name cases | DONE (fails on the old code: the linked file was overwritten) |
+| A5-10 | Low | Kept branches (untested, not accepted) counted as successes in the outcome history and could drive recommendations | Only accepted changes whose checks did not fail count as successes; kept branches are not observations | `outcomes.test.ts` A5-10 | DONE |
+
+A5 also noted test blind spots, now partly addressed: pending handshakes (A5-2), chained links (A5-3), link roots in the sweep (A5-6), git global options (A5-7), unverified kept branches (A5-10), disk errors, links and stalls in the updater (A5-8/9). Still not covered: FFI load failure on a packaged build, the job-assignment race (A5-4), HTTPS redirects in the updater, a real phone session.
+
+CI found one more defect during this round, unrelated to A5: on macOS/Linux, `C:\...\curl.exe` was not recognised as `curl` by the check validator (`path.basename` keeps backslashes there). CI had been red on macOS/Linux for commits 2cb317a to cd9ee7b because of it. Fixed in e75be53.
+
 ## Residual risks (ACCEPTED, documented)
 
 | Risk | Where documented | Mitigation available to users |
@@ -61,7 +81,8 @@ Also from A4: earlier answers given to follow-ups are now fenced as untrusted da
 | Phone UI is served over plain HTTP on the LAN; an active LAN attacker could tamper with the JavaScript before it runs | REMOTE.md, THREAT_MODEL T20 | Use a trusted network or a VPN such as Tailscale. HTTPS needs an owner-approved relay or certificate. |
 | The per-launch API token is visible to same-user processes (Electron `additionalArguments`) | THREAT_MODEL T8 | Same-user processes are outside the trust boundary on desktop OSes |
 | Verification runs project code with the user's privileges | THREAT_MODEL T5 | Safe mode binds check definitions; container profile planned |
-| Windows grandchild processes can outlive a cancelled run | THREAT_MODEL T16 | Job Objects need native code (planned) |
+| A Windows descendant started in the instant before its parent entered a job, whose parent then exits, can outlive a cancelled run until the engine exits (A5-4) | THREAT_MODEL T16 | Job objects, `taskkill /T` on cancel and the engine-wide job; reported when cleanup is incomplete |
+| A check (or a script it runs) can do anything the user can; the command denylist is a safety net, not a sandbox (A5-7) | USER_GUIDE section 8, the Verification panel | Only add commands you trust; OS-level isolation for checks is future work |
 | Unsigned installers trigger SmartScreen / Gatekeeper warnings | RELEASE_CHECKLIST.md | Owner must obtain code-signing certificates |
 | An unlocked, already-paired phone can act until revoked or expired | REMOTE.md | `approve` scope is opt-in; revoke from Devices |
 

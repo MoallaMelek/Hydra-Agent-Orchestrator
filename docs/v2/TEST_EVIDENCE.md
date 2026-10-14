@@ -249,6 +249,9 @@ Findings from these runs:
 | Outcome records contain no prompt or answer text; recommendation rule vs history (≥ 5) with counts | VERIFIED |
 | Updater: valid/tampered/foreign-key manifests, HTTP refused, older versions ignored, checksum/size mismatch deleted | VERIFIED (`updater.test.ts`); no real release exists |
 
+### Independent review A5 (Codex, read-only) and fixes
+10 findings (3 High, 6 Medium, 1 Low); SECURITY_AUDIT.md has the table. Regression tests confirmed failing on the old code: A5-2 (phone socket survived disable until the 4408 handshake timeout), A5-6 (sweep went through a link and emptied the temporary project), A5-9 (a link at the download name was overwritten). Router after the A5 patterns: dev 98.7%, held-out 94.7% (unchanged), risky missed 0; review probes 23/23 (tuned on them, so not an accuracy figure). Full gate: 243 passed, 1 skipped (Windows). CI on macOS/Linux had been red since 2cb317a (validator did not recognise `C:\...\curl.exe` there); fixed in e75be53. A5-4 (job assignment race) is mitigated, not eliminated, and was not reproduced.
+
 ### Latency after the sprint (real Claude, 3 runs; `.hydra-dev/bench-sprint.json`)
 | | Ack | First words warm | Total warm | Total cold |
 |---|---|---|---|---|
