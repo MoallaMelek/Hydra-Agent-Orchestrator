@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, posix, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { DiffFile } from '@hydra/protocol'
 
 export interface GitResult { code: number; stdout: string; stderr: string }
@@ -179,22 +179,57 @@ export async function branchExists(repo: string, branch: string): Promise<boolea
 }
 
 /**
- * Symbolic links added or changed between two commits whose target is absolute or
- * resolves outside the repository. A check that follows such a link, or a person who
- * later opens it, could read or write anywhere on disk.
+ * Symbolic links added or changed between two commits that can lead outside the
+ * repository: absolute targets, or targets that escape when resolved the way the
+ * filesystem does it, following every link in the tree component by component
+ * (so `alias -> .` plus `leak -> ../alias/../secret` is caught). Unresolvable cases
+ * (cycles, too many hops) count as outside.
  */
 export async function outsideLinks(repo: string, base: string, head: string): Promise<Array<{ path: string; target: string }>> {
+  const slashes = (p: string) => p.split(/[/\\]/).join('/')
+  // Every link in the destination tree: a changed link may route through an existing one.
+  const tree = (await git(repo, ['ls-tree', '-r', '-z', '--full-tree', head], { allowFail: true })).stdout.split('\0').filter(Boolean)
+  const links = new Map<string, string>()
+  for (const entry of tree) {
+    const tab = entry.indexOf('\t')
+    const [mode, , sha] = entry.slice(0, tab).split(' ')
+    if (mode === '120000') links.set(slashes(entry.slice(tab + 1)), (await git(repo, ['cat-file', 'blob', sha!], { allowFail: true })).stdout)
+  }
   const raw = (await git(repo, ['diff', '--raw', '--no-abbrev', '--no-renames', '-z', base, head], { allowFail: true })).stdout
   const parts = raw.split('\0')
   const found: Array<{ path: string; target: string }> = []
   for (let i = 0; i + 1 < parts.length; i += 2) {
     const meta = parts[i]!.trim().split(' ')
-    const path = parts[i + 1]!
+    const path = slashes(parts[i + 1]!)
     if (meta[1] !== '120000' || meta[4]?.startsWith('D')) continue
-    const target = (await git(repo, ['cat-file', 'blob', meta[3]!], { allowFail: true })).stdout
-    const slashes = (p: string) => p.split(/[/\\]/).join('/')
-    const resolved = posix.normalize(posix.join(posix.dirname(slashes(path)), slashes(target)))
-    if (posix.isAbsolute(slashes(target)) || /^[A-Za-z]:/.test(target) || resolved === '..' || resolved.startsWith('../')) found.push({ path, target })
+    const target = links.get(path) ?? (await git(repo, ['cat-file', 'blob', meta[3]!], { allowFail: true })).stdout
+    if (escapes(path, target, links)) found.push({ path: parts[i + 1]!, target })
   }
   return found
+}
+
+/** Resolves a link's target inside the tree, following links like the filesystem; true if it can leave the root. */
+export function escapes(linkPath: string, target: string, links: ReadonlyMap<string, string>): boolean {
+  const slashes = (p: string) => p.split(/[/\\]/).join('/')
+  const isAbsolute = (t: string) => slashes(t).startsWith('/') || /^[A-Za-z]:/.test(t)
+  if (isAbsolute(target)) return true
+  const resolved: string[] = slashes(linkPath).split('/').slice(0, -1)
+  let pending = slashes(target).split('/')
+  for (let hops = 0; pending.length; ) {
+    const part = pending.shift()!
+    if (part === '' || part === '.') continue
+    if (part === '..') {
+      if (!resolved.length) return true
+      resolved.pop()
+      continue
+    }
+    resolved.push(part)
+    const next = links.get(resolved.join('/'))
+    if (next !== undefined) {
+      if (++hops > 40 || isAbsolute(next)) return true
+      resolved.pop()
+      pending = [...slashes(next).split('/'), ...pending]
+    }
+  }
+  return false
 }

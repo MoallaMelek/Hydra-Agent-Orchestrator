@@ -67,6 +67,10 @@ export class RemoteHost {
   private readonly identity: KeyPair
   private readonly pairings = new Map<string, Pairing>()
   private readonly sessions = new Set<Session>()
+  /** Every upgraded socket, including ones still in the handshake: all are closed when access stops. */
+  private readonly sockets = new Set<WebSocket>()
+  /** Bumped whenever access stops; a socket from an earlier period can never authenticate. */
+  private generation = 0
   /** Fixed-size handshake counter per IP: {window start, count}; never stores individual attempts. */
   private readonly attempts = new Map<string, { start: number; count: number }>()
   /** In-flight commands per device+id, so concurrent duplicates share one execution. */
@@ -163,6 +167,9 @@ export class RemoteHost {
     this.expiry = null
     this.enabledUntil = null
     this.boundHost = null
+    this.generation++
+    for (const socket of this.sockets) socket.terminate()
+    this.sockets.clear()
     for (const session of this.sessions) session.ws.terminate()
     this.sessions.clear()
     const server = this.server
@@ -223,6 +230,9 @@ export class RemoteHost {
   get trackedAddresses(): number { return this.attempts.size }
 
   private accept(ws: WebSocket): void {
+    const generation = this.generation
+    this.sockets.add(ws)
+    const current = () => generation === this.generation && this.server !== null
     const store = this.options.engine.store
     const timer = setTimeout(() => ws.close(4408, 'handshake timeout'), HANDSHAKE_TIMEOUT_MS)
     let channel: Channel | null = null
@@ -246,6 +256,8 @@ export class RemoteHost {
       try { frame = JSON.parse(String(raw)) } catch { return ws.close(4400, 'bad frame') }
       if (!frame || typeof frame !== 'object') return ws.close(4400, 'bad frame')
       try {
+        // Access was turned off (or restarted) since this socket connected: it may not continue.
+        if (!current()) return ws.close(4403, 'phone access is off')
         if (!channel) {
           const hello = frame as ClientHello
           devicePub = String(hello.d)
@@ -292,6 +304,7 @@ export class RemoteHost {
       }
     })
     ws.on('close', () => {
+      this.sockets.delete(ws)
       clearTimeout(timer)
       unsubscribe?.()
       for (const session of [...this.sessions]) if (session.ws === ws) this.sessions.delete(session)

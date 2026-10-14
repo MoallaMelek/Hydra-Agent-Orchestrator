@@ -81,6 +81,15 @@ describe('A4-2: risky plans stop for approval even when the request sounded harm
     expect(t.status).toBe('waiting_input')
     expect(t.waitReason).toBe('plan_approval')
   })
+
+  it('also escalates when only the plan\'s own risk list names the danger (independent review A5-1)', async () => {
+    const { create, settle } = await open(() => ({
+      structured: { summary: 'Simplify the login flow', steps: ['Rework the login handler', 'Update tests'], acceptanceCriteria: ['tests pass'], risks: ['The new handler will accept any username'], filesLikelyTouched: ['src/login.ts'], reply: '' }
+    }))
+    const t = await settle(await create('Simplify the login flow', { depth: 'deep' }))
+    expect(t.route?.risk).toBe('high')
+    expect(t.waitReason).toBe('plan_approval')
+  })
 })
 
 describe('A4-3: a pre-started process handed to a cancelled run is cleaned up', () => {

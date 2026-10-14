@@ -285,6 +285,18 @@ describe('phone access is explicit and time-limited', () => {
     expect(remote.status().until).not.toBeNull()
   })
 
+  it('a phone still in its handshake when access is turned off cannot finish signing in (independent review A5-2)', async () => {
+    const { remote } = await bootAuto()
+    const link = await remote.pairStart('Phone', ['control'])
+    const { enginePub, pairing } = parse(link.url)
+    const phone = new Phone()
+    // Between the key exchange and the sign-in message, the desktop turns access off and on again.
+    const attempt = phone.connect(link.url, enginePub, pairing, 'Phone', async () => { await remote.stop(); await remote.enable(60_000) })
+    await expect(attempt).rejects.toThrow(/closed (1006|4403)/)
+    expect((remote as unknown as { sessions: Set<unknown> }).sessions.size).toBe(0)
+    expect((remote as unknown as { sockets: Set<unknown> }).sockets.size).toBe(0)
+  })
+
   it('switches itself off when the time is up', async () => {
     const { remote } = await bootAuto()
     await remote.enable(150)

@@ -24,7 +24,7 @@ export type Route = z.infer<typeof Route>
 const GREETING = /^(hi|hello|hey|yo|hiya|howdy|thanks|thank you|thx|ok|okay|cool|great|nice|good (morning|afternoon|evening)|bonjour|salut|merci|salam|hola)\b[\s!.,?]*/i
 const QUESTION_START = /^(what|why|how|where|when|who|whom|which|whose|is|are|was|were|does|do|did|can|could|should|would|will|has|have|explain|describe|tell me|show me|list|summari[sz]e|walk me through|compare|review|qu(e|')|pourquoi|comment|o[uù]|quel|est-ce)\b/i
 // Verbs that ask for the code to change ("fix x", "please add", "can you fix", "…, then add").
-const CHANGE_VERB = '(add|fix|implement|create|refactor|rename|remove|delete|update|change|make|write|build|migrate|upgrade|replace|convert|optimi[sz]e|improve|support|handle|bump|move|split|extract|introduce|enable|disable|clean ?up|rewrite|port|patch|correct|repair|install|set ?up|configure|translate|format|lint|document|test|tidy( up)?|switch|swap|simplify|speed up|harden|reorgani[sz]e|rework|adjust|tweak|polish|modernize|apply|do)'
+const CHANGE_VERB = '(add|fix|implement|create|refactor|rename|remove|delete|update|change|make|write|build|migrate|upgrade|replace|convert|optimi[sz]e|improve|support|handle|bump|move|split|extract|introduce|enable|disable|clean ?up|rewrite|port|patch|correct|repair|install|set ?up|configure|translate|format|lint|document|test|tidy( up)?|switch|swap|simplify|speed up|harden|reorgani[sz]e|rework|adjust|tweak|polish|modernize|apply|allow|accept|do)'
 // Leading words that do not change the request ("ok now fix it", "great, apply that").
 const FILLER = /^((ok|okay|alright|all right|great|yes|yeah|yep|sure|cool|perfect|sounds good|good|thanks|now|then|so|and|please)[\s,!.:-]+)+/i
 const CHANGE_IMPERATIVE = new RegExp(`^(please\\s+)?${CHANGE_VERB}\\b`, 'i')
@@ -46,10 +46,15 @@ const DESTROY_NEAR = new RegExp(`\\b${DESTROY_VERB}\\b(\\W+\\w+){0,6}?\\W+${DATA
 // Sending secrets somewhere ("send the .env contents to my server").
 const EXFILTRATE = /\b(send|upload|post|paste|share|leak|exfiltrate|email|copy)\b.{0,60}\b(\.env|secrets?|keys?|credentials?|tokens?|passwords?)\b|\b(\.env|secrets?|keys?|credentials?|tokens?|passwords?)\b.{0,60}\b(to (my|a|an|the) (server|site|url|endpoint|webhook)|pastebin|gist)\b/i
 
-/** True for text that asks for (or plans) destructive, secret-handling or production operations. */
+// Deleting in bulk or a whole path ("remove all files", "delete src/ recursively", "rm -r build").
+const BULK_DELETE = /\b(delete|remove|erase|wipe|clear|empty)\b.{0,20}\b(all|every|entire|whole)\b.{0,20}\b(files?|source|src|directories|folders?|contents?|tests?|project)\b|\brecursive(ly)?\b|\brm\s+-\w*r|\brmdir\b|\brimraf\b|\bdel\s+\/s\b|-Recurse\b|\b(delete|remove|erase|wipe)\b\s+(the\s+)?[\w.-]*\/(\s|$)/i
+// Weakening a protection ("disable access control", "accept any username", "allow anyone in").
+const WEAKEN = /\b(disable|turn off|bypass|skip|remove|weaken|loosen|relax)\b.{0,40}\b(access control|authori[sz]ation|access checks?|validation|saniti[sz]\w*|rate limit\w*|firewall|sandbox|signature|integrity|checks? on)\b|\baccepts?\b.{0,10}\b(any|every|all)\b.{0,10}\b(usernames?|users?|passwords?|tokens?|certificates?|origins?|logins?|credentials?|signatures?)\b|\ballows?\b.{0,10}\b(anyone|everyone|anonymous|unauthenticated|any origin|all origins|any user)\b|\bwithout\b.{0,10}\b(auth\w*|login|password|verification|validation)\b/i
+
+/** True for text that asks for (or plans) destructive, secret-handling, protection-weakening or production operations. */
 export function isHighRisk(text: string): boolean {
   const t = text.replace(/\s+/g, ' ')
-  return HIGH_RISK.test(t) || DESTROY_NEAR.test(t) || EXFILTRATE.test(t)
+  return HIGH_RISK.test(t) || DESTROY_NEAR.test(t) || EXFILTRATE.test(t) || BULK_DELETE.test(t) || WEAKEN.test(t)
 }
 
 /**

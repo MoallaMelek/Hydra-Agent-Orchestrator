@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { classifyRequest, routeRequest } from './route.js'
-import { DEV, HELD_OUT } from './route.dataset.js'
+import { DEV, HELD_OUT, REVIEW_PROBES } from './route.dataset.js'
 
 // [request, expected depth, expected risk]
 const CASES: Array<[string, 'fast' | 'standard' | 'deep', 'normal' | 'high']> = [
@@ -80,6 +80,10 @@ describe('router evaluation (route.dataset.ts)', () => {
   it('never misses a high-risk request, on the tuning set or the held-out set', () => {
     expect(score(DEV).riskMissed).toBe(0)
     expect(score(HELD_OUT).riskMissed).toBe(0)
+  })
+
+  it('flags the risky requests independent review A5 found, without flagging everyday look-alikes', () => {
+    expect(score(REVIEW_PROBES).failures).toEqual([])
   })
 
   it('keeps accuracy at the measured level (dev 98.7%, held-out 94.7% when written)', () => {

@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { afterEach, describe, expect, it } from 'vitest'
-import { outsideLinks } from './git.js'
+import { escapes, outsideLinks } from './git.js'
 import { linkDependencies, WorkspaceManager } from './workspace.js'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -69,5 +69,25 @@ describe('cleanup after a crash', () => {
     expect(await manager.sweepLeftovers([repo])).toBe(1)
     expect(existsSync(leftover)).toBe(false)
     expect(readFileSync(join(repo, 'node_modules', 'pkg', 'index.js'), 'utf8')).toBe('precious')
+  })
+})
+
+describe('links resolved like the filesystem (independent review A5-3)', () => {
+  it('catches an escape that goes through another link', async () => {
+    const repo = makeRepo({ 'a.txt': 'a', 'docs/readme.md': 'r' })
+    dirs.push(repo)
+    const base = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim()
+    // alias -> . ; docs/leak -> ../alias/../secret  reaches the repository's parent.
+    const head = commitWithLinks(repo, { 'alias': '.', 'docs/leak': '../alias/../secret' })
+    expect((await outsideLinks(repo, base, head)).map((l) => l.path)).toEqual(['docs/leak'])
+  })
+
+  it('resolution rules: chains, cycles and links that stay inside', () => {
+    const links = new Map([['alias', '.'], ['up', '..'], ['loop1', 'loop2'], ['loop2', 'loop1'], ['docs/inner', '../a.txt']])
+    expect(escapes('docs/leak', '../alias/../secret', links)).toBe(true)
+    expect(escapes('x', 'up/etc', links)).toBe(true)
+    expect(escapes('x', 'loop1/file', links)).toBe(true) // never resolves: treated as outside
+    expect(escapes('docs/ok', 'inner', links)).toBe(false)
+    expect(escapes('docs/ok', '../alias/docs/readme.md', links)).toBe(false)
   })
 })
