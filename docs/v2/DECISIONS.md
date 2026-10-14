@@ -98,3 +98,21 @@ Format: ID · date · decision · alternatives considered · why · consequences
 ### D-017 · 2026-10-13 · The repository contains only Hydra v2 (owner request)
 - The archived earlier implementation, its audit and the provenance write-up were removed from the tree; `main` was fast-forwarded to the v2 branch (no force-push; history kept). A private copy of the provenance evidence and a full history bundle are kept on the owner's machine.
 - The originality check still runs in CI: it compares the code against the archived implementation in git history (tag) instead of a folder.
+
+### D-018 · 2026-10-14 · OS-enforced process cleanup on Windows via job objects (koffi)
+- Problem: on Windows, descendants whose parent had exited survived cancellation (T16). Mocked tests could not show this; real-process tests did.
+- Alternatives: a compiled native addon (needs a compiler on every build machine); a PowerShell helper per spawn (adds latency and stdio plumbing); `taskkill /T` only (misses orphans).
+- Decision: `koffi` (MIT, prebuilt per platform, no compiler) to call kernel32 job-object functions. Each spawned child gets its own kill-on-close job; the engine binds itself to a kill-on-close job so a crash ends its children. Only the current platform's binary ships (about 3 MB). If it cannot load, fall back to `taskkill /T` and report it.
+
+### D-019 · 2026-10-14 · Phone page integrity: minimise exposure (no HTTPS yet)
+- A page served over HTTP cannot prove its own integrity, and HTTPS that phones trust without warnings needs a public domain and certificates (infrastructure: owner approval). Self-signed certificates teach users to click through warnings.
+- Decision: phone access off by default, explicit and time-limited, bound to one address, with a trusted-network warning. Options for a full fix are left to the owner: a domain with automated certificates, or a native phone app.
+
+### D-020 · 2026-10-14 · Verification commands editable in the app, stored in Hydra
+- Stored in Hydra's database rather than written into `.hydra/checks.json`, so agents cannot alter them and the user's working tree stays untouched. Precedence: your list, then the project file, then detection. Destructive, privilege, publishing and network commands are refused; desktop only.
+
+### D-021 · 2026-10-14 · Outcome history and recommendations: transparent statistics, not machine learning
+- Local records of finished tasks (metadata only). A stated rule until a setup has at least 5 similar observations, then the best observed success rate with counts shown. No confidence scores. Clearable by the user.
+
+### D-022 · 2026-10-14 · Updates: signed manifests, checked only on request
+- Ed25519-signed manifests (public key in the app), HTTPS only, checksum-verified downloads, nothing run without the user. Background checks would be a network call the user did not ask for, so there are none. Release key, hosting and code signing are owner decisions (blocked).

@@ -227,3 +227,32 @@ Findings from these runs:
 - The first run of the refactor stopped for plan approval although nothing risky was planned: the plan-level risk check matched "delete the local formatPrice" with "all tests pass" across the whole plan. Fixed (risk judged per plan step, bounded word distance, bare "all"/"every" no longer count as data). The router's evaluation numbers were unchanged.
 - In the mixed-language run the agent also edited the test file (Hydra flags modified tests at approval).
 - No scenario needed a repair round, so bounded repair was not exercised live (covered by automated tests). Merge conflicts were not exercised live (covered by automated tests with real git).
+
+### P0 security fixes (automated, real processes and real git)
+| Check | Result |
+|---|---|
+| Windows: cancelling ends a tree including a grandchild that ignores SIGTERM/SIGINT | VERIFIED (`containment.test.ts`) |
+| Windows: a descendant left behind after its parent finished is terminated | VERIFIED; **fails with job objects disabled** (and left two real stray processes, removed afterwards) |
+| Windows: force-killing the engine ends every process it started | VERIFIED |
+| Unrelated processes are never terminated | VERIFIED |
+| macOS/Linux: same tests with process groups | VERIFIED in CI (run 38488683514, all 3 OS green, including installers with koffi packaged) |
+| Phone access: off until enabled, bound to one address, expires, foreign address refused, a phone cannot toggle it, audited | VERIFIED (`remote.test.ts`) |
+| Links outside the project: absolute, Windows-drive and escaping links flagged, inside links not; checks refused; Accept refused and branch unmoved | VERIFIED (`links.test.ts`, real git) |
+| Crash leftovers swept without following links into the project | VERIFIED |
+
+### P1/P2 (automated)
+| Check | Result |
+|---|---|
+| Provider failures: 9 CLI-style messages classified; expired sign-in pauses and Resume completes; one network blip retried; lasting network failure pauses after exactly 2 runs; missing CLI pauses; crash fails with reason | VERIFIED (`provider-failures.test.ts`). Real sign-in expiry and real network loss were not provoked |
+| Router, 76 dev + 38 held-out cases | dev 71.1% → 98.7%, held-out 71.1% → 94.7%; risky requests missed 6 → 0 and 3 → 0 |
+| Verification editor: validation, save/restore, real test runs, used by new changes, phone refused; desktop e2e shows a real failing run | VERIFIED |
+| Outcome records contain no prompt or answer text; recommendation rule vs history (≥ 5) with counts | VERIFIED |
+| Updater: valid/tampered/foreign-key manifests, HTTP refused, older versions ignored, checksum/size mismatch deleted | VERIFIED (`updater.test.ts`); no real release exists |
+
+### Latency after the sprint (real Claude, 3 runs; `.hydra-dev/bench-sprint.json`)
+| | Ack | First words warm | Total warm | Total cold |
+|---|---|---|---|---|
+| "hi" | 9 ms | 1.7 s | 2.7 s | 4.6 s |
+| Repo question | 5 ms | 5.9 s | 7.8 s | 8.5 s |
+
+No regression from job objects (previous: "hi" 2.1 s / 3.0 s warm).

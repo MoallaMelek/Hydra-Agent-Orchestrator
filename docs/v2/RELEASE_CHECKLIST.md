@@ -37,10 +37,10 @@ Nothing here authorises a release. Publishing, tagging a release, uploading inst
 | C4 | Name and trademark clearance | OWNER |
 | C5 | Privacy statement and security contact published (BETA_TEST_PLAN §6) | OWNER |
 | C6 | External penetration test of remote control and installers | OPEN (paid service: owner approval) |
-| C7 | Auto-update with signed update metadata, or a documented manual update path | OPEN |
+| C7 | Auto-update | PARTIAL: signed-manifest verification, HTTPS-only, checksum-verified download and on-request check implemented and tested; BLOCKED on the owner's release key, hosting and OS code signing |
 | C8 | Closed beta completed against BETA_TEST_PLAN §8 success criteria | OPEN (no testers invited) |
 | C9 | Support channel and refund policy if sold | OWNER |
-| C10 | Windows Job Objects for complete process-tree cleanup (T16) | OPEN |
+| C10 | Windows Job Objects for complete process-tree cleanup (T16) | DONE: verified with real processes (orphaned grandchild, SIGTERM-ignoring grandchild, engine force-killed) |
 | C11 | HTTPS for the phone UI (owner-hosted relay or local certificate) so LAN tampering is not possible (T20) | OPEN: needs owner approval for any infrastructure |
 
 ## D. Release procedure (only after owner approval)

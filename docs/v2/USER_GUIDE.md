@@ -59,6 +59,8 @@ Then choose:
 **Roll back** an applied change at any time. Hydra adds a revert commit; your history is never rewritten.
 
 ## 6. Your phone
+**Phone access is off until you turn it on** (Remote devices → Phone access: 1 hour, 8 hours or until Hydra closes; showing a pairing code also turns it on for an hour). It turns itself off when the time is up and is always off when Hydra starts.
+
 *Remote devices → Pair a phone.* Choose what the phone may do (view; start/cancel; approve/reject) and, if your computer has several networks, pick the one your phone is on (usually Wi-Fi). Scan the QR code with the phone **on the same Wi-Fi**, or through your own VPN such as Tailscale. Check that the code on the phone matches the desktop's.
 
 - Everything between phone and computer is end-to-end encrypted; no cloud service is involved.
@@ -68,7 +70,13 @@ Then choose:
 ## 7. Where your data lives
 Everything is local: `%LOCALAPPDATA%\Hydra\v2` on Windows, `~/Library/Application Support/Hydra/v2` on macOS, `~/.local/share/hydra/v2` on Linux (readable only by your user on macOS and Linux). That includes the SQLite database (backed up daily into `backups/`), the per-task worktrees and the check logs. Prompts go only to the AI providers you selected, through your own accounts. Hydra has no telemetry.
 
-## 8. Troubleshooting
+## 8. Verification commands
+On the project page, **Verification** lists the commands Hydra runs on every change and where they come from (your list, `.hydra/checks.json`, or automatic detection). You can add, edit, reorder and remove commands, mark them required, **Test** one on a copy of your last commit, or restore automatic detection. Your list is kept in Hydra, not in your repository. Commands that delete files, change permissions, publish or use the network are refused.
+
+## 9. Updates
+Settings → Updates → *Check for updates* asks the release server only when you press it. Updates must be signed by the Hydra publisher and match their checksum, and nothing is installed without you. (Signed releases are not set up yet.)
+
+## 10. Troubleshooting
 | Symptom | What to do |
 |---|---|
 | A provider shows "Not signed in" | Run its sign-in command in a terminal, then *Re-check*. |
