@@ -40,6 +40,29 @@ const PROVIDER_LIMIT = /usage limit|rate[ -]?limit|quota|too many requests|\b429
 /** True when a provider failure message describes an account limit rather than a task problem. */
 export const isProviderLimit = (message: string): boolean => PROVIDER_LIMIT.test(message)
 
+const SIGN_IN = /not logged in|please (run )?\/?login|log ?in (again|required)|invalid api key|authentication (failed|error|required)|unauthori[sz]ed|\b401\b|token (has )?expired|expired (token|credentials|session)|not authenticated|codex login/i
+const NETWORK = /ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket hang up|fetch failed|network (error|is unreachable)|getaddrinfo|\b50[234]\b|bad gateway|service unavailable|gateway time-?out|connection (reset|closed|refused)/i
+const MISSING = /\bENOENT\b|could not start|not recognized as an internal or external command|command not found|no such file or directory/i
+
+export type ProviderFailure = 'limit' | 'sign_in' | 'network' | 'missing' | 'other'
+
+/** What kind of provider failure a message describes, so Hydra can respond sensibly. */
+export function providerFailure(message: string): ProviderFailure {
+  if (PROVIDER_LIMIT.test(message)) return 'limit'
+  if (SIGN_IN.test(message)) return 'sign_in'
+  if (NETWORK.test(message)) return 'network'
+  if (MISSING.test(message)) return 'missing'
+  return 'other'
+}
+
+/** A failure that may succeed if tried again shortly (network). Retried once, then the task pauses. */
+export class TransientProviderError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'TransientProviderError'
+  }
+}
+
 export class CanceledError extends Error {
   constructor(message = 'Canceled') {
     super(message)

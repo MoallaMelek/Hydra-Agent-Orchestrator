@@ -4,9 +4,9 @@ import type { AccessLevel } from '../agents/types.js'
 import { addUsage, assertCanStartRun, assertWithinBudget, remainingActiveMs, remainingUsd } from '../workflow/budget.js'
 import { redact } from '../util/redact.js'
 import { policyFor } from '../workflow/policy.js'
-import { CanceledError, isProviderLimit, ProviderUnavailableError, type BudgetExceededError } from '../util/errors.js'
+import { CanceledError, providerFailure, ProviderUnavailableError, TransientProviderError, type BudgetExceededError } from '../util/errors.js'
 import { isoNow, newId } from '../util/ids.js'
-import { type EngineContext, updateTask } from './context.js'
+import { type EngineContext, logTask, updateTask } from './context.js'
 
 export interface AgentCall<T> {
   taskId: string
@@ -50,7 +50,7 @@ export function streamableLength(text: string): number {
 
 /** A plain-text reply, streamed to the UI while it is written. Redacted before it is shown or stored. */
 export async function callAgentText(ctx: EngineContext, call: AgentCall<string>): Promise<{ text: string; run: AgentRunInfo }> {
-  const result = await runOnce(ctx, { ...call, jsonSchema: undefined, parse: undefined }, call.prompt)
+  const result = await runWithRetry(ctx, { ...call, jsonSchema: undefined, parse: undefined }, call.prompt)
   const text = redact(result.text).trim()
   if (!text) throw new Error(`${call.provider} returned an empty reply`)
   return { text, run: result.run }
@@ -61,15 +61,43 @@ export async function callAgentText(ctx: EngineContext, call: AgentCall<string>)
  * If the structured answer is invalid it retries once with the validation error.
  */
 export async function callAgent<T>(ctx: EngineContext, call: AgentCall<T> & { jsonSchema: Record<string, unknown>; parse: z.ZodType<T> }): Promise<AgentCallResult<T>> {
-  const first = await runOnce(ctx, call, call.prompt)
+  const first = await runWithRetry(ctx, call, call.prompt)
   const parsed = call.parse.safeParse(first.structured)
   if (parsed.success) return { value: parsed.data, run: first.run }
   const issues = parsed.error.issues.slice(0, 5).map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`).join('; ')
   const retryPrompt = `${call.prompt}\n\nYour previous structured output was rejected by validation (${issues}). Return the structured output again, exactly matching the schema.`
-  const second = await runOnce(ctx, call, retryPrompt)
+  const second = await runWithRetry(ctx, call, retryPrompt)
   const reparsed = call.parse.safeParse(second.structured)
   if (reparsed.success) return { value: reparsed.data, run: second.run }
   throw new Error(`${call.provider} did not return valid structured output after a retry`)
+}
+
+/** How a customer signs a CLI back in (shown when its sign-in has expired). */
+const SIGN_IN_COMMAND: Partial<Record<string, string>> = { claude: 'claude', codex: 'codex login' }
+const RETRY_DELAY_MS = 3000
+
+/**
+ * Runs once; a network failure is retried exactly once after a short wait. A second
+ * network failure pauses the task (resumable) instead of looping.
+ */
+async function runWithRetry<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string): Promise<{ structured: unknown; text: string; run: AgentRunInfo }> {
+  try {
+    return await runOnce(ctx, call, prompt)
+  } catch (error) {
+    if (!(error instanceof TransientProviderError)) throw error
+    logTask(ctx, call.taskId, 'warn', `${error.message}. Trying once more in a few seconds.`)
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, RETRY_DELAY_MS)
+      call.signal.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true })
+    })
+    if (call.signal.aborted) throw new CanceledError()
+    try {
+      return await runOnce(ctx, call, prompt)
+    } catch (again) {
+      if (again instanceof TransientProviderError) throw new ProviderUnavailableError(`${again.message}. Hydra tried twice; check your internet connection, then press Resume.`)
+      throw again
+    }
+  }
 }
 
 async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string): Promise<{ structured: unknown; text: string; run: AgentRunInfo }> {
@@ -178,7 +206,17 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
 
   if (budgetError) throw budgetError
   if (call.signal.aborted || finished.status === 'canceled') throw new CanceledError()
-  if (finished.status === 'failed' && isProviderLimit(finished.detail ?? '')) throw new ProviderUnavailableError(`${adapter.displayName} is not accepting work right now: ${finished.detail}`)
+  if (finished.status === 'failed') {
+    const detail = (finished.detail ?? '').slice(0, 400)
+    const name = adapter.displayName
+    switch (providerFailure(detail)) {
+      case 'limit': throw new ProviderUnavailableError(`${name} is not accepting work right now (usage or rate limit): ${detail}`)
+      case 'sign_in': throw new ProviderUnavailableError(`${name} needs you to sign in again: run \`${SIGN_IN_COMMAND[call.provider] ?? 'its login command'}\` in a terminal, then press Resume.`)
+      case 'missing': throw new ProviderUnavailableError(`${name} could not be started. Check that it is installed (Agents & providers), then press Resume.`)
+      case 'network': throw new TransientProviderError(`${name} could not reach its service: ${detail}`)
+      default: break
+    }
+  }
   if (finished.status !== 'succeeded') throw new Error(`${adapter.displayName} ${finished.status === 'timed_out' ? 'timed out' : 'failed'}: ${finished.detail ?? 'no detail'}`)
   return { structured, text: finalText || draft, run }
 }

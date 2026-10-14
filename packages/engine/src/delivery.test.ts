@@ -42,13 +42,14 @@ describe('acknowledgments and failure visibility', () => {
     expect(engine.store.listTasks()).toHaveLength(0)
   })
 
-  it('an agent that cannot start fails the task with the reason, never silently', async () => {
+  it('an agent that cannot start pauses the task with guidance, never silently', async () => {
     const { engine, projectId } = await open(() => ({ fail: 'Could not start claude: spawn ENOENT' }))
     const ack = await engine.execute({ type: 'task.create', projectId, prompt: 'What does add() return?', mode: 'safe', assignment: { planner: 'scripted', implementer: 'scripted', reviewer: 'scripted' } })
     expect(ack.ok).toBe(true)
     const task = await settle(engine, (ack as { result: Task }).result.id)
-    expect(task.status).toBe('failed')
-    expect(task.error).toMatch(/spawn ENOENT/)
+    // Resumable once the CLI is installed (provider-failures.test.ts covers the categories).
+    expect(task.status).toBe('paused')
+    expect(task.error).toMatch(/could not be started/)
     expect(engine.store.listRuns(task.id).at(-1)).toMatchObject({ status: 'failed' })
   })
 
