@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Send, Wrench } from 'lucide-react'
 import { routeRequest, type Task } from '@hydra/protocol'
-import { Button, Callout } from '../../design/components'
+import { Button } from '../../design/components'
 import { useApp } from '../../app/context'
 import { Markdown } from '../../lib/markdown'
+import { FriendlyError } from '../../lib/explain'
 import { ago, money, tokens } from '../../lib/format'
 import { DecisionBar } from './DecisionBar'
 import { AgentsTab } from './AgentsTab'
@@ -71,7 +72,7 @@ export function ConversationView({ task, detail }: { task: Task; detail: ReturnT
         {live && thinking && !draft && <p className="muted row"><span className="hx-spinner" aria-hidden /> {t.status === 'queued' ? 'Starting…' : activity ?? 'Thinking…'}</p>}
         {live && thinking && draft && <Markdown text={draft} />}
         {t.answer && !(live && thinking) && <Markdown text={t.answer} />}
-        {live && !thinking && !t.answer && t.error && <Callout tone={t.status === 'paused' ? 'warn' : 'bad'}>{t.error}</Callout>}
+        {live && !thinking && !t.answer && t.error && <FriendlyError message={t.error} status={t.status} />}
         {live && t.status === 'canceled' && <p className="muted">Stopped before answering.</p>}
       </div>
     </div>
@@ -82,7 +83,10 @@ export function ConversationView({ task, detail }: { task: Task; detail: ReturnT
       {earlier.map((t) => turn(t, false))}
       {turn(task, true)}
       <div className="chat__foot">
-        <span className="faint">{used ? `${money(task.usage.costUsd)} · ${tokens(used)} tokens` : ''}</span>
+        <span className="faint">
+          {!thinking && `${((Date.parse(task.updatedAt) - Date.parse(task.createdAt)) / 1000).toFixed(1)} s`}
+          {used ? ` · ${money(task.usage.costUsd)} · ${tokens(used)} tokens` : ''}
+        </span>
         <div className="row">
           <button type="button" className="chat__toggle" aria-expanded={details} onClick={() => setDetails(!details)}>
             {details ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Details

@@ -3,6 +3,7 @@ import type { DemoReport, Task } from '@hydra/protocol'
 import { Badge, Callout, Panel, type Tone } from '../../design/components'
 import type { Warning } from './warnings'
 import { Markdown } from '../../lib/markdown'
+import { FriendlyError } from '../../lib/explain'
 
 const SEVERITY_TONE: Record<string, Tone> = { blocker: 'bad', major: 'warn', minor: 'info', nit: 'neutral' }
 const OUTCOME_TONE: Record<DemoReport['deltas'][number]['before'], Tone> = { pass: 'ok', fail: 'bad', error: 'warn', missing: 'neutral' }
@@ -10,7 +11,7 @@ const OUTCOME_TONE: Record<DemoReport['deltas'][number]['before'], Tone> = { pas
 export function OverviewTab({ task, warnings }: { task: Task; warnings: Warning[] }) {
   return (
     <div className="stack">
-      {task.error && task.status !== 'waiting_input' && <Callout tone="bad"><b>{task.status === 'paused' ? 'Paused' : 'Problem'}:</b> {task.error}</Callout>}
+      {task.error && task.status !== 'waiting_input' && <FriendlyError message={task.error} status={task.status} />}
       {warnings.length > 0 && task.status === 'waiting_input' && task.waitReason === 'final_approval' && (
         <div className="stack" style={{ gap: 8 }}>{warnings.map((w, i) => <Callout key={i} tone={w.tone}>{w.text}</Callout>)}</div>
       )}
