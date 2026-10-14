@@ -10,7 +10,15 @@ export const EngineSnapshot = z.object({
   tasks: z.array(Task),
   providers: z.array(ProviderStatus),
   devices: z.array(Device),
-  remote: z.object({ relayUrl: z.string().nullable(), connected: z.boolean(), addresses: z.array(z.object({ address: z.string(), label: z.string() })).default([]) })
+  remote: z.object({
+    relayUrl: z.string().nullable(), connected: z.boolean(), addresses: z.array(z.object({ address: z.string(), label: z.string() })).default([]),
+    /** Phone access is on (the listener runs). */
+    enabled: z.boolean().default(false),
+    /** When it switches itself off; null while off or when on until Hydra closes. */
+    until: z.string().nullable().default(null),
+    /** The only address it listens on. */
+    host: z.string().nullable().default(null)
+  })
 })
 export type EngineSnapshot = z.infer<typeof EngineSnapshot>
 

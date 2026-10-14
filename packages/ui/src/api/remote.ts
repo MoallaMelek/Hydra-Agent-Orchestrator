@@ -85,7 +85,7 @@ export class RemoteTransport implements Transport {
         this.channel = null
         for (const pending of this.pending.values()) pending.reject(new Error('Connection lost'))
         this.pending.clear()
-        if (!opened) reject(new Error(event.code === 4401 ? 'This phone is not (or no longer) paired with that Hydra. Pair again from the desktop.' : `Could not reach Hydra (${event.code}).`))
+        if (!opened) reject(new Error(event.code === 4401 ? 'This phone is not (or no longer) paired with that Hydra. Pair again from the desktop.' : `Could not reach Hydra (${event.code}). Check that Hydra is open on your computer, that phone access is turned on (Remote devices), and that this phone is on the same Wi-Fi.`))
         if (this.stopped || event.code === 4401 || event.code === 4403) { this.onStatus?.('offline'); return }
         this.attempt++
         this.onStatus?.(this.attempt > 3 ? 'offline' : 'reconnecting')

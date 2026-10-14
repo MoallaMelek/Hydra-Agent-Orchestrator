@@ -27,6 +27,9 @@ export const Command = z.discriminatedUnion('type', [
     budget: Budget.partial().optional()
   }),
   z.object({ type: z.literal('task.cancel'), taskId: Id }),
+  /** Turns phone access on for a number of minutes (0: until Hydra closes), on one address. Desktop only. */
+  z.object({ type: z.literal('remote.enable'), minutes: z.number().int().min(0).max(24 * 60), host: z.string().regex(/^\d{1,3}(\.\d{1,3}){3}$/).optional() }),
+  z.object({ type: z.literal('remote.disable') }),
   /** Starts an answering agent ahead of time for this project so the next question is faster. */
   z.object({ type: z.literal('agent.prewarm'), projectId: Id }),
   z.object({ type: z.literal('task.resume'), taskId: Id }),

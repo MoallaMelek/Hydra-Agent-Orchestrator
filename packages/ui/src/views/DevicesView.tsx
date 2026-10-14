@@ -3,6 +3,7 @@ import { Badge, Button, Callout, EmptyState, Panel } from '../design/components'
 import { useApp } from '../app/context'
 import { ago } from '../lib/format'
 import { PairPhonePanel } from './PairPhonePanel'
+import { PhoneAccessPanel } from './PhoneAccessPanel'
 
 /** Paired phones: pair, inspect and revoke. */
 export function DevicesView() {
@@ -12,6 +13,7 @@ export function DevicesView() {
     <div className="page">
       <div className="page__head"><div className="page__title"><h1>Remote devices</h1><p className="muted">Phones that can follow tasks and, if you allow it, approve them.</p></div></div>
       <Callout tone="info">Remote control is end-to-end encrypted between your phone and this computer. No cloud database or third-party service is involved.</Callout>
+      <PhoneAccessPanel />
       <PairPhonePanel />
       <Panel title="Paired devices">
         {devices.length === 0 ? <EmptyState icon={<Smartphone size={28} />} title="No paired devices" /> : devices.map((d) => {

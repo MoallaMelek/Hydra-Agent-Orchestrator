@@ -47,6 +47,11 @@ export class EngineStore {
     for (const listener of this.listeners) listener()
   }
 
+  /** Reloads the engine snapshot (for state that has no live event, such as phone access). */
+  async reload(): Promise<void> {
+    this.load(await this.transport.snapshot())
+  }
+
   async start(): Promise<void> {
     try {
       const snapshot = await this.transport.snapshot()

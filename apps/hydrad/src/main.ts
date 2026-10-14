@@ -17,7 +17,7 @@ export function defaultDataDir(): string {
 interface Args { dataDir: string; port: number; staticDir?: string; printToken: boolean; remotePort: number; remoteBind: string; remoteHost?: string; stdinLifeline: boolean }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { dataDir: defaultDataDir(), port: 0, printToken: false, remotePort: 47900, remoteBind: '0.0.0.0', stdinLifeline: false }
+  const args: Args = { dataDir: defaultDataDir(), port: 0, printToken: false, remotePort: 47900, remoteBind: 'auto', stdinLifeline: false }
   for (let i = 0; i < argv.length; i++) {
     const value = argv[i + 1]
     switch (argv[i]) {
@@ -54,12 +54,11 @@ export async function serve(argv = process.argv.slice(2)): Promise<void> {
   engine.setHooks({
     pairStart: (name, scopes, host) => remote.pairStart(name, scopes, host),
     revokeDevice: (deviceId) => remote.revoke(deviceId),
-    remoteStatus: () => remote.status()
+    remoteStatus: () => remote.status(),
+    remoteEnable: (minutes, host) => remote.enable(minutes * 60_000, host),
+    remoteDisable: () => remote.stop()
   })
-  const activeDevices = engine.store.listDevices().some((d) => !d.revokedAt && Date.parse(d.expiresAt) > Date.now())
-  if (engine.store.getKv('remote.enabled') === '1' && activeDevices) {
-    await remote.start().catch((error: unknown) => process.stderr.write(`Remote control not started: ${(error as Error).message}\n`))
-  }
+  // Phone access is never started automatically: the person turns it on, for a limited time.
 
   const backupTimer = setInterval(() => { try { engine.backup() } catch { /* reported on next start */ } }, 24 * 60 * 60 * 1000)
   backupTimer.unref()

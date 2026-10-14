@@ -261,3 +261,58 @@ describe('remote control hardening', () => {
     expect(results.filter(Boolean).length).toBeLessThanOrEqual(20)
   })
 })
+
+describe('phone access is explicit and time-limited', () => {
+  async function bootAuto() {
+    const dataDir = tempDir('hydra-remote-access-')
+    dirs.push(dataDir)
+    const engine = await Engine.open({ dataDir, skipProbe: true, registry: new AdapterRegistry([new ScriptedAdapter(() => ({ text: 'x' }))]) })
+    // 'auto' binds to the chosen address only; 127.0.0.1 stands in for the Wi-Fi address here.
+    const remote = new RemoteHost({ engine, port: 0, bind: 'auto', advertiseHost: '127.0.0.1' })
+    engine.setHooks({ pairStart: (n, s, h) => remote.pairStart(n, s, h), revokeDevice: (id) => remote.revoke(id), remoteStatus: () => remote.status(), remoteEnable: (m, h) => remote.enable(m * 60_000, h), remoteDisable: () => remote.stop() })
+    opened.push({ engine, remote })
+    return { engine, remote }
+  }
+
+  it('is off until turned on, and listens on the chosen address only', async () => {
+    const { remote } = await bootAuto()
+    expect(remote.running).toBe(false)
+    expect(remote.status()).toMatchObject({ enabled: false, host: null })
+    await remote.enable(60_000)
+    const address = (remote as unknown as { server: { address(): { address: string } } }).server.address()
+    expect(address.address).toBe('127.0.0.1')
+    expect(remote.status()).toMatchObject({ enabled: true, host: '127.0.0.1' })
+    expect(remote.status().until).not.toBeNull()
+  })
+
+  it('switches itself off when the time is up', async () => {
+    const { remote } = await bootAuto()
+    await remote.enable(150)
+    expect(remote.running).toBe(true)
+    await new Promise((r) => setTimeout(r, 400))
+    expect(remote.running).toBe(false)
+    expect(remote.status().enabled).toBe(false)
+  })
+
+  it('refuses an address that is not this computer\'s', async () => {
+    const { remote } = await bootAuto()
+    await expect(remote.enable(60_000, '203.0.113.9')).rejects.toThrow(/does not belong/)
+    expect(remote.running).toBe(false)
+  })
+
+  it('a paired phone cannot turn phone access on or off', async () => {
+    const { engine } = await bootAuto()
+    const actor = { kind: 'remote' as const, deviceId: 'd1', scopes: ['view', 'control', 'approve'] as const }
+    expect(await engine.execute({ type: 'remote.enable', minutes: 60 }, actor)).toMatchObject({ ok: false, error: { code: 'forbidden' } })
+    expect(await engine.execute({ type: 'remote.disable' }, actor)).toMatchObject({ ok: false, error: { code: 'forbidden' } })
+  })
+
+  it('the desktop turns it on and off through commands, and both are audited', async () => {
+    const { engine, remote } = await bootAuto()
+    expect((await engine.execute({ type: 'remote.enable', minutes: 60 })).ok).toBe(true)
+    expect(remote.running).toBe(true)
+    expect((await engine.execute({ type: 'remote.disable' })).ok).toBe(true)
+    expect(remote.running).toBe(false)
+    expect(engine.store.listAudit(10).map((a) => a.action)).toEqual(expect.arrayContaining(['remote.enable', 'remote.disable']))
+  })
+})

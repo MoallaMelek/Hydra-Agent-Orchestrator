@@ -9,7 +9,7 @@ interface PairingLink { url: string; expiresAt: string; engineFingerprint: strin
 
 /** Creates a single-use, 5-minute pairing link and shows it as a QR code. */
 export function PairPhonePanel() {
-  const { run, state } = useApp()
+  const { run, state, store } = useApp()
   const addresses = state.remote?.addresses ?? []
   const [host, setHost] = useState<string>('')
   const [name, setName] = useState('My phone')
@@ -38,6 +38,8 @@ export function PairPhonePanel() {
     const ack = await run({ type: 'device.pair_start', name: name.trim(), scopes, ...(host ? { host } : {}) })
     setBusy(false)
     if (ack.ok) setLink(ack.result as PairingLink)
+    // Pairing turns phone access on (for an hour) if it was off.
+    void store.reload().catch(() => {})
   }
 
   const left = link ? Math.max(0, Math.round((Date.parse(link.expiresAt) - now) / 1000)) : 0
@@ -65,7 +67,7 @@ export function PairPhonePanel() {
             </div>
           </div>
           {link && left === 0 && <Callout tone="warn">That pairing code expired. Create a new one.</Callout>}
-          <p className="faint" style={{ fontSize: 12 }}>Your phone must be on the same Wi-Fi as this computer (or connected through your own VPN). Pairing starts a listener on your local network on port 47900; if Windows asks, allow it on private networks.</p>
+          <p className="faint" style={{ fontSize: 12 }}>Your phone must be on the same Wi-Fi as this computer (or connected through your own VPN). Showing a pairing code turns phone access on for an hour (on the chosen address, port 47900); if Windows asks, allow it on private networks.</p>
         </div>
       ) : (
         <div className="row" style={{ gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>

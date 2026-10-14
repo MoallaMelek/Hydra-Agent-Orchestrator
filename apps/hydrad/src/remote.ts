@@ -12,6 +12,8 @@ import { safePath, SECURITY_HEADERS } from './security.js'
 import { lanAddresses, type LanAddress } from './addresses.js'
 
 const PAIRING_TTL_MS = 5 * 60_000
+/** How long phone access stays on when it is turned on by creating a pairing code. */
+const PAIRING_ACCESS_MS = 60 * 60_000
 const DEVICE_TTL_MS = 30 * 24 * 60 * 60_000
 const HANDSHAKE_TIMEOUT_MS = 10_000
 const MAX_HANDSHAKES_PER_MINUTE = 20
@@ -39,7 +41,10 @@ export interface RemoteHostOptions {
   engine: Engine
   staticDir?: string
   port: number
-  /** 0.0.0.0 for LAN access; 127.0.0.1 in tests. */
+  /**
+   * Interface to listen on. Default ('auto'): only the address chosen for phones, never
+   * every interface. Tests pass 127.0.0.1.
+   */
   bind: string
   /** Host name or IP put into pairing links; defaults to the first LAN IPv4 address. */
   advertiseHost?: string
@@ -77,6 +82,10 @@ export class RemoteHost {
 
   /** Addresses a phone could use, best first; refreshed when the host starts and at each pairing. */
   private addresses: LanAddress[] = []
+  /** Phone access is off unless the person turned it on; it switches itself off at this time (null: until Hydra closes). */
+  private enabledUntil: number | null = null
+  private expiry: ReturnType<typeof setTimeout> | null = null
+  private boundHost: string | null = null
 
   get running(): boolean { return this.server !== null }
 
@@ -87,13 +96,35 @@ export class RemoteHost {
 
   status() {
     return {
-      relayUrl: this.server ? `http://${this.advertised()}:${this.port}` : null,
+      relayUrl: this.server ? `http://${this.boundHost ?? this.advertised()}:${this.port}` : null,
       connected: this.sessions.size > 0,
+      enabled: this.server !== null,
+      until: this.server && this.enabledUntil ? new Date(this.enabledUntil).toISOString() : null,
+      host: this.server ? this.boundHost : null,
       addresses: this.options.advertiseHost ? [] : this.addresses.map((a) => ({ address: a.address, label: `${a.interface}${a.virtual ? ' (virtual adapter)' : ''}` }))
     }
   }
 
-  async start(): Promise<void> {
+  /**
+   * Turns phone access on for a limited time (0 = until Hydra closes), listening only on
+   * the chosen address. The phone page is served over plain HTTP on the local network, so
+   * exposure is kept short and explicit (docs/v2/REMOTE.md, THREAT_MODEL T20).
+   */
+  async enable(durationMs: number, requestedHost?: string): Promise<void> {
+    if (!this.options.advertiseHost) this.addresses = await lanAddresses()
+    const host = requestedHost ?? this.options.advertiseHost ?? this.addresses[0]?.address
+    if (requestedHost && requestedHost !== this.options.advertiseHost && !this.addresses.some((a) => a.address === requestedHost)) {
+      throw new Error('That address does not belong to this computer')
+    }
+    if (this.server && host !== this.boundHost) await this.stop()
+    await this.start(host)
+    if (this.expiry) clearTimeout(this.expiry)
+    this.enabledUntil = durationMs > 0 ? Date.now() + durationMs : null
+    this.expiry = durationMs > 0 ? setTimeout(() => { void this.stop() }, durationMs) : null
+    this.expiry?.unref?.()
+  }
+
+  async start(host?: string): Promise<void> {
     if (this.server) return
     const server = createServer((req, res) => {
       const path = safePath(req.url)
@@ -118,14 +149,20 @@ export class RemoteHost {
     const sweep = setInterval(() => this.sweepSessions(), 60_000)
     sweep.unref()
     server.on('close', () => clearInterval(sweep))
-    await new Promise<void>((done) => server.listen(this.options.port, this.options.bind, done))
+    // Listen on the chosen address only; 'auto' never means every interface.
+    const bindTo = this.options.bind === 'auto' ? (host ?? this.options.advertiseHost ?? '127.0.0.1') : this.options.bind
+    await new Promise<void>((done, fail) => { server.once('error', fail); server.listen(this.options.port, bindTo, () => { server.off('error', fail); done() }) })
+    this.boundHost = host ?? (this.options.bind === 'auto' ? bindTo : this.advertised())
     this.port = (server.address() as { port: number }).port
     if (!this.options.advertiseHost) this.addresses = await lanAddresses()
     this.server = server
-    this.options.engine.store.setKv('remote.enabled', '1')
   }
 
   async stop(): Promise<void> {
+    if (this.expiry) clearTimeout(this.expiry)
+    this.expiry = null
+    this.enabledUntil = null
+    this.boundHost = null
     for (const session of this.sessions) session.ws.terminate()
     this.sessions.clear()
     const server = this.server
@@ -135,13 +172,11 @@ export class RemoteHost {
 
   /** Creates a single-use pairing link (5 minutes). */
   async pairStart(name: string, scopes: DeviceScope[], requestedHost?: string): Promise<{ url: string; expiresAt: string; engineFingerprint: string; host: string }> {
-    await this.start()
-    if (!this.options.advertiseHost) this.addresses = await lanAddresses()
-    // Only this computer's own addresses may be put into a pairing link.
-    if (requestedHost && requestedHost !== this.options.advertiseHost && !this.addresses.some((a) => a.address === requestedHost)) {
-      throw new Error('That address does not belong to this computer')
-    }
-    const host = requestedHost ?? this.advertised()
+    // Pairing needs phone access: turn it on for an hour if it is off, on the chosen address
+    // (enable() refuses addresses that do not belong to this computer).
+    if (!this.server) await this.enable(PAIRING_ACCESS_MS, requestedHost)
+    else if (requestedHost && requestedHost !== this.boundHost) await this.enable(this.enabledUntil ? Math.max(60_000, this.enabledUntil - Date.now()) : 0, requestedHost)
+    const host = this.boundHost ?? this.advertised()
     for (const [key, pending] of this.pairings) if (pending.expiresAt < Date.now()) this.pairings.delete(key)
     if (this.pairings.size >= MAX_OPEN_PAIRINGS) throw new Error('Too many open pairing codes; wait for them to expire')
     const id = newId()

@@ -23,7 +23,9 @@ export type Actor = { kind: 'desktop' } | { kind: 'remote'; deviceId: string; sc
 export interface HostHooks {
   pairStart?(name: string, scopes: DeviceScope[], host?: string): Promise<unknown>
   revokeDevice?(deviceId: string): Promise<unknown>
-  remoteStatus?(): { relayUrl: string | null; connected: boolean; addresses?: Array<{ address: string; label: string }> }
+  remoteStatus?(): { relayUrl: string | null; connected: boolean; addresses?: Array<{ address: string; label: string }>; enabled?: boolean; until?: string | null; host?: string | null }
+  remoteEnable?(minutes: number, host?: string): Promise<void>
+  remoteDisable?(): Promise<void>
 }
 
 export interface EngineOptions {
@@ -103,7 +105,7 @@ export class Engine {
       tasks: this.store.listTasks(),
       providers: this.ctx.registry.status(),
       devices: this.store.listDevices(),
-      remote: { addresses: [], ...(this.hooks.remoteStatus?.() ?? { relayUrl: null, connected: false }) }
+      remote: { addresses: [], enabled: false, until: null, host: null, ...(this.hooks.remoteStatus?.() ?? { relayUrl: null, connected: false }) }
     }
   }
 
@@ -167,6 +169,15 @@ export class Engine {
         this.store.audit(actorLabel, 'task.create', { taskId: task.id, mode: task.mode, assignment: task.assignment })
         return task
       }
+      case 'remote.enable':
+        if (!this.hooks.remoteEnable) throw unavailable('Phone access is not available in this host')
+        await this.hooks.remoteEnable(command.minutes, command.host)
+        this.store.audit(actorLabel, 'remote.enable', { minutes: command.minutes, host: command.host ?? null })
+        return this.hooks.remoteStatus?.() ?? null
+      case 'remote.disable':
+        await this.hooks.remoteDisable?.()
+        this.store.audit(actorLabel, 'remote.disable', {})
+        return null
       case 'agent.prewarm': {
         const project = this.store.getProject(command.projectId)
         if (!project) throw notFound('Project')
