@@ -73,6 +73,8 @@ export class Engine {
   static async open(options: EngineOptions): Promise<Engine> {
     const engine = new Engine(options)
     const interrupted = await engine.orchestrator.recover()
+    const swept = await engine.ctx.workspaces.sweepLeftovers(engine.store.listProjects().map((p) => p.root))
+    if (swept) engine.store.audit('engine', 'cleanup', { leftoverCheckouts: swept })
     if (interrupted) engine.store.audit('engine', 'recovery', { interruptedTasks: interrupted })
     if (!options.skipProbe) await engine.refreshProviders()
     else await engine.ctx.registry.refresh()

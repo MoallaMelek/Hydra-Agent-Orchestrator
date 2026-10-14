@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, posix, resolve } from 'node:path'
 import type { DiffFile } from '@hydra/protocol'
 
 export interface GitResult { code: number; stdout: string; stderr: string }
@@ -176,4 +176,25 @@ export async function deleteBranch(repo: string, branch: string): Promise<void> 
 
 export async function branchExists(repo: string, branch: string): Promise<boolean> {
   return (await git(repo, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`], { allowFail: true })).code === 0
+}
+
+/**
+ * Symbolic links added or changed between two commits whose target is absolute or
+ * resolves outside the repository. A check that follows such a link, or a person who
+ * later opens it, could read or write anywhere on disk.
+ */
+export async function outsideLinks(repo: string, base: string, head: string): Promise<Array<{ path: string; target: string }>> {
+  const raw = (await git(repo, ['diff', '--raw', '--no-abbrev', '--no-renames', '-z', base, head], { allowFail: true })).stdout
+  const parts = raw.split('\0')
+  const found: Array<{ path: string; target: string }> = []
+  for (let i = 0; i + 1 < parts.length; i += 2) {
+    const meta = parts[i]!.trim().split(' ')
+    const path = parts[i + 1]!
+    if (meta[1] !== '120000' || meta[4]?.startsWith('D')) continue
+    const target = (await git(repo, ['cat-file', 'blob', meta[3]!], { allowFail: true })).stdout
+    const slashes = (p: string) => p.split(/[/\\]/).join('/')
+    const resolved = posix.normalize(posix.join(posix.dirname(slashes(path)), slashes(target)))
+    if (posix.isAbsolute(slashes(target)) || /^[A-Za-z]:/.test(target) || resolved === '..' || resolved.startsWith('../')) found.push({ path, target })
+  }
+  return found
 }

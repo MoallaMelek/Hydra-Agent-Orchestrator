@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import type { CheckSpec, Evidence, Task } from '@hydra/protocol'
-import { trackedChanges } from '../isolation/git.js'
+import { outsideLinks, trackedChanges } from '../isolation/git.js'
 import { checkDefinitionDigest } from '../verification/detect.js'
 import { runChecks } from '../verification/runner.js'
 import { isoNow, newId } from '../util/ids.js'
@@ -25,6 +25,16 @@ function refused(task: Task, spec: CheckSpec, phase: Evidence['phase'], sha: str
 export async function runChecksAt(ctx: EngineContext, task: Task, sha: string, phase: Evidence['phase'], signal: AbortSignal): Promise<Evidence[]> {
   if (!task.checks.length) return []
   const root = ctx.store.getProject(task.projectId)!.root
+  // A link to somewhere outside the project could let a check read or write anywhere: refuse to run.
+  const base = task.workspace?.baseSha
+  const links = base && base !== sha ? await outsideLinks(root, base, sha) : []
+  if (links.length) {
+    const list = links.map((l) => `${l.path} → ${l.target}`).join(', ')
+    logTask(ctx, task.id, 'error', `The change adds a link to a location outside the project (${list}). Hydra will not run checks on it or apply it.`)
+    const evidence = task.checks.map((spec) => refused(task, spec, phase, sha, `Not executed: the change adds a link outside the project (${list}). Remove it.`))
+    for (const item of evidence) ctx.store.putEvidence(item)
+    return evidence
+  }
   const { result } = await ctx.workspaces.withCheckout(root, sha, async (dir) => {
     const digest = checkDefinitionDigest(dir)
     const changed = task.checkDigest !== null && digest !== task.checkDigest

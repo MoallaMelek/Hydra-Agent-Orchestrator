@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, mkdirSync, rmdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readdirSync, rmdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AppliedInfo, WorkspaceInfo } from '@hydra/protocol'
 import { conflict, invalid } from '../util/errors.js'
@@ -6,7 +6,7 @@ import { newId, shortId } from '../util/ids.js'
 import { dependencyLinks } from '../verification/detect.js'
 import {
   absoluteGitDir, addDetachedWorktree, addWorktree, assertWorktreeIntact, branchExists, commitAll, currentBranch,
-  deleteBranch, diffFiles, git, type GitPin, headSha, HYDRA_IDENTITY, isAncestor, isClean, removeWorktree, trackedChanges
+  deleteBranch, diffFiles, git, outsideLinks, type GitPin, headSha, HYDRA_IDENTITY, isAncestor, isClean, removeWorktree, trackedChanges
 } from './git.js'
 
 /** Installed-dependency folders shared from the project into check checkouts; never committed. */
@@ -84,6 +84,23 @@ export class WorkspaceManager {
   }
 
   /**
+   * After a crash, removes check checkouts that were never cleaned up. Dependency links
+   * point into the user's project, so they are removed first and never followed.
+   * Returns how many were removed.
+   */
+  async sweepLeftovers(projectRoots: readonly string[]): Promise<number> {
+    if (!existsSync(this.checkoutsDir)) return 0
+    const leftovers = readdirSync(this.checkoutsDir)
+    for (const name of leftovers) {
+      const dir = join(this.checkoutsDir, name)
+      unlinkDependencies(dir)
+      rmSync(dir, { recursive: true, force: true })
+    }
+    if (leftovers.length) for (const root of projectRoots) await git(root, ['worktree', 'prune'], { allowFail: true })
+    return leftovers.length
+  }
+
+  /**
    * Runs `fn` in a throwaway detached checkout of `sha`, so checks see exactly that
    * commit and cannot alter the task worktree. Reports whether the checks modified
    * tracked files.
@@ -136,6 +153,8 @@ export class WorkspaceManager {
       return { targetBranch: branch, beforeSha: head, afterSha: head, method: 'none', integratedSha, rolledBackSha: null }
     }
     if (!(await isAncestor(projectRoot, head, approvedSha))) throw conflict('Your branch moved after the task was verified. Accept again so Hydra can integrate and re-verify.')
+    const links = await outsideLinks(projectRoot, head, approvedSha)
+    if (links.length) throw conflict(`This change adds a link to a location outside your project (${links.map((l) => `${l.path} → ${l.target}`).join(', ')}). Hydra will not apply it; use Keep branch to inspect it yourself.`)
     await git(projectRoot, ['merge', '--ff-only', approvedSha])
     return { targetBranch: branch, beforeSha: head, afterSha: (await headSha(projectRoot))!, method: 'fast_forward', integratedSha, rolledBackSha: null }
   }
