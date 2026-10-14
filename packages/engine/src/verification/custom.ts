@@ -1,4 +1,3 @@
-import { basename } from 'node:path'
 import type { CheckDraft, CheckSpec, Project } from '@hydra/protocol'
 import { detectChecks } from './detect.js'
 
@@ -22,7 +21,8 @@ const INLINE_CODE: Array<[RegExp, RegExp]> = [
   [/^node$/, /^(-e|--eval|-p|--print)$/], [/^(python|python3|py)$/, /^-c$/], [/^(ruby|perl)$/, /^-e$/]
 ]
 
-const program = (argv: readonly string[]) => basename(argv[0] ?? '').toLowerCase().replace(/\.(exe|cmd|bat|ps1)$/, '')
+// Both separators on every platform: path.basename on POSIX would keep "C:\...\curl.exe" whole.
+const program = (argv: readonly string[]) => ((argv[0] ?? '').split(/[\\/]/).pop() ?? '').toLowerCase().replace(/\.(exe|cmd|bat|ps1)$/, '')
 
 /** Checks a command before it is saved or tested. Errors block it; warnings are shown. */
 export function validateCheck(check: CheckDraft): { errors: string[]; warnings: string[] } {
