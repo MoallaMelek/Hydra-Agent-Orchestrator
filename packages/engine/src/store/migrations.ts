@@ -36,5 +36,17 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE TABLE remote_commands (device_id TEXT NOT NULL, command_id TEXT NOT NULL, at TEXT NOT NULL, ack TEXT NOT NULL,
     PRIMARY KEY (device_id, command_id));
+  `,
+  // v2: local outcome records for recommendations. No prompts, code or file names; the
+  // person can clear them.
+  `
+  CREATE TABLE outcomes (
+    task_id TEXT PRIMARY KEY,
+    at TEXT NOT NULL,
+    category TEXT NOT NULL,
+    strategy TEXT NOT NULL,
+    doc TEXT NOT NULL
+  );
+  CREATE INDEX outcomes_category ON outcomes (category);
   `
 ]

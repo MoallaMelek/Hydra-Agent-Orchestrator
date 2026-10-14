@@ -34,6 +34,11 @@ export const Command = z.discriminatedUnion('type', [
   /** Turns phone access on for a number of minutes (0: until Hydra closes), on one address. Desktop only. */
   z.object({ type: z.literal('remote.enable'), minutes: z.number().int().min(0).max(24 * 60), host: z.string().regex(/^\d{1,3}(\.\d{1,3}){3}$/).optional() }),
   z.object({ type: z.literal('remote.disable') }),
+  /** Suggested agents for a message (or a depth), with the local evidence behind it. */
+  z.object({ type: z.literal('agents.recommend'), prompt: z.string().max(50_000).optional(), depth: DepthChoice.optional() }),
+  /** Local outcome history: summary, or delete it (desktop only). */
+  z.object({ type: z.literal('outcomes.get') }),
+  z.object({ type: z.literal('outcomes.clear') }),
   /** Starts an answering agent ahead of time for this project so the next question is faster. */
   z.object({ type: z.literal('agent.prewarm'), projectId: Id }),
   z.object({ type: z.literal('task.resume'), taskId: Id }),
@@ -70,6 +75,7 @@ export type CommandAck = z.infer<typeof CommandAck>
 export const REMOTE_COMMAND_SCOPE: Partial<Record<CommandType, 'control' | 'approve'>> = {
   'task.create': 'control',
   'agent.prewarm': 'control',
+  'agents.recommend': 'control',
   'task.archive': 'control',
   'task.cancel': 'control',
   'task.resume': 'control',

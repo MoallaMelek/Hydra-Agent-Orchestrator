@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import {
-  AgentRunInfo, Device, DURABLE_EVENT_TYPES, Evidence, Project, Task,
+  AgentRunInfo, Device, DURABLE_EVENT_TYPES, Evidence, Outcome, Project, Task,
   type EngineEvent, type EventEnvelope
 } from '@hydra/protocol'
 import type { z } from 'zod'
@@ -230,6 +230,23 @@ export class Store {
   recallRemoteCommand(deviceId: string, commandId: string): unknown {
     const row = this.db.prepare('SELECT ack FROM remote_commands WHERE device_id = ? AND command_id = ?').get(deviceId, commandId) as Row | undefined
     return row ? JSON.parse(String(row.ack)) : undefined
+  }
+
+  // ── outcomes (local history for recommendations) ──────────
+  recordOutcome(outcome: Outcome): void {
+    this.db.prepare('INSERT INTO outcomes (task_id, at, category, strategy, doc) VALUES (?, ?, ?, ?, ?) ON CONFLICT(task_id) DO UPDATE SET at = excluded.at, category = excluded.category, strategy = excluded.strategy, doc = excluded.doc')
+      .run(outcome.taskId, outcome.at, outcome.category, outcome.strategy, JSON.stringify(outcome))
+  }
+
+  listOutcomes(category?: string, limit = 2000): Outcome[] {
+    const rows = (category
+      ? this.db.prepare('SELECT doc FROM outcomes WHERE category = ? ORDER BY at DESC LIMIT ?').all(category, limit)
+      : this.db.prepare('SELECT doc FROM outcomes ORDER BY at DESC LIMIT ?').all(limit)) as Row[]
+    return rows.map((row) => Outcome.parse(JSON.parse(String(row.doc))))
+  }
+
+  clearOutcomes(): number {
+    return Number(this.db.prepare('DELETE FROM outcomes').run().changes)
   }
 
   // ── key/value and audit ───────────────────────────────────

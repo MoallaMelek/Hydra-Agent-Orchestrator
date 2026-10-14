@@ -1,11 +1,14 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Button, Panel } from '../design/components'
 import { useApp } from '../app/context'
 import { HttpTransport } from '../api/transport'
 import { MODE_INFO } from '../lib/format'
 
 export function SettingsView() {
-  const { state, store, isRemote } = useApp()
+  const { state, store, isRemote, run } = useApp()
+  const [history, setHistory] = useState<{ count: number } | null>(null)
+  const loadHistory = () => void store.transport.execute({ type: 'outcomes.get' }).then((ack) => { if (ack.ok) setHistory(ack.result as { count: number }) }).catch(() => {})
+  useEffect(loadHistory, [store])
   const [busy, setBusy] = useState<'backup' | 'export' | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -40,6 +43,15 @@ export function SettingsView() {
           </>
         )}
       </Panel>
+      {!isRemote && (
+        <Panel title="Task history used for suggestions">
+          <p className="muted">Hydra keeps a short local record of each finished task (kind of task, which agents, time, cost, whether checks passed and whether you accepted). It never contains your prompts, code or answers, and never leaves this computer. Suggestions use it only once there are at least 5 similar tasks.</p>
+          <div className="row" style={{ marginTop: 12 }}>
+            <span className="faint">{history ? `${history.count} record${history.count === 1 ? '' : 's'}` : '…'}</span>
+            <Button size="sm" variant="ghost" disabled={!history?.count} onClick={() => void run({ type: 'outcomes.clear' }, 'Task history cleared').then(loadHistory)}>Clear history</Button>
+          </div>
+        </Panel>
+      )}
     </div>
   )
 }

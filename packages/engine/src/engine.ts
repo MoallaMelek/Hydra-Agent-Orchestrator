@@ -16,6 +16,7 @@ import { conflict, errorMessage, forbidden, HydraError, invalid, notFound, unava
 import { isoNow, newId } from './util/ids.js'
 import { ownerOnly } from './util/permissions.js'
 import { policyFor } from './workflow/policy.js'
+import { categoryOf, outcomeFor, recommend } from './intelligence/outcomes.js'
 import { checksFor, specsFromDrafts, validateCheck } from './verification/custom.js'
 import { detectChecks } from './verification/detect.js'
 import { runChecks } from './verification/runner.js'
@@ -71,6 +72,12 @@ export class Engine {
       env: options.env ?? process.env
     }
     this.orchestrator = new Orchestrator(this.ctx)
+    // Local outcome history: recorded when a task finishes (and again if it is rolled back).
+    this.store.subscribe(({ event }) => {
+      if (event.type !== 'task.updated') return
+      const outcome = outcomeFor(event.task, this.store.listEvidence(event.task.id))
+      if (outcome) this.store.recordOutcome(outcome)
+    })
   }
 
   static async open(options: EngineOptions): Promise<Engine> {
@@ -204,6 +211,23 @@ export class Engine {
         await this.hooks.remoteDisable?.()
         this.store.audit(actorLabel, 'remote.disable', {})
         return null
+      case 'agents.recommend': {
+        const route = routeRequest(command.prompt ?? '', command.depth ?? 'auto')
+        const intent = route.depth === 'deep' ? 'change' as const : 'analyze' as const
+        const ready = this.ctx.registry.ids().filter((id) => this.ctx.registry.usable(id))
+        return recommend(categoryOf({ intent, route }), ready, this.store.listOutcomes(categoryOf({ intent, route })))
+      }
+      case 'outcomes.get': {
+        const all = this.store.listOutcomes()
+        const byCategory: Record<string, number> = {}
+        for (const o of all) byCategory[o.category] = (byCategory[o.category] ?? 0) + 1
+        return { count: all.length, byCategory }
+      }
+      case 'outcomes.clear': {
+        const removed = this.store.clearOutcomes()
+        this.store.audit(actorLabel, 'outcomes.clear', { removed })
+        return { removed }
+      }
       case 'agent.prewarm': {
         const project = this.store.getProject(command.projectId)
         if (!project) throw notFound('Project')

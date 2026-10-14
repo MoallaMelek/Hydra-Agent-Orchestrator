@@ -301,3 +301,25 @@ export const Device = z.object({
 export type Device = z.infer<typeof Device>
 
 export const emptyUsage = (): UsageTotals => ({ inputTokens: 0, outputTokens: 0, cachedTokens: 0, costUsd: 0, unpricedTokens: 0, agentRuns: 0 })
+
+/**
+ * What happened to one finished task, kept locally to inform recommendations. Holds
+ * no prompts, code, answers or file names. The person can clear these records.
+ */
+export const Outcome = z.object({
+  taskId: Id,
+  at: IsoTime,
+  /** e.g. "change/normal", "answer/standard" */
+  category: z.string().max(60),
+  /** e.g. "claude→codex→claude" (planner → implementer → reviewer) */
+  strategy: z.string().max(80),
+  durationMs: z.number().int().nonnegative(),
+  tokens: z.number().nonnegative(),
+  costUsd: z.number().nonnegative().nullable(),
+  /** Did Hydra's own checks pass on the final commit? null for answers or when no checks ran. */
+  verified: z.boolean().nullable(),
+  fixRounds: z.number().int().nonnegative(),
+  decision: z.enum(['accepted', 'rolled_back', 'rejected', 'kept_branch', 'answered', 'failed', 'canceled']),
+  failure: z.enum(['limit', 'sign_in', 'network', 'missing', 'other']).nullable()
+})
+export type Outcome = z.infer<typeof Outcome>
