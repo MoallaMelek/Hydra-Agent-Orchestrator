@@ -1,5 +1,6 @@
-import { createHash } from 'node:crypto'
-import { createWriteStream, mkdirSync, rmSync } from 'node:fs'
+import { createHash, randomBytes } from 'node:crypto'
+import { mkdirSync } from 'node:fs'
+import { open, rename, rm, type FileHandle } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ed25519 } from '@noble/curves/ed25519.js'
 import { z } from 'zod'
@@ -17,7 +18,8 @@ import { z } from 'zod'
 export const UpdateFile = z.object({
   /** process.platform + '-' + process.arch, e.g. "win32-x64". */
   platform: z.string().regex(/^[a-z0-9]+-[a-z0-9]+$/),
-  name: z.string().regex(/^[\w.-]+$/).max(200),
+  // A plain file name: no path parts and no leading dot (so never "." or "..").
+  name: z.string().regex(/^[\w-][\w.-]*$/).max(200),
   url: z.string().url().max(2000),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
   size: z.number().int().positive()
@@ -92,35 +94,48 @@ export async function checkForUpdate(config: UpdateConfig, fetcher: Fetcher = fe
 /**
  * Downloads an installer into `dir` and keeps it only if its size and SHA-256 match the
  * signed manifest. Returns the file path; nothing is run.
+ *
+ * The bytes go to a new file with an unpredictable name, created exclusively (an existing
+ * file or link at that name makes it fail rather than be written through). Only a
+ * verified, closed file is renamed into place, which replaces a link at the final name
+ * instead of following it. A stalled server or a failing disk ends the download.
  */
-export async function downloadUpdate(file: z.infer<typeof UpdateFile>, dir: string, fetcher: Fetcher = fetch as unknown as Fetcher): Promise<string> {
+export async function downloadUpdate(file: z.infer<typeof UpdateFile>, dir: string, fetcher: Fetcher = fetch as unknown as Fetcher, stallMs = 60_000): Promise<string> {
   if (!/^https:\/\//.test(file.url)) throw new Error('Updates are only downloaded over HTTPS.')
   mkdirSync(dir, { recursive: true })
   const target = join(dir, file.name)
-  const response = await fetcher(file.url)
+  const response = await withDeadline(fetcher(file.url), stallMs, 'The update server did not answer.')
   if (!response.ok || !response.body) throw new Error(`The download failed (${response.status}).`)
-  const hash = createHash('sha256')
-  let size = 0
-  const out = createWriteStream(target, { mode: 0o600 })
-  const closed = new Promise<void>((resolve) => out.once('close', () => resolve()))
-  out.on('error', () => { /* reported through the checks below */ })
+  const temp = join(dir, `.${file.name}.${randomBytes(8).toString('hex')}.part`)
+  const reader = response.body.getReader()
+  let handle: FileHandle | null = null
   try {
-    const reader = response.body.getReader()
+    handle = await open(temp, 'wx', 0o600)
+    const hash = createHash('sha256')
+    let size = 0
     for (;;) {
-      const { done, value } = await reader.read()
+      const { done, value } = await withDeadline(reader.read(), stallMs, 'The download stalled.')
       if (done) break
       size += value.byteLength
       if (size > file.size) throw new Error('The download is larger than the signed size.')
       hash.update(value)
-      if (!out.write(value)) await new Promise<void>((r) => out.once('drain', () => r()))
+      await handle.write(value) // rejects on a disk error instead of waiting forever
     }
-    await new Promise<void>((resolve, reject) => out.end((error?: Error | null) => (error ? reject(error) : resolve())))
+    await handle.close()
+    handle = null
     if (size !== file.size || hash.digest('hex') !== file.sha256) throw new Error('The download does not match the signed checksum. It was deleted.')
+    await rename(temp, target)
     return target
   } catch (error) {
-    out.destroy()
-    await closed // only delete once the file is closed
-    rmSync(target, { force: true })
+    void reader.cancel().catch(() => { /* already finished */ })
+    await handle?.close().catch(() => { /* already failing */ })
+    await rm(temp, { force: true })
     throw error
   }
+}
+
+function withDeadline<T>(work: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined
+  const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms) })
+  return Promise.race([work, deadline]).finally(() => clearTimeout(timer))
 }

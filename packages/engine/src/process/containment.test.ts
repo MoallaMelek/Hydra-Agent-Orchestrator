@@ -16,8 +16,10 @@ const WIN = process.platform === 'win32'
 function family(parentExits: boolean) {
   const code = `
 const { spawn } = require('child_process');
-const g = spawn(process.execPath, ['-e', 'process.on("SIGTERM",()=>{});process.on("SIGINT",()=>{});setInterval(()=>{},1000)'], { detached: ${WIN}, stdio: 'ignore' });
-g.unref(); console.log(g.pid); ${parentExits ? 'setTimeout(() => process.exit(0), 100)' : 'setInterval(()=>{},1000)'};`
+const g = spawn(process.execPath, ['-e', 'process.on("SIGTERM",()=>{});process.on("SIGINT",()=>{});process.stdout.write("ready");setInterval(()=>{},1000)'], { detached: ${WIN}, stdio: ['ignore', 'pipe', 'ignore'] });
+// Report the grandchild only once it is ignoring signals, so the test cannot win by killing it during start-up.
+g.stdout.once('data', () => { g.stdout.destroy(); g.unref(); console.log(g.pid); ${parentExits ? 'setTimeout(() => process.exit(0), 100)' : ''} });
+${parentExits ? '' : 'setInterval(()=>{},1000);'}`
   const child = spawnArgv(process.execPath, ['-e', code], { cwd: process.cwd(), env: process.env, stdin: 'pipe' })
   const grandchild = new Promise<number>((resolve) => {
     let out = ''

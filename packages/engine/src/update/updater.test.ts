@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto'
-import { existsSync, readdirSync } from 'node:fs'
+import { readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ed25519 } from '@noble/curves/ed25519.js'
-import { checkForUpdate, compareVersions, downloadUpdate, signManifest, type Fetcher, type UpdateManifest } from './updater.js'
+import { checkForUpdate, compareVersions, downloadUpdate, signManifest, UpdateFile, type Fetcher, type UpdateManifest } from './updater.js'
 import { cleanup, tempDir } from '../testing/fixtures.js'
 
 const dirs: string[] = []
@@ -69,8 +69,42 @@ describe('update downloads', () => {
     const path = await downloadUpdate(file, dir, server(null))
     expect(path).toBe(join(dir, file.name))
     await expect(downloadUpdate(file, dir, server(null, Buffer.from('X'.repeat(installer.length))))).rejects.toThrow(/does not match the signed checksum/)
-    expect(existsSync(join(dir, file.name))).toBe(false)
     await expect(downloadUpdate(file, dir, server(null, Buffer.concat([installer, Buffer.from('extra')])))).rejects.toThrow(/larger than the signed size/)
+    // Failed downloads leave nothing behind and never damage the earlier verified file.
+    expect(readdirSync(dir)).toEqual([file.name])
+    expect(readFileSync(path).equals(installer)).toBe(true)
+  })
+
+  it('replaces a link at the final name instead of writing through it (independent review A5-9)', async () => {
+    const dir = tempDir('hydra-update-')
+    const elsewhere = tempDir('hydra-victim-')
+    dirs.push(dir, elsewhere)
+    const victim = join(elsewhere, 'important.txt')
+    writeFileSync(victim, 'keep me')
+    const file = manifest().files[0]!
+    symlinkSync(victim, join(dir, file.name), 'file')
+    await expect(downloadUpdate(file, dir, server(null, Buffer.from('X'.repeat(installer.length))))).rejects.toThrow(/checksum/)
+    expect(readFileSync(victim, 'utf8')).toBe('keep me')
+    const path = await downloadUpdate(file, dir, server(null))
+    expect(readFileSync(victim, 'utf8')).toBe('keep me')
+    expect(readFileSync(path).equals(installer)).toBe(true)
+  })
+
+  it('gives up on a server that stops sending, and on a disk that cannot be written (independent review A5-8)', async () => {
+    const dir = tempDir('hydra-update-')
+    dirs.push(dir)
+    const file = manifest().files[0]!
+    const stalled: Fetcher = async () => ({ ok: true, status: 200, json: async () => ({}), body: new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new Uint8Array(installer.subarray(0, 10))) } }) })
+    await expect(downloadUpdate(file, dir, stalled, 200)).rejects.toThrow(/stalled/)
     expect(readdirSync(dir)).toEqual([])
+    // A path that cannot hold files: the folder is a file.
+    const blocked = join(dir, 'not-a-folder')
+    writeFileSync(blocked, '')
+    await expect(downloadUpdate(file, blocked, server(null))).rejects.toThrow()
+  })
+
+  it('accepts only plain file names', () => {
+    for (const name of ['..', '.', '.hidden', '../x.exe', 'a/b.exe', 'a\\b.exe']) expect(UpdateFile.safeParse({ ...manifest().files[0]!, name }).success).toBe(false)
+    expect(UpdateFile.safeParse(manifest().files[0]!).success).toBe(true)
   })
 })

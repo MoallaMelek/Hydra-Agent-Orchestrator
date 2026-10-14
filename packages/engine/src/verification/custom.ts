@@ -32,7 +32,9 @@ export function validateCheck(check: CheckDraft): { errors: string[]; warnings: 
   if (!check.argv.length || !check.argv[0]!.trim()) errors.push('Enter the command to run.')
   if (FORBIDDEN_PROGRAMS.has(name)) errors.push(`"${name}" cannot be a check: checks must not delete files, change permissions, gain privileges or use the network.`)
   for (const [tool, sub, why] of FORBIDDEN_SUBCOMMANDS) {
-    if (name === tool && check.argv[1] && sub.test(check.argv[1])) errors.push(`"${tool} ${check.argv[1]}" cannot be a check: it ${why}.`)
+    // Any argument, not only the second: options can come first ("git -C ../other clean -fdx").
+    const hit = name === tool ? check.argv.slice(1).find((a) => sub.test(a)) : undefined
+    if (hit) errors.push(`"${tool} ${hit}" cannot be a check: it ${why}.`)
   }
   if (check.argv.some((a) => /[;&|`]|\$\(|>|</.test(a)) && !INLINE_CODE.some(([p]) => p.test(name))) {
     warnings.push('Arguments are passed as-is, without a shell: pipes, redirects and ";" are not interpreted.')

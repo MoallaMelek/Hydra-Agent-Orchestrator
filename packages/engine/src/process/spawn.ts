@@ -99,28 +99,56 @@ export async function killTree(child: ChildProcess, graceMs = 1500): Promise<boo
   const pid = child.pid
   const job = jobs.get(child)
   if (job) {
-    // OS-enforced: every process in the job ends, including orphaned descendants.
+    // A descendant started in the instant before the child entered its job is outside it:
+    // end the live tree by parentage first, then everything in the job (OS-enforced).
+    if (pid && child.exitCode === null && child.signalCode === null) await taskkillTree(pid)
     job.terminate()
-    return job.waitEmpty(5000)
+    const emptied = await job.waitEmpty(5000)
+    return emptied && await waitForExit(child, graceMs)
   }
-  if (!pid || child.exitCode !== null || child.signalCode !== null) return true
+  if (!pid) return true
+  const exited = child.exitCode !== null || child.signalCode !== null
   if (IS_WINDOWS) {
-    const taskkill = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe')
-    await new Promise<void>((resolve) => {
-      const killer = spawn(taskkill, ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
-      killer.on('close', () => resolve())
-      killer.on('error', () => resolve())
-    })
+    if (!exited) await taskkillTree(pid)
     return waitForExit(child, graceMs)
   }
   const signalGroup = (signal: NodeJS.Signals) => {
     // Hydra starts agents in their own process group; if this one has none, signal the process itself.
     try { process.kill(-pid, signal) } catch { try { child.kill(signal) } catch { /* already gone */ } }
   }
-  signalGroup('SIGTERM')
-  if (await waitForExit(child, graceMs)) return true
+  // Success means the whole group is gone, not only the parent: descendants may ignore SIGTERM
+  // or outlive a parent that already exited.
+  if (!exited) {
+    signalGroup('SIGTERM')
+    if (await waitForExit(child, graceMs) && await groupGone(pid, 200)) return true
+  } else if (!groupAlive(pid)) return true
   signalGroup('SIGKILL')
-  return waitForExit(child, graceMs)
+  return await waitForExit(child, graceMs) && await groupGone(pid, graceMs)
+}
+
+/** Windows: ends a live process and its descendants by parentage. */
+function taskkillTree(pid: number): Promise<void> {
+  const taskkill = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe')
+  return new Promise<void>((resolve) => {
+    const killer = spawn(taskkill, ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
+    killer.on('close', () => resolve())
+    killer.on('error', () => resolve())
+  })
+}
+
+/** POSIX: true while any process of the group led by `pid` exists (or cannot be checked). */
+function groupAlive(pid: number | undefined): boolean {
+  if (!pid) return false
+  try { process.kill(-pid, 0); return true } catch (error) { return (error as NodeJS.ErrnoException).code === 'EPERM' }
+}
+
+async function groupGone(pid: number, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs
+  while (groupAlive(pid)) {
+    if (Date.now() >= deadline) return false
+    await new Promise((r) => setTimeout(r, 25))
+  }
+  return true
 }
 
 /**

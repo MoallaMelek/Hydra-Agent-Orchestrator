@@ -69,7 +69,7 @@ export function ChecksPanel({ projectId, isGit }: { projectId: string; isGit: bo
   return (
     <Panel title="Verification" actions={info && <Badge tone="neutral" plain>Using {SOURCE[info.source]}</Badge>}>
       <p className="muted" style={{ fontSize: 13 }}>
-        Hydra runs these commands itself on every change and shows you the real results. They run with your user's permissions, in a throwaway copy of the project, without a shell, and without your AI provider credentials. Commands that delete files, change permissions, publish or use the network are refused.
+        Hydra runs these commands itself on every change and shows you the real results. They run with your user's permissions, in a throwaway copy of the project, without a shell, and without your AI provider credentials. Commands that plainly delete files, change permissions, publish or use the network are refused, but Hydra cannot see what a program or script does once it runs: the copy decides where it starts, not what it can reach. Only add commands you trust; <b>Test</b> runs one right away.
       </p>
       {info?.problem && <Callout tone="bad">{info.problem}</Callout>}
       {!rows.length && <Callout tone="warn">No checks: Hydra cannot verify changes in this project. Add the command you use to run your tests.</Callout>}

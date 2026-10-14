@@ -60,10 +60,12 @@ export async function* runJsonlProcess(spec: JsonlProcessSpec, signal: AbortSign
   let stderrTail = ''
   let ending: 'canceled' | 'timed_out' | null = null
   let unstoppable = false
+  /** Resolves false if something the process started may have survived the stop. */
+  let stopping: Promise<boolean> | null = null
   const stop = (why: 'canceled' | 'timed_out') => {
     if (ending) return
     ending = why
-    void killTree(child)
+    stopping = killTree(child)
     // Never report a stop that did not happen: if the process outlives the deadline, say so.
     const deadline = setTimeout(() => { if (!closed) { unstoppable = true; closed = true; wake?.() } }, deadlineMs)
     deadline.unref?.()
@@ -123,8 +125,9 @@ export async function* runJsonlProcess(spec: JsonlProcessSpec, signal: AbortSign
     const code = await exit
     reapGroup(child)
     while (queue.length) yield queue.shift()!
-    if (ending === 'canceled') yield { type: 'finished', status: 'canceled', detail: 'Canceled' }
-    else if (ending === 'timed_out') yield { type: 'finished', status: 'timed_out', detail: `Timed out after ${Math.round(spec.timeoutMs / 1000)}s` }
+    const leftovers = stopping && !(await stopping) ? '; some processes it started may still be running, end them in your task manager' : ''
+    if (ending === 'canceled') yield { type: 'finished', status: 'canceled', detail: `Canceled${leftovers}` }
+    else if (ending === 'timed_out') yield { type: 'finished', status: 'timed_out', detail: `Timed out after ${Math.round(spec.timeoutMs / 1000)}s${leftovers}` }
     else {
       const verdict = spec.conclude(code, stderrTail)
       yield { type: 'finished', status: verdict.status, detail: verdict.detail }

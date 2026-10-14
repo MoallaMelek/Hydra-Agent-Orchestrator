@@ -89,11 +89,21 @@ export class WorkspaceManager {
    * Returns how many were removed.
    */
   async sweepLeftovers(projectRoots: readonly string[]): Promise<number> {
-    if (!existsSync(this.checkoutsDir)) return 0
+    let top
+    try { top = lstatSync(this.checkoutsDir) } catch { return 0 }
+    // The folder itself replaced by a link (or junction) would point the sweep elsewhere: leave it alone.
+    if (!top.isDirectory() || top.isSymbolicLink()) return 0
     const leftovers = readdirSync(this.checkoutsDir)
     for (const name of leftovers) {
       const dir = join(this.checkoutsDir, name)
-      unlinkDependencies(dir)
+      let info
+      try { info = lstatSync(dir) } catch { continue }
+      if (info.isSymbolicLink()) {
+        // Remove the link itself; never look inside what it points to.
+        try { unlinkSync(dir) } catch { rmdirSync(dir) }
+        continue
+      }
+      if (info.isDirectory()) unlinkDependencies(dir)
       rmSync(dir, { recursive: true, force: true })
     }
     if (leftovers.length) for (const root of projectRoots) await git(root, ['worktree', 'prune'], { allowFail: true })

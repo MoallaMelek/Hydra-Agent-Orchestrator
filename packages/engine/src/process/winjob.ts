@@ -117,12 +117,15 @@ export class ProcessJob {
     return new ProcessJob(handle)
   }
 
-  /** Number of processes still alive in the job (0 once everything has ended). */
+  /** Number of processes still alive in the job (0 once everything has ended); -1 when it cannot be read. */
   activeProcesses(): number {
     const k = kernel32()
-    if (!k || !this.handle) return 0
+    // Closed: the kill-on-close job ended everything in it when its handle was released.
+    if (!this.handle) return 0
+    if (!k) return -1
     const info = {} as { ActiveProcesses?: number }
-    return k.QueryInformationJobObject(this.handle, JobObjectBasicAccountingInformation, info, k.accountingSize, null) ? info.ActiveProcesses ?? 0 : 0
+    // A failed query is "unknown", never "empty": cleanup must not be reported as done on a guess.
+    return k.QueryInformationJobObject(this.handle, JobObjectBasicAccountingInformation, info, k.accountingSize, null) ? info.ActiveProcesses ?? -1 : -1
   }
 
   /** Ends every process in the job. Cannot be ignored by the processes. */

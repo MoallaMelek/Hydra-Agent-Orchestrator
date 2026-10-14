@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { afterEach, describe, expect, it } from 'vitest'
 import { escapes, outsideLinks } from './git.js'
 import { linkDependencies, WorkspaceManager } from './workspace.js'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { cleanup, makeRepo, tempDir } from '../testing/fixtures.js'
 
@@ -69,6 +69,34 @@ describe('cleanup after a crash', () => {
     expect(await manager.sweepLeftovers([repo])).toBe(1)
     expect(existsSync(leftover)).toBe(false)
     expect(readFileSync(join(repo, 'node_modules', 'pkg', 'index.js'), 'utf8')).toBe('precious')
+  })
+
+  it('a leftover that is itself a link to the project is unlinked, never entered (independent review A5-6)', async () => {
+    const repo = makeRepo({ 'a.txt': 'a' })
+    const data = tempDir('hydra-sweep-')
+    const store = tempDir('hydra-store-')
+    dirs.push(repo, data, store)
+    // The project's node_modules is itself a link (as with some package managers).
+    mkdirSync(join(store, 'pkg'), { recursive: true })
+    writeFileSync(join(store, 'pkg', 'index.js'), 'precious')
+    symlinkSync(store, join(repo, 'node_modules'), 'junction')
+    const manager = new WorkspaceManager(join(data, 'w'), join(data, 'c'))
+    symlinkSync(repo, join(data, 'c', 'crashed'), 'junction')
+    expect(await manager.sweepLeftovers([repo])).toBe(1)
+    expect(existsSync(join(data, 'c', 'crashed'))).toBe(false)
+    expect(readFileSync(join(repo, 'node_modules', 'pkg', 'index.js'), 'utf8')).toBe('precious')
+    expect(readFileSync(join(repo, 'a.txt'), 'utf8')).toBe('a')
+  })
+
+  it('leaves everything alone when the copies folder itself has been replaced by a link', async () => {
+    const repo = makeRepo({ 'a.txt': 'a' })
+    const data = tempDir('hydra-sweep-')
+    dirs.push(repo, data)
+    const manager = new WorkspaceManager(join(data, 'w'), join(data, 'c'))
+    rmSync(join(data, 'c'), { recursive: true })
+    symlinkSync(repo, join(data, 'c'), 'junction')
+    expect(await manager.sweepLeftovers([repo])).toBe(0)
+    expect(readFileSync(join(repo, 'a.txt'), 'utf8')).toBe('a')
   })
 })
 

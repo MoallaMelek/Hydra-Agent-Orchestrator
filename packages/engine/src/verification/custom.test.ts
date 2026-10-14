@@ -31,7 +31,12 @@ describe('validating verification commands', () => {
     [['C:\\Windows\\System32\\curl.exe', 'https://example.com'], /cannot be a check/],
     [['git', 'push'], /changes your repository/],
     [['npm', 'publish'], /publishes/],
-    [['sudo', 'make', 'test'], /cannot be a check/]
+    [['sudo', 'make', 'test'], /cannot be a check/],
+    // Options before the subcommand (independent review A5-7).
+    [['git', '-C', 'C:/Users/someone/project', 'clean', '-fdx'], /changes your repository/],
+    [['git', '-c', 'core.pager=cat', 'reset', '--hard'], /changes your repository/],
+    [['docker', '--context', 'prod', 'rm', 'web'], /deletes images/],
+    [['npm', '--registry', 'https://registry.example', 'publish'], /publishes/]
   ])('refuses %j', (argv, message) => {
     expect(validateCheck(draft(argv)).errors.join(' ')).toMatch(message)
   })

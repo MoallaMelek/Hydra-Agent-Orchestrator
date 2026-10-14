@@ -97,8 +97,9 @@ async function runOne(spec: CheckSpec, options: RunChecksOptions): Promise<Evide
     log.end()
     return fail((error as Error).message)
   }
-  const timer = setTimeout(() => { timedOut = true; void killTree(child) }, spec.timeoutSec * 1000)
-  const onAbort = () => { void killTree(child) }
+  let stopping: Promise<boolean> | null = null
+  const timer = setTimeout(() => { timedOut = true; stopping ??= killTree(child) }, spec.timeoutSec * 1000)
+  const onAbort = () => { stopping ??= killTree(child) }
   options.signal.addEventListener('abort', onAbort, { once: true })
   child.stdout?.on('data', record)
   child.stderr?.on('data', record)
@@ -109,6 +110,7 @@ async function runOne(spec: CheckSpec, options: RunChecksOptions): Promise<Evide
   clearTimeout(timer)
   options.signal.removeEventListener('abort', onAbort)
   reapGroup(child) // reap any descendants left in the process group (POSIX)
+  const leftovers = stopping && !(await stopping) ? 'Stopped, but some processes it started may still be running; end them in your task manager.' : null
   await new Promise<void>((done) => log.end(done))
 
   return {
@@ -116,7 +118,7 @@ async function runOne(spec: CheckSpec, options: RunChecksOptions): Promise<Evide
     durationMs: Date.now() - started,
     exitCode: timedOut || options.signal.aborted ? null : outcome.code,
     timedOut,
-    spawnError: outcome.error ?? (logError ? `Log write failed: ${logError}` : null),
+    spawnError: outcome.error ?? leftovers ?? (logError ? `Log write failed: ${logError}` : null),
     outputTail: redact(tail).slice(-TAIL_BYTES),
     outputBytes: bytes,
     outputSha256: hash.digest('hex'),

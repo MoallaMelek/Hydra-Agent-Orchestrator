@@ -41,8 +41,10 @@ export interface Recommendation {
 }
 
 const median = (xs: number[]) => (xs.length ? xs.sort((a, b) => a - b)[Math.floor((xs.length - 1) / 2)]! : null)
-/** A change succeeded if it was accepted and Hydra's checks did not fail; an answer if it was given. */
-const succeeded = (o: Outcome) => (o.category.startsWith('answer') ? o.decision === 'answered' : (o.decision === 'accepted' || o.decision === 'kept_branch') && o.verified !== false)
+/** A change succeeded if you accepted it and Hydra's checks did not fail; an answer if it was given. */
+const succeeded = (o: Outcome) => (o.category.startsWith('answer') ? o.decision === 'answered' : o.decision === 'accepted' && o.verified !== false)
+/** Canceled tasks and branches kept for later say nothing about how well a setup works. */
+const counts = (o: Outcome) => o.decision !== 'canceled' && o.decision !== 'kept_branch'
 
 function parse(strategy: string): Assignment {
   const [planner, implementer = planner, reviewer = planner] = strategy.split('→') as ProviderId[]
@@ -62,7 +64,7 @@ export function recommend(category: string, available: readonly ProviderId[], hi
     ? pool.map((p) => p as string)
     : pool.length > 1 ? ['claude→codex→claude', 'codex→claude→codex', 'claude→claude→claude', 'codex→codex→codex'].filter((s) => s.split('→').every((p) => pool.includes(p as ProviderId))) : [`${pool[0]}→${pool[0]}→${pool[0]}`]
   const evidence: StrategyStats[] = candidates.map((strategy) => {
-    const mine = history.filter((o) => o.category === category && o.strategy === strategy && o.decision !== 'canceled')
+    const mine = history.filter((o) => o.category === category && o.strategy === strategy && counts(o))
     return {
       strategy, n: mine.length, succeeded: mine.filter(succeeded).length,
       medianMinutes: median(mine.map((o) => o.durationMs / 60_000)), medianCostUsd: median(mine.flatMap((o) => (o.costUsd === null ? [] : [o.costUsd])))

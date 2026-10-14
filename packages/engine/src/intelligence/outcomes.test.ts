@@ -45,6 +45,13 @@ describe('agent recommendation', () => {
     expect(recommend('change/normal', ['claude', 'codex'], history)).toMatchObject({ basis: 'rule', strategy: 'claude→codex→claude' })
   })
 
+  it('does not count kept branches or unverified retained work as successes (independent review A5-10)', () => {
+    const kept = Array.from({ length: 6 }, () => ({ ...outcome('codex→codex→codex', true), decision: 'kept_branch' as const, verified: null }))
+    const r = recommend('change/normal', ['claude', 'codex'], kept)
+    expect(r.basis).toBe('rule')
+    expect(r.evidence.find((e) => e.strategy === 'codex→codex→codex')).toMatchObject({ n: 0, succeeded: 0 })
+  })
+
   it('ignores other kinds of task and unavailable providers', () => {
     const history = Array.from({ length: 8 }, () => outcome('codex→codex→codex', true, 3, 'change/high'))
     expect(recommend('change/normal', ['claude', 'codex'], history).basis).toBe('rule')
