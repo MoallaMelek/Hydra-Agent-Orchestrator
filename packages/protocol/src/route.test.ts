@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { classifyRequest, routeRequest } from './route.js'
+import { DEV, HELD_OUT } from './route.dataset.js'
 
 // [request, expected depth, expected risk]
 const CASES: Array<[string, 'fast' | 'standard' | 'deep', 'normal' | 'high']> = [
@@ -58,5 +59,30 @@ describe('request routing', () => {
     expect(routeRequest('delete the database', 'fast')).toMatchObject({ depth: 'fast', auto: false, risk: 'high' })
     expect(routeRequest('hi', 'deep')).toMatchObject({ depth: 'deep', auto: false })
     expect(routeRequest('hi')).toMatchObject({ depth: 'fast', auto: true })
+  })
+})
+
+describe('router evaluation (route.dataset.ts)', () => {
+  const score = (cases: typeof DEV) => {
+    let exact = 0, riskMissed = 0
+    const failures: string[] = []
+    for (const k of cases) {
+      const r = classifyRequest(k.text)
+      const intent = r.depth === 'deep' ? 'change' : 'answer'
+      if (intent === k.intent && r.risk === k.risk) exact++
+      else failures.push(`${k.text} → ${intent}/${r.risk}`)
+      if (k.risk === 'high' && r.risk !== 'high') riskMissed++
+    }
+    return { accuracy: exact / cases.length, riskMissed, failures }
+  }
+
+  it('never misses a high-risk request, on the tuning set or the held-out set', () => {
+    expect(score(DEV).riskMissed).toBe(0)
+    expect(score(HELD_OUT).riskMissed).toBe(0)
+  })
+
+  it('keeps accuracy at the measured level (dev 98.7%, held-out 94.7% when written)', () => {
+    expect(score(DEV).accuracy).toBeGreaterThanOrEqual(0.97)
+    expect(score(HELD_OUT).accuracy).toBeGreaterThanOrEqual(0.94)
   })
 })
