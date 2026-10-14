@@ -17,6 +17,7 @@ import { isoNow, newId } from './util/ids.js'
 import { ownerOnly } from './util/permissions.js'
 import { policyFor } from './workflow/policy.js'
 import { categoryOf, outcomeFor, recommend } from './intelligence/outcomes.js'
+import { checkForUpdate } from './update/updater.js'
 import { checksFor, specsFromDrafts, validateCheck } from './verification/custom.js'
 import { detectChecks } from './verification/detect.js'
 import { runChecks } from './verification/runner.js'
@@ -223,6 +224,9 @@ export class Engine {
         for (const o of all) byCategory[o.category] = (byCategory[o.category] ?? 0) + 1
         return { count: all.length, byCategory }
       }
+      case 'update.check':
+        // No release key or address is configured until the owner sets up signed releases.
+        return checkForUpdate({ manifestUrl: process.env.HYDRA_UPDATE_URL ?? null, publicKeyHex: process.env.HYDRA_UPDATE_KEY ?? null, currentVersion: this.version, platform: `${process.platform}-${process.arch}` })
       case 'outcomes.clear': {
         const removed = this.store.clearOutcomes()
         this.store.audit(actorLabel, 'outcomes.clear', { removed })

@@ -39,6 +39,8 @@ export const Command = z.discriminatedUnion('type', [
   /** Local outcome history: summary, or delete it (desktop only). */
   z.object({ type: z.literal('outcomes.get') }),
   z.object({ type: z.literal('outcomes.clear') }),
+  /** Asks the release server (only when the person presses the button). Desktop only. */
+  z.object({ type: z.literal('update.check') }),
   /** Starts an answering agent ahead of time for this project so the next question is faster. */
   z.object({ type: z.literal('agent.prewarm'), projectId: Id }),
   z.object({ type: z.literal('task.resume'), taskId: Id }),

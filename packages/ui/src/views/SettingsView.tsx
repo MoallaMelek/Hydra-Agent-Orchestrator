@@ -43,6 +43,7 @@ export function SettingsView() {
           </>
         )}
       </Panel>
+      {!isRemote && <UpdatesPanel version={state.engineVersion} />}
       {!isRemote && (
         <Panel title="Task history used for suggestions">
           <p className="muted">Hydra keeps a short local record of each finished task (kind of task, which agents, time, cost, whether checks passed and whether you accepted). It never contains your prompts, code or answers, and never leaves this computer. Suggestions use it only once there are at least 5 similar tasks.</p>
@@ -53,5 +54,29 @@ export function SettingsView() {
         </Panel>
       )}
     </div>
+  )
+}
+
+/** Checks for a signed update only when asked. Installing is always the person's choice. */
+function UpdatesPanel({ version }: { version: string }) {
+  const { run } = useApp()
+  const [result, setResult] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const check = async () => {
+    setBusy(true)
+    const ack = await run({ type: 'update.check' })
+    setBusy(false)
+    if (!ack.ok) return
+    const r = ack.result as { state: string; version?: string; reason?: string }
+    setResult(r.state === 'available' ? `Version ${r.version} is available.` : r.state === 'up_to_date' ? 'You have the latest version.' : r.reason ?? 'Updates are not set up yet.')
+  }
+  return (
+    <Panel title="Updates">
+      <p className="muted">Hydra {version}. Hydra never checks for updates on its own and never installs anything without you. Updates must be signed by the Hydra publisher and match their published checksum.</p>
+      <div className="row" style={{ marginTop: 12 }}>
+        <Button size="sm" busy={busy} onClick={() => void check()}>Check for updates</Button>
+        {result && <span className="faint" role="status">{result}</span>}
+      </div>
+    </Panel>
   )
 }
