@@ -38,6 +38,7 @@ const CASES: Array<[string, 'fast' | 'standard' | 'deep', 'normal' | 'high']> = 
   ['the old backups: please purge them', 'deep', 'high'],
   ['Remove the unused import in utils.ts', 'deep', 'normal'],
   ['Add a reset button to the form', 'deep', 'normal'],
+  ['In src/orders.js, delete the local formatPrice function and add a require. Run npm test and confirm that all tests pass.', 'deep', 'normal'],
   ['ok', 'fast', 'normal']
 ]
 

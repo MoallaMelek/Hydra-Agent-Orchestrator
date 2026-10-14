@@ -209,3 +209,21 @@ Before the work, "hi" took 5.1 s and showed nothing until done; the repository q
 - Windows installer rebuilt from commit c426346: `Hydra-Setup-2.0.0-alpha.0-x64.exe`, 111.8 MB, sha256 `6df36e06f160c73e546ff59468fbd28e9fc96118f8157d4e4f58f11ffefdd3fb`; artifact scan clean; packaged smoke test passes. Not installed on the owner's PC.
 - `npm run check` → 159 passed, 1 skipped (Windows).
 - Installer validation on fresh CI runners for commit 332df07 (run 38484276163): Windows, macOS arm64 and Linux x64 all VERIFIED (install, launch with packaged smoke, uninstall keeping data, reinstall, no engine left running, clean artifact scan). The previous dispatch (38483650832) failed in the test stage on macOS and Linux; that found the process-group kill gap fixed in 332df07.
+
+## 2026-10-14 — Pre-beta hardening sprint
+
+### Real engineering tasks with real agents (`tools/live-scenarios.mjs`, Claude Code + Codex, Windows 11)
+Disposable repositories, Developer mode, full pipeline, then Accept; the project's tests were then re-run **outside Hydra** on the user's branch.
+
+| Scenario | Agents (plan → implement → review) | Stages | Fix rounds | Hydra's checks | Tests re-run after Accept | Time | Cost |
+|---|---|---|---|---|---|---|---|
+| Multi-file refactor (extract shared module, 2 callers, new test) | Claude → Codex → Claude | plan, implement, review (approve), verify, demo | 0 | pass | pass; module created; duplicate removed. **Rollback** → module gone, tests pass | 85 s | $0.11 + 29k Codex tokens |
+| Feature in Python (method + tests) | Claude ×3 | all | 0 | pass | pass | 48 s | $0.23 |
+| Mixed Node + Python (make JS match Python, Python untouched) | Claude → Codex → Claude | all | 0 | JS fail → pass | JS pass, Python pass, Python untouched | 84 s | $0.11 + 28k Codex tokens |
+| Missing dependency (`left-pad` not installed) | Claude ×3 | all | 0 | fail → pass (agent replaced it with `padStart`) | pass | 46 s | $0.12 |
+| Large project (300 files; bug location not given) | Claude ×3 | all | 0 | fail → pass | pass | 68 s | $0.13 |
+
+Findings from these runs:
+- The first run of the refactor stopped for plan approval although nothing risky was planned: the plan-level risk check matched "delete the local formatPrice" with "all tests pass" across the whole plan. Fixed (risk judged per plan step, bounded word distance, bare "all"/"every" no longer count as data). The router's evaluation numbers were unchanged.
+- In the mixed-language run the agent also edited the test file (Hydra flags modified tests at approval).
+- No scenario needed a repair round, so bounded repair was not exercised live (covered by automated tests). Merge conflicts were not exercised live (covered by automated tests with real git).

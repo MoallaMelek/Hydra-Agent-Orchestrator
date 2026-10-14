@@ -102,8 +102,8 @@ export async function planStage({ ctx, taskId, signal }: StageInput): Promise<St
   }
   const { reply: _reply, ...plan } = value
   // Second line of defence: judge the plan itself, not only how the request was worded.
-  const planText = [plan.summary, ...plan.steps, ...plan.filesLikelyTouched].join('\n')
-  const escalate = isHighRisk(planText) && task(ctx, taskId).route?.risk !== 'high'
+  // Each step on its own: words from different steps must not combine into a false alarm.
+  const escalate = [plan.summary, ...plan.steps, ...plan.filesLikelyTouched].some((line) => isHighRisk(line)) && task(ctx, taskId).route?.risk !== 'high'
   updateTask(ctx, taskId, (draft) => {
     draft.plan = Plan.parse(plan)
     if (escalate) draft.route = { depth: 'deep', auto: draft.route?.auto ?? false, risk: 'high', reason: 'The plan includes a risky operation, so it needs your approval first.' }
