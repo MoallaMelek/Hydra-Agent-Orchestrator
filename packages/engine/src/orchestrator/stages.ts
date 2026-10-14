@@ -3,7 +3,8 @@ import { isHighRisk, Plan, Review, type DemoReport, type Evidence, type Task, ty
 import { isAncestor } from '../isolation/git.js'
 import { answerPrompt, fixPrompt, implementPrompt, planPrompt, reviewPrompt, type Turn } from '../prompts/prompts.js'
 import { IMPLEMENT_SCHEMA, PLAN_SCHEMA, REVIEW_SCHEMA } from '../prompts/schemas.js'
-import { checkDefinitionDigest, detectChecks } from '../verification/detect.js'
+import { checkDefinitionDigest } from '../verification/detect.js'
+import { checksFor } from '../verification/custom.js'
 import { passed } from '../verification/runner.js'
 import type { StageResult } from '../workflow/machine.js'
 import { conflict } from '../util/errors.js'
@@ -78,7 +79,8 @@ export async function planStage({ ctx, taskId, signal }: StageInput): Promise<St
   const ws = workspaceOf(t)
   let checks
   try {
-    checks = detectChecks(ws.path)
+    // Your own list (kept in Hydra) wins over .hydra/checks.json and detection.
+    checks = checksFor(ctx.store.getProject(t.projectId)!, ws.path).checks
   } catch (error) {
     throw new Error(`.hydra/checks.json is invalid: ${(error as Error).message}`, { cause: error })
   }

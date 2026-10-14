@@ -142,3 +142,13 @@
 /* History search */
 .history-search { display: inline-flex; align-items: center; gap: 6px; color: var(--text-3); }
 .history-search .hx-input { height: 30px; min-width: 240px; }
+
+/* Verification commands editor */
+.checks-list { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
+.checks-row { border: 1px solid var(--border); border-radius: 8px; padding: var(--space-2) var(--space-3); display: flex; flex-direction: column; gap: 6px; }
+.checks-row__fields { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(180px, 2fr) minmax(70px, 0.6fr) auto auto; gap: 6px; align-items: center; }
+@media (max-width: 760px) { .checks-row__fields { grid-template-columns: 1fr 1fr; } }
+.checks-result { font-size: 12.5px; border-left: 3px solid var(--border); padding-left: 8px; }
+.checks-result.is-ok { border-color: var(--ok); }
+.checks-result.is-bad { border-color: var(--bad); }
+.checks-result pre { max-height: 180px; overflow: auto; font-size: 11.5px; background: var(--surface-hover); padding: 8px; border-radius: 6px; margin-top: 4px; }

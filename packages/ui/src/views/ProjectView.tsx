@@ -5,6 +5,7 @@ import { Badge, Button, EmptyState, Panel } from '../design/components'
 import { useApp } from '../app/context'
 import { StagePipeline } from './StagePipeline'
 import { NewTaskForm } from './NewTaskForm'
+import { ChecksPanel } from './ChecksPanel'
 import { ago, statusLabel, usageLine } from '../lib/format'
 
 const PAGE = 25
@@ -55,6 +56,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
         {!isRemote && <Button variant="ghost" size="sm" icon={<Trash2 size={14} />} onClick={() => void run({ type: 'project.remove', projectId }, 'Project removed from Hydra (files untouched)').then((ack) => ack.ok && go({ view: 'home' }))}>Remove</Button>}
       </div>
       <Panel title="New task"><NewTaskForm projectId={projectId} isGit={project.isGit} /></Panel>
+      {!isRemote && <ChecksPanel projectId={projectId} isGit={project.isGit} />}
       <Panel title={archived ? `Archived · ${visible.length}` : `History · ${visible.length}`} actions={
         <>
           <label className="history-search"><Search size={14} aria-hidden /><input className="hx-input" type="search" placeholder="Search questions, answers, changes" aria-label="Search history" value={query} onChange={(e) => { setQuery(e.target.value); setShown(PAGE) }} /></label>

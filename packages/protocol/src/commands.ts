@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Assignment, AutonomyMode, Budget, DeviceScope, Id, TaskIntent } from './domain.js'
+import { Assignment, AutonomyMode, Budget, CheckDraft, DeviceScope, Id, TaskIntent } from './domain.js'
 import { DepthChoice } from './route.js'
 
 const Feedback = z.string().trim().min(1).max(10_000)
@@ -11,6 +11,10 @@ const Feedback = z.string().trim().min(1).max(10_000)
 export const Command = z.discriminatedUnion('type', [
   z.object({ type: z.literal('project.add'), root: z.string().min(1).max(4096), name: z.string().trim().min(1).max(200).optional() }),
   z.object({ type: z.literal('project.remove'), projectId: Id }),
+  /** Verification commands: see which apply, save your own list (null restores detection), test one. Desktop only. */
+  z.object({ type: z.literal('project.checks.get'), projectId: Id }),
+  z.object({ type: z.literal('project.checks.set'), projectId: Id, checks: z.array(CheckDraft).max(30).nullable() }),
+  z.object({ type: z.literal('project.checks.test'), projectId: Id, check: CheckDraft }),
   z.object({
     type: z.literal('task.create'),
     projectId: Id,

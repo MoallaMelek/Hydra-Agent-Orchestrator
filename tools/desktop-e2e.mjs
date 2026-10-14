@@ -166,6 +166,15 @@ try {
     await ui.waitText('New task')
     await ui.shot('02-project')
   })
+  await step('verification editor shows the detected command and tests it for real', async () => {
+    await ui.waitText('Using automatic detection')
+    await ui.click('Test')
+    await ui.waitText('on commit', 120_000)
+    const text = await ui.text()
+    await ui.shot('02b-checks')
+    // The fixture's add() is buggy, so its test must fail, and Hydra must say so.
+    if (!/Failed \(exit/.test(text)) throw new Error('expected the real test run to fail')
+  })
   if (useAgents) {
     const toProject = async () => {
       await ui.evaluate(`[...document.querySelectorAll('.nav-item')].find((b) => b.textContent.includes(${JSON.stringify(basename(repo))})).click()`)

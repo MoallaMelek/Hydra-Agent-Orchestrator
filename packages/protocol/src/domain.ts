@@ -110,6 +110,17 @@ export const CheckSpec = z.object({
 })
 export type CheckSpec = z.infer<typeof CheckSpec>
 
+/** A verification command as the person writes it in the checks editor. */
+export const CheckDraft = z.object({
+  label: z.string().trim().min(1).max(200),
+  kind: CheckKind,
+  argv: z.array(z.string().max(1000)).min(1).max(64),
+  cwd: z.string().max(500).default('.'),
+  timeoutSec: z.number().int().min(5).max(3600).default(600),
+  required: z.boolean().default(true)
+})
+export type CheckDraft = z.infer<typeof CheckDraft>
+
 export const Evidence = z.object({
   id: Id,
   taskId: Id,
@@ -200,7 +211,9 @@ export const Project = z.object({
   name: z.string().min(1).max(200),
   root: z.string().min(1),
   isGit: z.boolean(),
-  addedAt: IsoTime
+  addedAt: IsoTime,
+  /** Your own verification commands, kept in Hydra (not in the repository); null: use the project's or detected ones. */
+  checks: z.array(CheckDraft).max(30).nullable().default(null)
 })
 export type Project = z.infer<typeof Project>
 

@@ -16,6 +16,9 @@ import { conflict, errorMessage, forbidden, HydraError, invalid, notFound, unava
 import { isoNow, newId } from './util/ids.js'
 import { ownerOnly } from './util/permissions.js'
 import { policyFor } from './workflow/policy.js'
+import { checksFor, specsFromDrafts, validateCheck } from './verification/custom.js'
+import { detectChecks } from './verification/detect.js'
+import { runChecks } from './verification/runner.js'
 
 export type Actor = { kind: 'desktop' } | { kind: 'remote'; deviceId: string; scopes: readonly DeviceScope[] }
 
@@ -166,6 +169,27 @@ export class Engine {
         this.store.deleteProject(command.projectId)
         return null
       }
+      case 'project.checks.get': {
+        const project = this.store.getProject(command.projectId)
+        if (!project) throw notFound('Project')
+        let detected: ReturnType<typeof detectChecks> = []
+        let problem: string | null = null
+        try { detected = detectChecks(project.root) } catch (error) { problem = `.hydra/checks.json is invalid: ${errorMessage(error)}` }
+        const current = project.checks ? checksFor(project, project.root) : { source: detected.some((c) => c.id.startsWith('custom:')) ? 'file' as const : 'detected' as const, checks: detected }
+        return { ...current, detected, problem }
+      }
+      case 'project.checks.set': {
+        const project = this.store.getProject(command.projectId)
+        if (!project) throw notFound('Project')
+        for (const check of command.checks ?? []) {
+          const { errors } = validateCheck(check)
+          if (errors.length) throw invalid(`${check.label}: ${errors.join(' ')}`)
+        }
+        this.store.putProject({ ...project, checks: command.checks })
+        this.store.audit(actorLabel, 'project.checks.set', { projectId: project.id, count: command.checks?.length ?? null })
+        return null
+      }
+      case 'project.checks.test': return this.testCheck(command.projectId, command.check, actorLabel)
       case 'task.create': {
         const task = await this.createTask(command)
         this.store.audit(actorLabel, 'task.create', { taskId: task.id, mode: task.mode, assignment: task.assignment })
@@ -230,11 +254,30 @@ export class Engine {
     return task
   }
 
+  /** Runs one check now, on a throwaway copy of the project's last commit, with the usual limits. */
+  private async testCheck(projectId: string, check: Parameters<typeof validateCheck>[0], actorLabel: string) {
+    const project = this.store.getProject(projectId)
+    if (!project) throw notFound('Project')
+    const { errors, warnings } = validateCheck(check)
+    if (errors.length) throw invalid(errors.join(' '))
+    const head = (await isRepository(project.root)) ? await headSha(project.root) : null
+    if (!head) throw invalid('Testing a check needs a git repository with at least one commit.')
+    this.store.audit(actorLabel, 'project.checks.test', { projectId, argv: check.argv })
+    const [spec] = specsFromDrafts([check])
+    const { result } = await this.ctx.workspaces.withCheckout(project.root, head, (dir) => runChecks([spec!], {
+      taskId: 'check-tests', workspacePath: dir, commitSha: head, phase: 'verify',
+      logsDir: join(this.ctx.paths.logs, 'check-tests'), scratchDir: join(this.ctx.paths.scratch, 'check-tests'),
+      signal: AbortSignal.timeout((spec!.timeoutSec + 30) * 1000)
+    }))
+    const e = result[0]!
+    return { passed: e.exitCode === 0 && !e.timedOut && !e.spawnError, exitCode: e.exitCode, timedOut: e.timedOut, spawnError: e.spawnError, durationMs: e.durationMs, outputTail: e.outputTail.slice(-4000), warnings, commit: head.slice(0, 10) }
+  }
+
   private async addProject(rootInput: string, name?: string): Promise<Project> {
     const root = validateProjectRoot(rootInput, this.ctx.paths.dataDir)
     const existing = this.store.listProjects().find((p) => (process.platform === 'win32' ? p.root.toLowerCase() === root.toLowerCase() : p.root === root))
     if (existing) return existing
-    const project: Project = { id: newId(), name: name ?? basename(root), root, isGit: await isRepository(root), addedAt: isoNow() }
+    const project: Project = { id: newId(), name: name ?? basename(root), root, isGit: await isRepository(root), addedAt: isoNow(), checks: null }
     this.store.putProject(project)
     return project
   }
