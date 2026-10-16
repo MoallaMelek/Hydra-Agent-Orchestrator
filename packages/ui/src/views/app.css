@@ -152,3 +152,6 @@
 .checks-result.is-ok { border-color: var(--ok); }
 .checks-result.is-bad { border-color: var(--bad); }
 .checks-result pre { max-height: 180px; overflow: auto; font-size: 11.5px; background: var(--surface-hover); padding: 8px; border-radius: 6px; margin-top: 4px; }
+
+/* Interface lab only: marks simulated fixture data on screen. */
+.lab-banner { position: fixed; z-index: 100; left: 50%; bottom: 10px; transform: translateX(-50%); padding: 4px 12px; border-radius: 999px; font: 600 11px/1.6 var(--font-mono); letter-spacing: .04em; color: #1a1300; background: #f2b84b; pointer-events: none; }

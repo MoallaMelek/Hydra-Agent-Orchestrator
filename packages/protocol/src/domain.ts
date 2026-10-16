@@ -188,6 +188,21 @@ export const StageRecord = z.object({
 })
 export type StageRecord = z.infer<typeof StageRecord>
 
+/**
+ * One tool call reported by a provider CLI (Claude Code tool_use, Codex command or file
+ * change). Only the tool name and its target (a path, pattern or command, redacted) are
+ * kept: never the file contents or the model's reasoning.
+ */
+export const RunActivity = z.object({
+  at: IsoTime,
+  tool: z.string().max(60),
+  /** What the tool acted on: a file path, a search pattern or a command line (redacted, shortened). */
+  target: z.string().max(300),
+  /** read/search: inspected; edit: modified files; command: ran a program. */
+  kind: z.enum(['read', 'search', 'edit', 'command', 'other'])
+})
+export type RunActivity = z.infer<typeof RunActivity>
+
 export const AgentRunInfo = z.object({
   id: Id,
   taskId: Id,
@@ -202,7 +217,9 @@ export const AgentRunInfo = z.object({
   error: z.string().nullable(),
   pid: z.number().int().nullable(),
   /** Short rolling tail of agent text for live display. */
-  tail: z.string().max(8000)
+  tail: z.string().max(8000),
+  /** Tool calls the provider CLI reported (newest last, bounded); absent on runs recorded before this existed. */
+  activity: z.array(RunActivity).max(200).default([])
 })
 export type AgentRunInfo = z.infer<typeof AgentRunInfo>
 
@@ -231,6 +248,17 @@ export const Task = z.object({
   archivedAt: IsoTime.nullable().default(null),
   mode: AutonomyMode,
   assignment: Assignment,
+  /**
+   * Why these agents: compared by the engine, at creation, with its own recommendation for
+   * the same request ('suggested' when they match). Absent on older tasks.
+   */
+  selection: z.object({
+    basis: z.enum(['suggested', 'yours']),
+    /** The recommendation's stated reason (a rule or counts from your own history). */
+    reason: z.string().max(400),
+    /** What Hydra suggested, when you chose differently. */
+    suggested: Assignment.nullable()
+  }).nullable().default(null),
   budget: Budget,
   status: TaskStatus,
   stage: TaskStage,

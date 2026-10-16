@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "lab:build": "vite build --config vite.lab.config.ts",
+    "lab:preview": "vite preview --config vite.lab.config.ts"
   },
   "dependencies": {
     "@hydra/protocol": "2.0.0-alpha.0",

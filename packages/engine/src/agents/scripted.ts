@@ -16,6 +16,8 @@ export interface ScriptedStep {
   chunkSize?: number
   /** ...with this pause between pieces (exercises live flushing). */
   chunkDelayMs?: number
+  /** Tool calls to report, as a provider CLI would (name and target). */
+  tools?: Array<{ name: string; summary: string }>
 }
 
 export type ScriptHandler = (request: AgentRunRequest, call: number) => ScriptedStep | Promise<ScriptedStep>
@@ -51,6 +53,7 @@ export class ScriptedAdapter implements AgentAdapter {
         return
       }
     }
+    for (const tool of step.tools ?? []) yield { type: 'tool', name: tool.name, summary: tool.summary }
     if (step.files && request.access === 'write') {
       for (const [path, content] of Object.entries(step.files)) {
         const target = resolve(request.cwd, path)

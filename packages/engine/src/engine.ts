@@ -118,6 +118,8 @@ export class Engine {
       tasks: this.store.listTasks(),
       providers: this.ctx.registry.status(),
       devices: this.store.listDevices(),
+      activeRuns: this.store.runsWithStatus('running'),
+      agentSlots: this.ctx.agentSlots.limit,
       remote: { addresses: [], enabled: false, until: null, host: null, ...(this.hooks.remoteStatus?.() ?? { relayUrl: null, connected: false }) }
     }
   }
@@ -339,11 +341,12 @@ export class Engine {
       }
     }
     const budget = Budget.parse({ ...policyFor(mode).defaultBudget, ...command.budget })
+    const selection = this.selectionFor(intent, route, command.assignment)
     const firstLine = command.prompt.split(/\r?\n/).find((line) => line.trim()) ?? command.prompt
     const now = isoNow()
     const task: Task = {
       id: newId(), projectId: project.id, title: (command.title || firstLine).trim().slice(0, 120), prompt: command.prompt,
-      intent, route, followUpOf, archivedAt: null, mode, assignment: command.assignment, budget,
+      intent, route, followUpOf, archivedAt: null, mode, assignment: command.assignment, selection, budget,
       status: 'queued', stage: 'plan', waitReason: null, outcome: null, fixRound: 0,
       plan: null, review: null, checks: [], checksApproved: !policyFor(mode).requireCheckApproval, checkDigest: null, applyIntent: null, demo: null, answer: null,
       workspace: null, applied: null, usage: emptyUsage(), stages: [], feedback: [], error: null, createdAt: now, updatedAt: now
@@ -351,6 +354,19 @@ export class Engine {
     this.store.putTask(task)
     this.orchestrator.begin(task.id)
     return task
+  }
+
+  /**
+   * Records why these agents were chosen, by comparing them with Hydra's own recommendation
+   * for the same request. Only the roles the task uses are compared.
+   */
+  private selectionFor(intent: 'change' | 'analyze', route: Route, assignment: Task['assignment']): Task['selection'] {
+    const category = categoryOf({ intent, route })
+    const ready = this.ctx.registry.ids().filter((id) => this.ctx.registry.usable(id))
+    const advice = recommend(category, ready, this.store.listOutcomes(category))
+    const roles = intent === 'analyze' ? (['planner'] as const) : (['planner', 'implementer', 'reviewer'] as const)
+    const same = roles.every((role) => advice.assignment[role] === assignment[role])
+    return { basis: same ? 'suggested' : 'yours', reason: advice.reason.slice(0, 400), suggested: same ? null : advice.assignment }
   }
 
   private async deleteTask(taskId: string, actorLabel: string): Promise<null> {

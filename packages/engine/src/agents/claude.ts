@@ -64,7 +64,7 @@ export function claudeTranslator() {
         if (b.type === 'text' && !streamed && typeof b.text === 'string' && b.text.trim()) out.push({ type: 'text', text: b.text })
         if (b.type === 'tool_use') {
           const input = asRecord(b.input)
-          const target = String(input.file_path ?? input.path ?? input.pattern ?? '')
+          const target = String(input.file_path ?? input.notebook_path ?? input.path ?? input.pattern ?? input.command ?? '')
           out.push({ type: 'tool', name: String(b.name ?? 'tool'), summary: target.slice(0, 300) })
         }
       }

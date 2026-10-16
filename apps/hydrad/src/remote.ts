@@ -26,7 +26,7 @@ const MAX_BUFFERED_BYTES = 8 * 1024 * 1024
 const SNAPSHOT_TASK_LIMIT = 200
 /** Journal events replayed per request to a phone catching up after a disconnect. */
 const REPLAY_LIMIT = 500
-const FORWARDED: ReadonlySet<EngineEvent['type']> = new Set(['task.updated', 'task.deleted', 'task.log', 'run.updated', 'run.output', 'evidence.recorded', 'project.updated', 'project.removed'])
+const FORWARDED: ReadonlySet<EngineEvent['type']> = new Set(['task.updated', 'task.deleted', 'task.log', 'run.updated', 'run.output', 'run.activity', 'evidence.recorded', 'project.updated', 'project.removed'])
 
 /** The phone UI is served from this origin; WebSockets go to the same origin. */
 const REMOTE_HEADERS = {

@@ -10,6 +10,10 @@ export const EngineSnapshot = z.object({
   tasks: z.array(Task),
   providers: z.array(ProviderStatus),
   devices: z.array(Device),
+  /** Agent processes running right now, across all tasks (absent from older engines). */
+  activeRuns: z.array(AgentRunInfo).default([]),
+  /** How many agent processes may run at once, across all tasks; work beyond this waits for a slot. */
+  agentSlots: z.number().int().positive().default(3),
   remote: z.object({
     relayUrl: z.string().nullable(), connected: z.boolean(), addresses: z.array(z.object({ address: z.string(), label: z.string() })).default([]),
     /** Phone access is on (the listener runs). */

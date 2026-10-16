@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import { emptyUsage, type AgentRole, type AgentRunInfo, type ProviderId, type TaskStage } from '@hydra/protocol'
+import { emptyUsage, type AgentRole, type AgentRunInfo, type ProviderId, type RunActivity, type TaskStage } from '@hydra/protocol'
 import type { AccessLevel } from '../agents/types.js'
 import { addUsage, assertCanStartRun, assertWithinBudget, remainingActiveMs, remainingUsd } from '../workflow/budget.js'
 import { redact } from '../util/redact.js'
@@ -30,6 +30,18 @@ export interface AgentCallResult<T> {
 }
 
 const OUTPUT_FLUSH_MS = 400
+/** Tool calls kept on a run record (newest last). */
+const MAX_ACTIVITY = 200
+
+/** How a provider tool call touches the project: inspected, modified, or a program run. */
+export function toolKind(name: string): RunActivity['kind'] {
+  if (/^(Read|NotebookRead)$/.test(name)) return 'read'
+  if (/^(Glob|Grep|LS)$/.test(name)) return 'search'
+  if (/^(Edit|Write|MultiEdit|NotebookEdit|edit)$/.test(name)) return 'edit'
+  if (/^(Bash|shell)$/.test(name)) return 'command'
+  return 'other'
+}
+
 /** Streamed replies are flushed faster so the user sees them appear. */
 const ANSWER_FLUSH_MS = 80
 const PEM_BEGIN = /-----BEGIN [A-Z0-9 ]*-----/g
@@ -115,7 +127,7 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
 
   let run: AgentRunInfo = {
     id: newId(), taskId: call.taskId, stage: call.stage, role: call.role, provider: call.provider, model: null,
-    status: 'running', startedAt: isoNow(), endedAt: null, usage: emptyUsage(), error: null, pid: null, tail: ''
+    status: 'running', startedAt: isoNow(), endedAt: null, usage: emptyUsage(), error: null, pid: null, tail: '', activity: []
   }
   ctx.store.putRun(run)
   updateTask(ctx, call.taskId, (t) => { t.usage.agentRuns += 1 })
@@ -175,7 +187,14 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
         case 'text': emitText(event.text); break
         case 'text_delta': emitDelta(event.text); break
         case 'final_text': finalText = event.text; break
-        case 'tool': emitText(`› ${event.name} ${event.summary}`); break
+        case 'tool': {
+          emitText(`› ${event.name} ${event.summary}`)
+          // Structured copy for the operations view: tool name and redacted target only.
+          const activity: RunActivity = { at: isoNow(), tool: event.name.slice(0, 60), target: redact(event.summary).slice(0, 300), kind: toolKind(event.name) }
+          run = { ...run, activity: [...run.activity, activity].slice(-MAX_ACTIVITY) }
+          ctx.store.publish({ type: 'run.activity', runId: run.id, taskId: call.taskId, activity })
+          break
+        }
         case 'error': emitText(`⚠ ${event.message}`); break
         case 'structured': structured = event.value; break
         case 'usage': {
