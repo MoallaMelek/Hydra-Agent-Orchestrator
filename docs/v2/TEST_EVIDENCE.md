@@ -259,3 +259,257 @@ Findings from these runs:
 | Repo question | 5 ms | 5.9 s | 7.8 s | 8.5 s |
 
 No regression from job objects (previous: "hi" 2.1 s / 3.0 s warm).
+
+
+## 2026-10-16 — Relay interface redesign (branch redesign/live-operations)
+Hardware: Dell Vostro 15 3530, i7-1355U, Iris Xe, 24 GB, NVMe, 1920×1080 at 120 Hz (125 % scaling), Windows 11. Harnesses:  (Electron renderer, simulated fixtures, identical for old and new), {
+  "at": "2026-10-16T17:40:45.577Z",
+  "logicalCpus": 12,
+  "pageTargetMs": 2094,
+  "renderedMs": 2971,
+  "paint": {
+    "first-paint": 616
+  },
+  "navigation": {
+    "domContentLoaded": 499,
+    "load": 500
+  },
+  "idle": {
+    "seconds": 22.8,
+    "cpuPercentOfOneCore": {
+      "total": 0.14,
+      "renderer": 0,
+      "gpu": 0,
+      "main": 0.07,
+      "engine": 0.07
+    },
+    "memory": {
+      "main": {
+        "count": 1,
+        "wsMb": 99.4,
+        "privateMb": 34.3
+      },
+      "gpu-process": {
+        "count": 1,
+        "wsMb": 130.4,
+        "privateMb": 105
+      },
+      "utility": {
+        "count": 1,
+        "wsMb": 50.8,
+        "privateMb": 13.2
+      },
+      "engine": {
+        "count": 1,
+        "wsMb": 72.4,
+        "privateMb": 68.6
+      },
+      "renderer": {
+        "count": 1,
+        "wsMb": 103.9,
+        "privateMb": 40.5
+      }
+    },
+    "totalWsMb": 456.9,
+    "totalPrivateMb": 261.6
+  }
+} (real desktop app), {
+  "at": "2026-10-16T17:41:19.724Z",
+  "screenshots": [
+    {
+      "at": 5,
+      "view": "command center",
+      "running": [
+        "total() igno:planner",
+        "slugify() on:planner"
+      ]
+    },
+    {
+      "at": 10,
+      "view": "command center",
+      "running": [
+        "total() igno:planner",
+        "slugify() on:planner"
+      ]
+    },
+    {
+      "at": 15,
+      "view": "command center",
+      "running": [
+        "total() igno:implementer",
+        "slugify() on:planner"
+      ]
+    },
+    {
+      "at": 21,
+      "view": "task",
+      "stage": "implement",
+      "status": "running"
+    },
+    {
+      "at": 41,
+      "view": "task",
+      "stage": "implement",
+      "status": "running"
+    },
+    {
+      "at": 61,
+      "view": "task",
+      "stage": "review",
+      "status": "running"
+    },
+    {
+      "at": 81,
+      "view": "task",
+      "stage": "apply",
+      "status": "completed"
+    }
+  ],
+  "tasks": [
+    {
+      "title": "total() ignores item quantities, so the test fails. Fix total() in cart.js. Keep the change minimal.",
+      "status": "completed",
+      "waitReason": null,
+      "outcome": "applied",
+      "costUsd": 0.0724826,
+      "fixRounds": 0,
+      "selection": {
+        "basis": "suggested",
+        "reason": "Different providers write and review the change, so the review is more independent. Not enough history yet to compare setups.",
+        "suggested": null
+      },
+      "stages": [
+        "plan#1 succeeded: Plan: 2 steps",
+        "implement#1 succeeded: Commit dae699b0a7",
+        "review#1 succeeded: Approved with 1 note",
+        "verify#1 succeeded: Required checks passed",
+        "demo#1 succeeded: Before → after: 1/1 pass",
+        "apply#1 succeeded: Applied dae699b0a7"
+      ],
+      "runs": [
+        {
+          "role": "planner",
+          "provider": "claude",
+          "status": "succeeded",
+          "startedAt": "2026-10-16T17:41:23.552Z",
+          "endedAt": "2026-10-16T17:41:37.621Z",
+          "toolCalls": 4,
+          "kinds": [
+            "search",
+            "read",
+            "other"
+          ]
+        },
+        {
+          "role": "implementer",
+          "provider": "codex",
+          "status": "succeeded",
+          "startedAt": "2026-10-16T17:41:37.628Z",
+          "endedAt": "2026-10-16T17:42:08.290Z",
+          "toolCalls": 2,
+          "kinds": [
+            "command",
+            "edit"
+          ]
+        },
+        {
+          "role": "reviewer",
+          "provider": "claude",
+          "status": "succeeded",
+          "startedAt": "2026-10-16T17:42:16.201Z",
+          "endedAt": "2026-10-16T17:42:28.232Z",
+          "toolCalls": 2,
+          "kinds": [
+            "search",
+            "other"
+          ]
+        }
+      ],
+      "checks": [
+        "pre_review npm run test exit 0",
+        "verify npm run test exit 0",
+        "demo_base npm run test exit 1"
+      ]
+    },
+    {
+      "title": "slugify() only replaces the first space. Fix it so every space becomes a dash. Keep the change minimal.",
+      "status": "waiting_input",
+      "waitReason": "final_approval",
+      "outcome": null,
+      "costUsd": 0.0687574,
+      "fixRounds": 0,
+      "selection": {
+        "basis": "suggested",
+        "reason": "Different providers write and review the change, so the review is more independent. Not enough history yet to compare setups.",
+        "suggested": null
+      },
+      "stages": [
+        "plan#1 succeeded: Plan: 2 steps",
+        "implement#1 succeeded: Commit 3a3a6fd915",
+        "review#1 succeeded: Approved",
+        "verify#1 succeeded: Required checks passed",
+        "demo#1 succeeded: Before → after: 1/1 pass"
+      ],
+      "runs": [
+        {
+          "role": "planner",
+          "provider": "claude",
+          "status": "succeeded",
+          "startedAt": "2026-10-16T17:41:23.976Z",
+          "endedAt": "2026-10-16T17:41:42.513Z",
+          "toolCalls": 3,
+          "kinds": [
+            "search",
+            "read",
+            "other"
+          ]
+        },
+        {
+          "role": "implementer",
+          "provider": "codex",
+          "status": "succeeded",
+          "startedAt": "2026-10-16T17:41:42.518Z",
+          "endedAt": "2026-10-16T17:42:21.146Z",
+          "toolCalls": 2,
+          "kinds": [
+            "command",
+            "edit"
+          ]
+        },
+        {
+          "role": "reviewer",
+          "provider": "claude",
+          "status": "succeeded",
+          "startedAt": "2026-10-16T17:42:30.059Z",
+          "endedAt": "2026-10-16T17:42:41.578Z",
+          "toolCalls": 2,
+          "kinds": [
+            "read",
+            "other"
+          ]
+        }
+      ],
+      "checks": [
+        "pre_review npm run test exit 0",
+        "verify npm run test exit 0",
+        "demo_base npm run test exit 1"
+      ]
+    }
+  ],
+  "overlapSeconds": 49,
+  "totalSeconds": 86
+} (real agents). Full before/after table: REDESIGN.md §2 and §6.
+
+| Check | Result |
+|---|---|
+| Unit tests: trace model (lanes, handoffs, repair cycle, slot-wait inference, plan gate, scale), store (batching, duplicates, out-of-order, snapshot rollback, deletion, bounds), engine instrumentation (activity, redaction of credentials, selection, slots, stage notes) | VERIFIED (: 266 passed, 1 skipped) |
+| Idle with three silent running agents | VERIFIED: GPU 26 % → 0.3–0.6 %, renderer 9 % → 0.4–0.6 % of one core |
+| High-volume events (4,068 / 13,518) | VERIFIED: no long tasks; worst frame 17 ms / 17–25 ms (old 33 / 9–16 ms) |
+| Real app startup, idle, memory | VERIFIED (3 runs each): not slower; +10 MB working set |
+| Two real concurrent changes (Claude plans/reviews, Codex implements) | VERIFIED: both reached final approval in 67 s, 51 s of overlap, trace and command center from engine records; /usr/bin/bash.24 + Codex tokens |
+| WCAG AA contrast of text and state colours, both themes | VERIFIED by computation (one failure found and fixed: labels on red bars) |
+| Phone width (390 px) | VERIFIED in the browser pane: no overflow, list view by default |
+| Production bundle contains no fixtures | VERIFIED (grep of the built bundle) |
+| Desktop end-to-end with new labels | UNVERIFIED: script updated, not re-run (owner asked not to open more windows) |
+| Real failed review / real plan approval in the new view | UNVERIFIED with real agents (fixtures and engine tests only) |
+| Flaky test seen once: concurrent  race (reliability.test.ts), passed on rerun | KNOWN, pre-existing area, not caused by this change; follow-up suggested |

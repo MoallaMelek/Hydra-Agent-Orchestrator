@@ -78,3 +78,34 @@ Bottlenecks found before adding anything:
 | Engine | The interface never waits on, slows or gates the engine; all instrumentation is fire-and-forget publish |
 
 Data flow: events go into the store immediately, subscribers are notified at most once per animation frame, components subscribe to slices, the task detail is fetched once and then kept current from events.
+
+## 6. Results (measured 2026-10-16, same hardware and harnesses as §2)
+
+| Measure | Before | After |
+|---|---|---|
+| UI bundle (gzip) | 155.0 KB JS, 5.2 KB CSS | 166.7 KB JS (+7.5 %), 7.9 KB CSS |
+| Launch → interface rendered, real app (3 runs each) | 2.2–3.6 s | 1.1–1.4 s (file-cache variance likely contributes) |
+| First paint | 0.40–0.62 s | 0.25–0.28 s |
+| Idle, real app | ~1 % of one core; ~440 MB working set, ~240 MB private | 0.3–2 %; ~450 MB, ~255 MB |
+| Three agents running, no events (lab, Electron) | GPU 26 %, renderer 9 % | GPU 0.3–0.6 %, renderer 0.4–0.6 % (one noisy run in five) |
+| One real question, start screen on display | renderer 9.0 %, GPU 19.5 % | renderer 1.3–1.4 %, GPU 0 % |
+| Flood, 4,068 events (5 runs, median) | 2,263 ms, worst frame 33 ms, 0 long tasks | 2,187 ms, worst frame 17 ms, 0 long tasks |
+| Stress, 13,518 events (3 runs) | 4.6–4.7 s, average frame 8.3 ms, worst 9–16 ms, 0 long tasks | 4.8 s, average 8.4 ms, worst 17–25 ms, 0 long tasks |
+
+Trade-off, stated: under the stress load (about a hundred times what real agents produce) the worst frame is one to two 120 Hz frames longer than the old screen, which showed no live data at all. The first version of the inspector produced a 63 ms long task there (re-laying out 60 KB of output every frame); it now shows the latest 4 KB and the long task is gone.
+
+**Real agents, real app** (`tools/relay-real.mjs`): two changes started together in two repositories, Claude Code planning and reviewing, Codex implementing. Both reached final approval in 67 s; their agents overlapped for 51 s (real concurrency, shown on the command center as 2 of 3 slots in use). Tool calls, stage notes, commits, checks and the before/after comparison in the trace are the engine's own records. Cost $0.14 and $0.10 plus Codex tokens.
+
+**Fixtures** (labelled "SIMULATED FIXTURE" on screen, never in the shipped bundle, checked by grep of the production build): simple question, full change, concurrent tasks with a slot wait, failed review with two repair rounds, plan approval, high-volume events.
+
+**Independent review** (Codex CLI, fresh read-only session): 10 findings (2 High: credentials in command targets, snapshot rollback; 7 Medium: unbounded caches, a finished tool call shown as current activity, "no checks" shown as "passed", a check log under the wrong check, an earlier demo showing the latest round, inference labels missing on the command center, eviction vs "loaded"; 1 Low: benchmark labelling). All fixed, with tests (the credential test fails on the old code).
+
+**Not verified in this round:** the desktop end-to-end script with the new labels (`tools/desktop-e2e.mjs`, updated) was not re-run, at the owner's request not to open more windows; a real failed review and a real plan approval were seen only in fixtures and engine tests; a physical phone; screen readers.
+
+## 7. Skills used
+
+- **Impeccable** (read as reference; its launcher was not run because it downloads a native binary): Operate-mode rules (standard controls, motion only for state, 150–250 ms, the world contributes type, palette, density and one signature move), the craft floor (contrast, states, no eyebrow labels, no decorative glass or gradients). Influenced the restraint of the shell and the single signature move.
+- **Emil Kowalski** (`emil-design-eng`, `animation-performance`): the animation decision framework (animate only what changes state; nothing on things seen hundreds of times a day), transform/opacity only, CSS instead of state-driven animation loops, `prefers-reduced-motion`. Directly produced the "no infinite animation" rule that removed the 26 % GPU cost.
+- **Taste Skill** (`design-taste-frontend`, step 4 only, "find the idea"): the signature move comes from Hydra's own mark (three heads converging into one verified result → lanes converging on your decision). Its page-composition scripts and marketing-page rules were not used: they target persuasion pages, and some (no hairlines, no monospace) conflict with an operations tool, where tables and paths need them; Impeccable's Operate rules won.
+- **vercel-react-best-practices**: re-render rules (subscribe to derived slices, avoid state in hot paths) shaped the store and selectors.
+- Not used: `redesign-existing-projects` (advises noise textures and stock photography: wrong for this surface), the experimental Taste variants, image generation.

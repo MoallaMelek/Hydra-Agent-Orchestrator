@@ -2,6 +2,13 @@
 
 Newest entry first.
 
+## 2026-10-16 · session 6 · Relay interface redesign
+- Baseline measured first on the owner's laptop (i7-1355U, Iris Xe, 120 Hz): the old interface spent 26 % of a core in the GPU process and 9 % in the renderer whenever agents ran, from infinite pulse animations; the store re-rendered the app on every event.
+- Instrumentation (engine-authoritative, no decision changes): tool activity per run, selection reasons, running runs and slot limit in the snapshot, stage outcome notes, Claude Bash targets.
+- Relay trace, command center with agent slots, inspector, freeze, replay, list view; new design system; frame-batched selector store; adaptive quality.
+- Measured after: GPU + renderer about 1 % with agents running; flood and stress benchmarks without long tasks; two real concurrent changes watched end to end.
+- Independent Codex review R1: 10 findings, all fixed. Branch `redesign/live-operations` (not merged).
+
 ## 2026-10-14 · session 5 · pre-beta hardening and intelligence
 - P0: Windows job objects (koffi) with real-process tests; phone access off by default, explicit, time-limited and bound to one address; links leaving the project refused for checks and Accept; crash leftovers swept safely; EXECUTION_BOUNDARIES.md.
 - P1/P2: provider failures classified (sign-in, limit, network with one retry, missing CLI) and paused with guidance; router evaluated on 114 labelled requests (dev 98.7%, held-out 94.7%, 0 risky missed); editable verification commands; local outcome history with transparent recommendations; plain-language failure explanations.

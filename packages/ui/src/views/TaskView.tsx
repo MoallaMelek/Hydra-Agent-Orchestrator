@@ -106,7 +106,7 @@ function ChangeView({ task }: { task: Task }) {
           <span className="now-line__dot" aria-hidden />
           <span className="grow now-line__text">
             <span role="status" aria-live="polite">{headline.text}</span>
-            {headline.last && <span className="now-line__last">Last reported: {headline.last.text} · {duration(Math.max(0, now - headline.last.at))} ago</span>}
+            {headline.last && <span className="now-line__last">Last reported: {headline.last.text} · {now - headline.last.at < 2000 ? 'just now' : `${duration(now - headline.last.at)} ago`}</span>}
           </span>
           {headline.basis === 'inferred' && <span className="faint now-line__basis" title="Deduced from the engine's stage records">inferred</span>}
           {task.status !== 'waiting_input' && <span className="now-line__actions"><DecisionBar task={task} blockingWarnings={0} /></span>}
