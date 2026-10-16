@@ -35,7 +35,8 @@ export function Inspector({ trace, task, runs, evidence, selection, onSelect }: 
   }
   if (segment.ref.type === 'evidence') {
     const e = evidence.find((x) => x.id === segment.id)
-    return e ? <EvidenceDetail evidence={e} /> : <Gone />
+    // Keyed: a full log fetched for one check must never show under another.
+    return e ? <EvidenceDetail key={e.id} evidence={e} /> : <Gone />
   }
   return <StateDetail segment={segment} task={task} />
 }
@@ -227,11 +228,12 @@ function BatonDetail({ baton, task, evidence, trace }: { baton: Baton; task: Tas
       body = <EvidenceList items={evidence.filter((e) => e.phase === 'verify' && Date.parse(e.startedAt) >= from - 1000)} />
       break
     }
-    case 'demo': body = task.demo ? (
+    // Only the latest round's comparison is kept on the task; an earlier round shows its summary.
+    case 'demo': body = task.demo && latest(stage) ? (
       <div className="stack" style={{ gap: 6 }}>
         {task.demo.deltas.map((d) => <div key={d.checkId} className="spread"><span className="mono truncate">{d.label}</span><span className="row"><Badge tone={d.before === 'pass' ? 'ok' : 'bad'}>{d.before}</Badge>→<Badge tone={d.after === 'pass' ? 'ok' : 'bad'}>{d.after}</Badge></span></div>)}
         <p className="faint">Hydra ran the same checks on your original commit and on the result.</p>
-      </div>) : null; break
+      </div>) : <p className="muted">{baton.label}. The full comparison is kept only for the latest round.</p>; break
     case 'changes': body = <p className="muted">{baton.label}. The diff is in the Changes tab{task.workspace ? ` (branch ${task.workspace.branch})` : ''}.</p>; break
     case 'decision': body = <p className="muted">{task.feedback.find((f) => `feedback-${f.at}` === baton.id)?.text ?? baton.label}</p>; break
   }

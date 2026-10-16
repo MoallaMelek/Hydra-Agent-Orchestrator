@@ -38,7 +38,7 @@ const initial: AppState = {
 }
 
 /** Memory bounds: the interface must stay small however long Hydra runs. */
-export const LIMITS = { outputChars: 60_000, draftChars: 60_000, activityPerRun: 200, logLines: 300, runs: 500, outputRuns: 60 } as const
+export const LIMITS = { outputChars: 60_000, draftChars: 60_000, activityPerRun: 200, logLines: 300, runs: 500, outputRuns: 60, loadedTasks: 40 } as const
 
 const TERMINAL = new Set<AgentRunInfo['status']>(['succeeded', 'failed', 'canceled', 'interrupted'])
 
@@ -110,15 +110,65 @@ export class EngineStore {
     this.stop?.()
   }
 
+  /**
+   * Applies a snapshot without ever going back in time: a snapshot taken before events
+   * this store already applied (a slow reload racing the stream) keeps the newer task
+   * states and does not resurrect deleted tasks.
+   */
   private load(snapshot: EngineSnapshot): void {
+    const stale = snapshot.lastSeq < this.lastSeq
     this.lastSeq = Math.max(this.lastSeq, snapshot.lastSeq)
+    const tasks: Record<string, Task> = {}
+    for (const t of snapshot.tasks) {
+      if ((this.deleted.get(t.id) ?? -1) > snapshot.lastSeq) continue
+      const mine = this.state.tasks[t.id]
+      // Newer wins; on a tie the state from events is kept when the snapshot is the older of the two.
+      tasks[t.id] = mine && (mine.updatedAt > t.updatedAt || (stale && mine.updatedAt === t.updatedAt)) ? mine : t
+    }
+    // Tasks the snapshot does not know yet were created after it was taken.
+    if (stale) for (const [id, t] of Object.entries(this.state.tasks)) if (!tasks[id]) tasks[id] = t
     const runs = { ...this.state.runs }
-    for (const run of snapshot.activeRuns ?? []) runs[run.id] = mergeRun(runs[run.id], run)
+    for (const run of snapshot.activeRuns ?? []) if (tasks[run.taskId]) runs[run.id] = mergeRun(runs[run.id], run)
     this.set({
       ready: true, error: null, engineVersion: snapshot.engineVersion, projects: snapshot.projects,
-      tasks: Object.fromEntries(snapshot.tasks.map((t) => [t.id, t])), providers: snapshot.providers, devices: snapshot.devices, remote: snapshot.remote,
+      tasks, providers: snapshot.providers, devices: snapshot.devices, remote: snapshot.remote,
       agentSlots: snapshot.agentSlots ?? 3, runs
     })
+  }
+
+  /** Task deletions seen (by journal sequence), so an older snapshot cannot bring a task back. */
+  private readonly deleted = new Map<string, number>()
+  /**
+   * Keeps at most LIMITS.runs runs, dropping the oldest finished ones first. A task that
+   * loses runs is no longer "loaded", so opening it fetches its full history again.
+   */
+  private pruneRuns(runs: Record<string, AgentRunInfo>, loaded: AppState['loaded']): { runs: Record<string, AgentRunInfo>; loaded: AppState['loaded'] } {
+    const ids = Object.keys(runs)
+    if (ids.length <= LIMITS.runs) return { runs, loaded }
+    const finished = ids.filter((id) => runs[id]!.status !== 'running').sort((a, b) => (runs[a]!.endedAt ?? '').localeCompare(runs[b]!.endedAt ?? ''))
+    const next = { ...runs }
+    const nextLoaded = { ...loaded }
+    for (const id of finished.slice(0, ids.length - LIMITS.runs)) {
+      const taskId = next[id]!.taskId
+      delete next[id]
+      if (nextLoaded[taskId]) { delete nextLoaded[taskId]; this.loadedOrder = this.loadedOrder.filter((x) => x !== taskId) }
+    }
+    return { runs: next, loaded: nextLoaded }
+  }
+
+  /** Tasks with loaded details, oldest first (bounded: details are fetched again when needed). */
+  private loadedOrder: string[] = []
+
+  private markLoaded(taskId: string): Pick<AppState, 'loaded' | 'evidence'> {
+    this.loadedOrder = [...this.loadedOrder.filter((id) => id !== taskId), taskId]
+    const loaded = { ...this.state.loaded, [taskId]: true as const }
+    const evidence = { ...this.state.evidence }
+    while (this.loadedOrder.length > LIMITS.loadedTasks) {
+      const old = this.loadedOrder.shift()!
+      delete loaded[old]
+      delete evidence[old]
+    }
+    return { loaded, evidence }
   }
 
   /** Loads a task's runs and evidence once; later changes arrive as events. */
@@ -131,10 +181,12 @@ export class EngineStore {
       for (const run of detail.runs) runs[run.id] = mergeRun(runs[run.id], run)
       const known = new Map((this.state.evidence[taskId] ?? []).map((e) => [e.id, e]))
       for (const e of detail.evidence) known.set(e.id, e)
+      const { loaded, evidence } = this.markLoaded(taskId)
+      const pruned = this.pruneRuns(runs, loaded)
       this.set({
-        runs: pruneRuns(runs),
-        evidence: { ...this.state.evidence, [taskId]: [...known.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt)) },
-        loaded: { ...this.state.loaded, [taskId]: true },
+        runs: pruned.runs,
+        evidence: { ...evidence, [taskId]: [...known.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt)) },
+        loaded: pruned.loaded,
         tasks: this.state.tasks[taskId] && detail.task.updatedAt < this.state.tasks[taskId].updatedAt ? this.state.tasks : { ...this.state.tasks, [taskId]: detail.task }
       })
     }).catch(() => {}).finally(() => this.loading.delete(taskId))
@@ -155,8 +207,17 @@ export class EngineStore {
         return this.set({ tasks: { ...this.state.tasks, [event.task.id]: event.task } })
       }
       case 'task.deleted': {
-        const { [event.taskId]: _removed, ...rest } = this.state.tasks
-        return this.set({ tasks: rest })
+        // Everything cached for the task goes with it.
+        const id = event.taskId
+        this.deleted.set(id, seq)
+        this.loadedOrder = this.loadedOrder.filter((x) => x !== id)
+        const without = <T,>(map: Record<string, T>) => { const { [id]: _gone, ...rest } = map; return rest }
+        const runIds = Object.values(this.state.runs).filter((r) => r.taskId === id).map((r) => r.id)
+        const dropRuns = <T,>(map: Record<string, T>) => { const next = { ...map }; for (const r of runIds) delete next[r]; return next }
+        return this.set({
+          tasks: without(this.state.tasks), evidence: without(this.state.evidence), loaded: without(this.state.loaded), logs: without(this.state.logs),
+          drafts: without(this.state.drafts), runs: dropRuns(this.state.runs), activity: dropRuns(this.state.activity), output: dropRuns(this.state.output)
+        })
       }
       case 'task.log': {
         const lines = [...(this.state.logs[event.taskId] ?? []), { at, level: event.level, message: event.message }].slice(-LIMITS.logLines)
@@ -176,7 +237,8 @@ export class EngineStore {
       }
       case 'run.updated': {
         const merged = mergeRun(this.state.runs[event.run.id], event.run)
-        const patch: Partial<AppState> = { runs: pruneRuns({ ...this.state.runs, [event.run.id]: merged }) }
+        const pruned = this.pruneRuns({ ...this.state.runs, [event.run.id]: merged }, this.state.loaded)
+        const patch: Partial<AppState> = { runs: pruned.runs, loaded: pruned.loaded }
         // The finished run carries the complete list: the live copy is no longer needed.
         if (TERMINAL.has(merged.status) && this.state.activity[event.run.id]) {
           const { [event.run.id]: _done, ...rest } = this.state.activity
@@ -185,6 +247,8 @@ export class EngineStore {
         return this.set(patch)
       }
       case 'evidence.recorded': {
+        // Only for tasks whose details are loaded; others fetch theirs when opened (keeps memory bounded).
+        if (!this.state.loaded[event.evidence.taskId]) return
         const list = this.state.evidence[event.evidence.taskId] ?? []
         if (list.some((e) => e.id === event.evidence.id)) return
         return this.set({ evidence: { ...this.state.evidence, [event.evidence.taskId]: [...list, event.evidence] } })
@@ -204,15 +268,6 @@ function mergeRun(current: AgentRunInfo | undefined, next: AgentRunInfo): AgentR
   return next
 }
 
-/** Keeps at most LIMITS.runs runs: the oldest finished ones go first. */
-function pruneRuns(runs: Record<string, AgentRunInfo>): Record<string, AgentRunInfo> {
-  const ids = Object.keys(runs)
-  if (ids.length <= LIMITS.runs) return runs
-  const finished = ids.filter((id) => runs[id]!.status !== 'running').sort((a, b) => (runs[a]!.endedAt ?? '').localeCompare(runs[b]!.endedAt ?? ''))
-  const next = { ...runs }
-  for (const id of finished.slice(0, ids.length - LIMITS.runs)) delete next[id]
-  return next
-}
 
 /** Bounds a per-run map: the earliest keys (insertion order) are dropped first. */
 function boundKeys<T>(map: Record<string, T>, max: number): Record<string, T> {

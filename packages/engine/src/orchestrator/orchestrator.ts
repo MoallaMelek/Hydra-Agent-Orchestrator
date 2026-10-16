@@ -41,7 +41,8 @@ export function outcomeNote(task: Task, result: StageResult): string | null {
       const findings = task.review?.findings.length ?? 0
       return result.approved ? `Approved${findings ? ` with ${findings} note${findings === 1 ? '' : 's'}` : ''}` : `Changes requested: ${findings} finding${findings === 1 ? '' : 's'}`
     }
-    case 'verify': return result.requiredFailures ? `${result.requiredFailures} required check${result.requiredFailures === 1 ? '' : 's'} failed` : 'Required checks passed'
+    // verifyStage skips verification when the project has no checks: that is "unverified", never "passed".
+    case 'verify': return !task.checks.length ? 'No checks: result unverified' : result.requiredFailures ? `${result.requiredFailures} required check${result.requiredFailures === 1 ? '' : 's'} failed` : 'Required checks passed'
     case 'demo': return task.demo ? `Before → after: ${task.demo.deltas.filter((d) => d.after === 'pass').length}/${task.demo.deltas.length} pass` : null
     case 'apply': return task.applied ? `Applied ${task.applied.afterSha.slice(0, 10)}` : null
   }

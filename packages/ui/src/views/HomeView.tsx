@@ -9,7 +9,7 @@ import { providerReady, SetupChecklist } from './SetupChecklist'
 import { ago, duration, statusLabel } from '../lib/format'
 import { RelayTrace } from '../ops/RelayTrace'
 import { useNow, useProviderName, useSlots, useTrace } from '../ops/hooks'
-import { shortTarget } from '../ops/model'
+import { DID, shortTarget } from '../ops/model'
 
 const ROLE = { planner: 'Planning', implementer: 'Implementing', reviewer: 'Reviewing' } as const
 const AGENT_STAGES = new Set(['plan', 'implement', 'fix', 'review'])
@@ -126,7 +126,7 @@ function SlotCell({ run, task }: { run: AgentRunInfo; task: Task | undefined }) 
     <button className="slot slot--busy" onClick={() => task && go({ view: 'task', taskId: task.id })}>
       <span className="slot__who"><b>{name(run.provider)}</b> <span className="faint">· {ROLE[run.role]}{run.stage === 'fix' ? ' (repair)' : ''}</span></span>
       <span className="slot__task truncate">{task?.title ?? 'Task'}</span>
-      <span className="slot__doing truncate mono">{last ? `${last.tool} ${shortTarget(last.target, 48)}` : now - Date.parse(run.startedAt) > 3000 ? 'Working · no tool call reported yet' : 'Starting…'}</span>
+      <span className="slot__doing truncate mono">{last ? `Last: ${DID[last.kind]} ${shortTarget(last.target, 44)}` : now - Date.parse(run.startedAt) > 3000 ? 'Working · no tool call reported yet' : 'Starting…'}</span>
       <span className="slot__time faint num">{duration(Math.max(0, now - Date.parse(run.startedAt)))}</span>
     </button>
   )
@@ -142,7 +142,7 @@ function ActiveRow({ task, project }: { task: Task; project: string }) {
     <div className="task-row task-row--active" onClick={() => go({ view: 'task', taskId: task.id })}>
       <span className="task-row__main">
         <button type="button" className="task-row__title task-row__link truncate" onClick={(e) => { e.stopPropagation(); go({ view: 'task', taskId: task.id }) }}>{task.title}</button>
-        <span className={`task-row__now truncate tone-${trace?.headline.tone ?? 'neutral'}`}>{trace?.headline.text ?? s.label}</span>
+        <span className={`task-row__now truncate tone-${trace?.headline.tone ?? 'neutral'}`}>{trace?.headline.text ?? s.label}{trace?.headline.basis === 'inferred' && <span className="faint"> · inferred</span>}{trace?.headline.last && <span className="faint"> · last: {trace.headline.last.text}</span>}</span>
       </span>
       <div className="task-row__trace">{trace && <RelayTrace trace={trace} selection={null} onSelect={() => {}} compact />}</div>
       <span className="task-row__meta"><Badge tone={s.tone} live={s.live}>{s.label}</Badge><span className="faint">{project}</span></span>

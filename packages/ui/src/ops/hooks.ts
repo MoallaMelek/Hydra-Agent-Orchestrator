@@ -73,8 +73,10 @@ export function useProviderName(): (id: ProviderId) => string {
 /** Loads the task's runs and checks once; afterwards they stay current from engine events. */
 export function useTaskLoaded(taskId: string): boolean {
   const { store } = useApp()
-  useEffect(() => { void store.loadTask(taskId) }, [store, taskId])
-  return useAppState((s) => Boolean(s.loaded[taskId]))
+  const loaded = useAppState((s) => Boolean(s.loaded[taskId]))
+  // Also when the store evicted this task's details to stay small: fetch them again.
+  useEffect(() => { if (!loaded) void store.loadTask(taskId) }, [store, taskId, loaded])
+  return loaded
 }
 
 /** The Relay trace for a task at `now` (or frozen at a moment for replay). */

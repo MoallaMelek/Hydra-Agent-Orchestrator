@@ -3,8 +3,9 @@
  * Measures the real desktop app (Electron + engine), not the lab:
  *   - startup: launch → first paint → interface rendered;
  *   - idle: CPU and memory of every Hydra process over a quiet window;
- *   - optionally one real question to a real agent (--question "..."), timing the
- *     first answer text on screen and the renderer's CPU while it streams.
+ *   - optionally one real question to a real agent (--question "..."): total time as the
+ *     engine reports it, and each process's CPU while the answer is produced (the
+ *     interface stays on its start screen; this is not on-screen latency).
  *
  *   npm run build && node tools/runtime-bench.mjs [--idle 20] [--question "What does math.js export?"] [--out file.json]
  *
@@ -115,11 +116,11 @@ try {
     const ack = await api('/api/commands', { type: 'task.create', projectId, prompt: question, depth: 'standard', mode: 'safe', assignment: { planner: 'claude', implementer: 'claude', reviewer: 'claude' } })
     if (!ack.ok) throw new Error(ack.error.message)
     const taskId = ack.result.id
-    await page.evaluate(`window.__hydraGo ? window.__hydraGo(${JSON.stringify(taskId)}) : null`)
     let firstWords = null
     let done = null
     for (let i = 0; i < 1200 && !done; i++) {
       const state = await api(`/api/tasks/${taskId}`)
+      // Engine-side (API) timing: when the run record first carries text. Not on-screen latency.
       if (firstWords === null && (state.runs ?? []).some((r) => r.tail && r.tail.trim())) firstWords = Date.now() - asked
       if (!['queued', 'running'].includes(state.task.status)) done = { ms: Date.now() - asked, status: state.task.status, costUsd: state.task.usage.costUsd }
       else await sleep(100)
@@ -127,7 +128,8 @@ try {
     const cpuAfter = tree(app.pid)
     const secs = (Date.now() - asked) / 1000
     const delta = (type) => +(((cpuOf(cpuAfter, type) - cpuOf(cpuBefore, type)) / secs) * 100).toFixed(2)
-    result.question = { prompt: question, firstOutputMs: firstWords, ...done, cpuPercentOfOneCore: { renderer: delta('renderer'), gpu: delta('gpu-process'), main: delta('main'), engine: delta('engine') } }
+    // The interface stays on its start screen during this measurement (it does not open the task).
+    result.question = { prompt: question, view: 'start screen', engineFirstTextMs: firstWords, ...done, cpuPercentOfOneCore: { renderer: delta('renderer'), gpu: delta('gpu-process'), main: delta('main'), engine: delta('engine') } }
   }
 } finally {
   app.kill()

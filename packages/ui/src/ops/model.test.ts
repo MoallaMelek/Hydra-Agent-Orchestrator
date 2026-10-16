@@ -74,14 +74,15 @@ describe('Relay trace', () => {
     expect(tr.repairRounds).toBe(2)
   })
 
-  it('says what the running agent is doing, from its latest reported tool call', () => {
+  it('says which agent is working on what, and the last tool call it reported (independent review R5)', () => {
     const { w, id, trace } = world()
     w.beginStage(id, 'implement')
     const run = w.startRun(id, 'implement', 'implementer', 'codex')
     w.tool(run.id, 'Read', 'src/cart.js'); w.tool(run.id, 'edit', 'src/cart.js, test/cart.test.js')
     w.now += 2000
     const tr = trace()
-    expect(tr.headline).toEqual({ text: 'Codex CLI is editing src/cart.js, test/cart.test.js', tone: 'accent', basis: 'observed' })
+    // A reported call may already be over: it is the last one reported, not "what it is doing now".
+    expect(tr.headline).toMatchObject({ text: 'Codex CLI is implementing the plan', tone: 'accent', basis: 'observed', last: { text: 'edited src/cart.js, test/cart.test.js' } })
     const seg = tr.segments.find((s) => s.kind === 'run')!
     expect(seg).toMatchObject({ status: 'running', end: null })
     expect(seg.ticks.map((x) => x.kind)).toEqual(['read', 'edit'])

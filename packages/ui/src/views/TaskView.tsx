@@ -43,7 +43,8 @@ function ChangeView({ task }: { task: Task }) {
   const evidence = useTaskEvidence(task.id)
   const live = task.status === 'running' || task.status === 'queued' || task.status === 'waiting_input'
   const [tab, setTab] = useState<TabId>('summary')
-  const [listView, setListView] = useState(false)
+  // On a phone the chronological list reads better than a wide diagram (both stay available).
+  const [listView, setListView] = useState(() => typeof matchMedia === 'function' && matchMedia('(max-width: 700px)').matches)
 
   // Freeze: the drawing holds still (execution is unaffected); updates are counted until resumed.
   const [frozen, setFrozen] = useState<Trace | null>(null)
@@ -103,7 +104,10 @@ function ChangeView({ task }: { task: Task }) {
       {headline && (
         <div className={`now-line now-line--${headline.tone}`}>
           <span className="now-line__dot" aria-hidden />
-          <span className="grow" role="status" aria-live="polite">{headline.text}</span>
+          <span className="grow now-line__text">
+            <span role="status" aria-live="polite">{headline.text}</span>
+            {headline.last && <span className="now-line__last">Last reported: {headline.last.text} · {duration(Math.max(0, now - headline.last.at))} ago</span>}
+          </span>
           {headline.basis === 'inferred' && <span className="faint now-line__basis" title="Deduced from the engine's stage records">inferred</span>}
           {task.status !== 'waiting_input' && <span className="now-line__actions"><DecisionBar task={task} blockingWarnings={0} /></span>}
         </div>

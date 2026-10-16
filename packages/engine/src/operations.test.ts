@@ -94,6 +94,23 @@ describe('operations instrumentation', () => {
     expect(call('Grep', { pattern: 'total' })).toEqual([{ type: 'tool', name: 'Grep', summary: 'total' }])
   })
 
+  it('masks credentials that commands carry: auth headers, token flags and URL passwords (independent review R1)', async () => {
+    const secret = 'Zq3' + 'x9VbN2kLmP7wQ4tR8yU1'
+    const { engine, events, create, settle } = await open(() => ({
+      text: 'done',
+      tools: [
+        { name: 'Bash', summary: `curl -H "Authorization: Bearer ${secret}" https://api.example.com` },
+        { name: 'shell', summary: `deploy --token ${secret} --env prod` },
+        { name: 'shell', summary: `git clone https://bot:${secret}@example.com/repo.git` },
+        { name: 'shell', summary: `tool --api-key=${secret}` }
+      ]
+    }))
+    const task = await settle((await create('Run the release script')).id)
+    const everything = JSON.stringify(events) + JSON.stringify(engine.taskDetail(task.id))
+    expect(everything).not.toContain(secret)
+    expect(everything).toContain('[redacted]')
+  })
+
   it('classifies provider tools by how they touch the project', () => {
     expect(['Read', 'Glob', 'Grep', 'Edit', 'Write', 'MultiEdit', 'edit', 'Bash', 'shell', 'WebFetch'].map(toolKind))
       .toEqual(['read', 'search', 'search', 'edit', 'edit', 'edit', 'edit', 'command', 'command', 'other'])

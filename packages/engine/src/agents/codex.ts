@@ -42,7 +42,7 @@ export function codexTranslator(expectStructured: boolean) {
         lastMessage = item.text
         out.push({ type: 'text', text: item.text })
       } else if (item.type === 'command_execution') {
-        out.push({ type: 'tool', name: 'shell', summary: `${String(item.command ?? '').slice(0, 240)} → exit ${String(item.exit_code ?? '?')}` })
+        out.push({ type: 'tool', name: 'shell', summary: `${String(item.command ?? '').slice(0, 2000)} → exit ${String(item.exit_code ?? '?')}` }) // redacted, then shortened, by the runner
       } else if (item.type === 'file_change') {
         const changes = Array.isArray(item.changes) ? item.changes.map((c) => String(asRecord(c).path ?? '')).join(', ') : ''
         out.push({ type: 'tool', name: 'edit', summary: changes.slice(0, 300) })

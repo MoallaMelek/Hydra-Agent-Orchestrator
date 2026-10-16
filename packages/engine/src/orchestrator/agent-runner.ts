@@ -188,9 +188,11 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
         case 'text_delta': emitDelta(event.text); break
         case 'final_text': finalText = event.text; break
         case 'tool': {
-          emitText(`› ${event.name} ${event.summary}`)
+          // Redact the whole target first, then shorten it (shortening first could cut a secret's marker off).
+          const target = redact(event.summary).slice(0, 300)
+          emitText(`› ${event.name} ${target}`)
           // Structured copy for the operations view: tool name and redacted target only.
-          const activity: RunActivity = { at: isoNow(), tool: event.name.slice(0, 60), target: redact(event.summary).slice(0, 300), kind: toolKind(event.name) }
+          const activity: RunActivity = { at: isoNow(), tool: event.name.slice(0, 60), target, kind: toolKind(event.name) }
           run = { ...run, activity: [...run.activity, activity].slice(-MAX_ACTIVITY) }
           ctx.store.publish({ type: 'run.activity', runId: run.id, taskId: call.taskId, activity })
           break

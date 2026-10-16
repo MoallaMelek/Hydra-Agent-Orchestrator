@@ -65,7 +65,7 @@ export function claudeTranslator() {
         if (b.type === 'tool_use') {
           const input = asRecord(b.input)
           const target = String(input.file_path ?? input.notebook_path ?? input.path ?? input.pattern ?? input.command ?? '')
-          out.push({ type: 'tool', name: String(b.name ?? 'tool'), summary: target.slice(0, 300) })
+          out.push({ type: 'tool', name: String(b.name ?? 'tool'), summary: target.slice(0, 2000) }) // redacted, then shortened, by the runner
         }
       }
     } else if (event.type === 'result') {

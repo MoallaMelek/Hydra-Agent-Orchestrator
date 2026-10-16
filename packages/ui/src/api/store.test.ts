@@ -81,6 +81,48 @@ describe('engine store', () => {
     expect(store.get().evidence[task.id]!.map((e) => e.exitCode)).toEqual([0, 1])
   })
 
+  it('a snapshot taken before newer events never rolls the state back (independent review R2)', async () => {
+    const { world, task, store, transport } = await open()
+    const older = await transport.snapshot() // taken now, delivered late
+    world.now += 5
+    world.update(task.id, (t) => { t.status = 'waiting_input'; t.waitReason = 'final_approval' })
+    const created = world.createTask(world.projects[0]!.id, 'Created after the snapshot')
+    await settle()
+    ;(store as unknown as { load: (s: typeof older) => void }).load(older)
+    await settle()
+    expect(store.get().tasks[task.id]!.status).toBe('waiting_input')
+    expect(store.get().tasks[created.id]).toBeDefined()
+  })
+
+  it('a deleted task stays deleted, and everything cached for it goes', async () => {
+    const { world, task, store, transport } = await open()
+    world.startRun(task.id, 'plan', 'planner', 'claude')
+    await store.loadTask(task.id)
+    const older = await transport.snapshot()
+    world.publish({ type: 'task.deleted', taskId: task.id })
+    await settle()
+    ;(store as unknown as { load: (s: typeof older) => void }).load(older)
+    await settle()
+    const s = store.get()
+    expect(s.tasks[task.id]).toBeUndefined()
+    expect(Object.values(s.runs).some((r) => r.taskId === task.id)).toBe(false)
+    expect(s.loaded[task.id]).toBeUndefined()
+  })
+
+  it('keeps check results only for loaded tasks, and forgets the oldest loaded task beyond the limit (R3, R4)', async () => {
+    const { world, store } = await open()
+    const ids = Array.from({ length: LIMITS.loadedTasks + 2 }, (_, i) => world.createTask(world.projects[0]!.id, `Task ${i}`).id)
+    world.check(ids[0]!, 'npm test', 'verify', 0, 100) // not loaded yet: not kept
+    await settle()
+    expect(store.get().evidence[ids[0]!]).toBeUndefined()
+    for (const id of ids) await store.loadTask(id)
+    expect(Object.keys(store.get().loaded)).toHaveLength(LIMITS.loadedTasks)
+    expect(store.get().loaded[ids[0]!]).toBeUndefined()
+    expect(store.get().evidence[ids[0]!]).toBeUndefined()
+    await store.loadTask(ids[0]!) // opening it again fetches its history
+    expect(store.get().evidence[ids[0]!]).toHaveLength(1)
+  })
+
   it('bounds streamed output per run and the number of runs it keeps text for', async () => {
     const { world, task, store } = await open()
     const run = world.startRun(task.id, 'plan', 'planner', 'claude')

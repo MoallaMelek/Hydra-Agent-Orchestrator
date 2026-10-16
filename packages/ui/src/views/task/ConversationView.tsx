@@ -11,7 +11,7 @@ import { AgentsTab } from './AgentsTab'
 import { ActivityTab } from './ActivityTab'
 import { DEPTH_LABEL } from '../NewTaskForm'
 import { useNow, useProviderName, useTaskRuns } from '../../ops/hooks'
-import { filesOf, shortTarget } from '../../ops/model'
+import { DID, filesOf, shortTarget } from '../../ops/model'
 
 /**
  * A question and its answer, shown as a conversation. One agent works here, so the
@@ -119,7 +119,6 @@ export function ConversationView({ task }: { task: Task }) {
   )
 }
 
-const VERB = { read: 'Reading', search: 'Searching for', edit: 'Editing', command: 'Running', other: 'Using' } as const
 
 /** While the answer is being written: who is working, on what, for how long. No spinner. */
 function AnswerStatus({ task, runs }: { task: Task; runs: AgentRunInfo[] }) {
@@ -127,7 +126,7 @@ function AnswerStatus({ task, runs }: { task: Task; runs: AgentRunInfo[] }) {
   const last = useAppState((s) => (current ? s.activity[current.id]?.at(-1) : undefined))
   const now = useNow(true)
   const since = Date.parse(current?.startedAt ?? task.createdAt)
-  const text = task.status === 'queued' ? 'Starting' : last ? `${VERB[last.kind]} ${shortTarget(last.target, 70)}` : current ? 'Thinking' : 'Starting the agent'
+  const text = task.status === 'queued' ? 'Starting' : last ? `Working · last reported: ${DID[last.kind]} ${shortTarget(last.target, 64)}` : current ? 'Working' : 'Starting the agent'
   return <p className="answer-status" role="status"><span className="answer-status__dot" aria-hidden />{text}<span className="faint num"> · {duration(Math.max(0, now - since))}</span></p>
 }
 

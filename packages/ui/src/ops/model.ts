@@ -44,7 +44,13 @@ export interface Baton {
 
 export interface StageSpan { stage: TaskStage; attempt: number; start: number; end: number | null; status: Task['stages'][number]['status']; note: string | null }
 
-export interface Headline { text: string; tone: 'accent' | 'you' | 'ok' | 'bad' | 'neutral'; basis: Basis }
+export interface Headline {
+  text: string
+  tone: 'accent' | 'you' | 'ok' | 'bad' | 'neutral'
+  basis: Basis
+  /** The latest tool call the provider reported, and when. Reported calls may already be finished. */
+  last?: { text: string; at: number }
+}
 
 export interface Trace {
   start: number
@@ -189,8 +195,9 @@ export function buildTrace(input: TraceInput): Trace {
       }
       case 'verify': {
         const failed = /failed/.test(note)
-        batons.push({ id: `verify-${record.attempt}`, lane: 'hydra', at: finish, to: next?.stage === 'fix' ? 'implementer' : null, label: note || 'Checks done',
-          tone: failed ? 'bad' : 'ok', kind: next?.stage === 'fix' ? 'repair' : 'checks', basis: 'observed', ref })
+        const unverified = /unverified/.test(note) || !task.checks.length
+        batons.push({ id: `verify-${record.attempt}`, lane: 'hydra', at: finish, to: next?.stage === 'fix' ? 'implementer' : null, label: note || (unverified ? 'Not verified: no checks' : 'Checks done'),
+          tone: failed ? 'bad' : unverified ? 'you' : 'ok', kind: next?.stage === 'fix' ? 'repair' : 'checks', basis: 'observed', ref })
         break
       }
       case 'demo':
@@ -258,14 +265,21 @@ function decision(task: Task): Baton | null {
   return { id: 'decision', lane: 'you', at, to: null, label, tone: task.outcome === 'applied' ? 'ok' : 'neutral', kind: 'decision', basis: 'observed', ref: null }
 }
 
-const VERB: Record<RunActivity['kind'], string> = { read: 'reading', search: 'searching', edit: 'editing', command: 'running', other: 'using' }
+/** Past tense: a reported call may already be over (Codex reports commands once they finish). */
+export const DID: Record<RunActivity['kind'], string> = { read: 'read', search: 'searched', edit: 'edited', command: 'ran', other: 'used' }
 
 /** One plain sentence: what is happening right now, or how it ended. */
 function headline(input: TraceInput, runs: AgentRunInfo[], evidence: Evidence[], busy: number, limit: number, name: (id: ProviderId) => string): Headline {
   const { task } = input
   if (task.status === 'waiting_input') {
     if (task.waitReason === 'plan_approval') return { text: 'Waiting for you: approve the plan and the check commands', tone: 'you', basis: 'observed' }
-    if (task.waitReason === 'final_approval') return { text: 'Waiting for you: review the verified result', tone: 'you', basis: 'observed' }
+    if (task.waitReason === 'final_approval') {
+      // Say what verification actually established, from the last verify round.
+      const verify = [...task.stages].reverse().find((s) => s.stage === 'verify')
+      const note = verify?.note ?? ''
+      const what = !task.checks.length || /unverified/.test(note) ? 'the result (not verified: no checks)' : /failed/.test(note) ? `the result: ${note.toLowerCase()}` : verify ? 'the verified result' : 'the result'
+      return { text: `Waiting for you: review ${what}`, tone: 'you', basis: 'observed' }
+    }
     return { text: 'Waiting for you', tone: 'you', basis: 'observed' }
   }
   if (task.status === 'queued') return { text: 'Queued: starting shortly', tone: 'neutral', basis: 'observed' }
@@ -274,9 +288,9 @@ function headline(input: TraceInput, runs: AgentRunInfo[], evidence: Evidence[],
     if (run) {
       const activity = (input.liveActivity?.[run.id] ?? run.activity ?? []).at(-1)
       const who = name(run.provider)
-      if (activity) return { text: `${who} is ${VERB[activity.kind]} ${shortTarget(activity.target)}`, tone: 'accent', basis: 'observed' }
+      const last = activity ? { text: `${DID[activity.kind]} ${shortTarget(activity.target)}`, at: Date.parse(activity.at) } : undefined
       const doing = { plan: task.intent === 'analyze' ? 'working on the answer' : 'planning the change', implement: 'implementing the plan', fix: `repairing (round ${task.fixRound})`, review: 'reviewing the change', verify: 'working', demo: 'working', approval: 'working', apply: 'working' }[run.stage]
-      return { text: `${who} is ${doing}`, tone: 'accent', basis: 'observed' }
+      return { text: `${who} is ${doing}`, tone: 'accent', basis: 'observed', last }
     }
     if (task.stage === 'verify' || task.stage === 'demo' || task.stage === 'review') {
       const since = task.stages.at(-1)
