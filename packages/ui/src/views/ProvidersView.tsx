@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { Badge, Button, Callout, Panel } from '../design/components'
-import { useApp } from '../app/context'
+import { useApp, useAppState } from '../app/context'
 
 const CAPABILITY_LABEL: Record<string, string> = {
   structuredOutput: 'Structured output',
@@ -13,7 +13,8 @@ const CAPABILITY_LABEL: Record<string, string> = {
 
 /** Which agent CLIs are installed and signed in. Hydra never sees the credentials. */
 export function ProvidersView() {
-  const { state, run } = useApp()
+  const { run } = useApp()
+  const providers = useAppState((s) => s.providers)
   const [busy, setBusy] = useState(false)
   const refresh = async () => { setBusy(true); await run({ type: 'providers.refresh' }); setBusy(false) }
   return (
@@ -24,7 +25,7 @@ export function ProvidersView() {
       </div>
       <Callout tone="info">Your provider logins stay in each CLI's own credential store. Hydra only asks each CLI whether it is signed in; it never reads, stores or transmits keys, tokens or account details. Usage is billed to your own provider account.</Callout>
       <div className="grid-2">
-        {state.providers.map((p) => {
+        {providers.map((p) => {
           const ready = p.installed && p.problems.length === 0
           return (
             <Panel key={p.id} title={p.displayName} actions={<Badge tone={ready ? 'ok' : p.installed ? 'warn' : 'bad'}>{ready ? 'Ready' : p.installed ? 'Needs attention' : 'Not installed'}</Badge>}>

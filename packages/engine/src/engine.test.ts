@@ -292,3 +292,19 @@ describe('engine lifecycle', () => {
     }
   })
 })
+
+describe('stage outcome notes (operations view)', () => {
+  it('records what each round produced, so earlier rounds stay visible', async () => {
+    const { engine, projectId } = await setup(script({ reviewer: (_request, call) => ({ structured: call <= 3 ? REJECT : APPROVE }) }))
+    const task = await create(engine, projectId)
+    const done = await until(engine, task.id, waiting)
+    const notes = done.stages.map((s) => `${s.stage}#${s.attempt}: ${s.note ?? ''}`)
+    expect(notes[0]).toBe('plan#1: Plan: 1 step')
+    expect(notes[1]).toMatch(/^implement#1: Commit [0-9a-f]{10}$/)
+    expect(notes[2]).toBe('review#1: Changes requested: 1 finding')
+    expect(notes[3]).toMatch(/^fix#1: Commit [0-9a-f]{10}$/)
+    expect(notes[4]).toBe('review#2: Approved')
+    expect(notes).toContain('verify#1: Required checks passed')
+    expect(notes.find((n) => n.startsWith('demo#1'))).toMatch(/Before → after: \d+\/\d+ pass/)
+  })
+})

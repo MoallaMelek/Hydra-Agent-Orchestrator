@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { Archive, GitBranch, MessagesSquare, Search, Trash2 } from 'lucide-react'
 import type { Task } from '@hydra/protocol'
 import { Badge, Button, EmptyState, Panel } from '../design/components'
-import { useApp } from '../app/context'
-import { StagePipeline } from './StagePipeline'
+import { useApp, useAppState } from '../app/context'
+import { shallow } from '../api/store'
 import { NewTaskForm } from './NewTaskForm'
 import { ChecksPanel } from './ChecksPanel'
 import { ago, statusLabel, usageLine } from '../lib/format'
@@ -32,12 +32,13 @@ function threads(tasks: Task[]): Thread[] {
 }
 
 export function ProjectView({ projectId }: { projectId: string }) {
-  const { state, go, run, isRemote } = useApp()
+  const { go, run, isRemote } = useApp()
+  const project = useAppState((s) => s.projects.find((p) => p.id === projectId))
+  const mine = useAppState((s) => Object.values(s.tasks).filter((t) => t.projectId === projectId), shallow)
   const [query, setQuery] = useState('')
   const [archived, setArchived] = useState(false)
   const [shown, setShown] = useState(PAGE)
-  const project = state.projects.find((p) => p.id === projectId)
-  const all = useMemo(() => threads(Object.values(state.tasks).filter((t) => t.projectId === projectId)), [state.tasks, projectId])
+  const all = useMemo(() => threads(mine), [mine])
   if (!project) return <div className="page"><EmptyState title="Project not found" /></div>
 
   const needle = query.trim().toLowerCase()
@@ -55,7 +56,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
         </div>
         {!isRemote && <Button variant="ghost" size="sm" icon={<Trash2 size={14} />} onClick={() => void run({ type: 'project.remove', projectId }, 'Project removed from Hydra (files untouched)').then((ack) => ack.ok && go({ view: 'home' }))}>Remove</Button>}
       </div>
-      <Panel title="New task"><NewTaskForm projectId={projectId} isGit={project.isGit} /></Panel>
+      <Panel title="Ask or change"><NewTaskForm projectId={projectId} isGit={project.isGit} /></Panel>
       {!isRemote && <ChecksPanel projectId={projectId} isGit={project.isGit} />}
       <Panel title={archived ? `Archived · ${visible.length}` : `History · ${visible.length}`} actions={
         <>
@@ -66,20 +67,19 @@ export function ProjectView({ projectId }: { projectId: string }) {
         {visible.length === 0 ? (
           <p className="muted">{needle ? 'Nothing matches your search.' : archived ? 'Nothing archived.' : 'No tasks in this project yet.'}</p>
         ) : (
-          <div className="task-list">
+          <div className="task-rows">
             {visible.slice(0, shown).map(({ root, latest, turns }) => {
               const s = statusLabel(latest)
               return (
-                <button key={root.id} className="task-card" onClick={() => go({ view: 'task', taskId: latest.id })}>
-                  <div style={{ minWidth: 0 }}>
-                    <div className="task-card__title truncate">{root.title}</div>
-                    <div className="task-card__meta">
+                <button key={root.id} className="task-row" onClick={() => go({ view: 'task', taskId: latest.id })}>
+                  <span className="task-row__main">
+                    <span className="task-row__title truncate">{root.title}</span>
+                    <span className="task-row__now faint truncate">
                       <span>{root.intent === 'analyze' ? (turns.length > 1 ? <><MessagesSquare size={11} aria-hidden /> {turns.length} messages</> : 'Question') : `Change · ${root.mode}`}</span>
-                      <span>{usageLine(latest.usage)}</span><span>{ago(latest.updatedAt)}</span>
-                    </div>
-                  </div>
-                  {latest.intent === 'change' && <StagePipeline task={latest} compact />}
-                  <Badge tone={s.tone} live={s.live}>{s.label}</Badge>
+                      <span> · {usageLine(latest.usage)} · {ago(latest.updatedAt)}</span>
+                    </span>
+                  </span>
+                  <span className="task-row__meta"><Badge tone={s.tone} live={s.live}>{s.label}</Badge></span>
                 </button>
               )
             })}

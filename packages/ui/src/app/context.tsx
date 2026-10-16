@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { CommandAck } from '@hydra/protocol'
 import { type AppState, type EngineStore, useEngine } from '../api/store'
 
@@ -20,46 +20,64 @@ export interface HostBridge {
 
 interface AppContextValue {
   store: EngineStore
-  state: AppState
   route: Route
   go: (route: Route) => void
   run: (command: Record<string, unknown>, success?: string) => Promise<CommandAck>
-  toasts: Toast[]
   host: HostBridge
   /** True on the phone: desktop-only actions are hidden (the engine refuses them anyway). */
   isRemote: boolean
 }
 
+/** Toasts live outside the main context so showing one does not re-render the app. */
+class ToastStore {
+  private list: Toast[] = []
+  private readonly listeners = new Set<() => void>()
+  get = () => this.list
+  subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener) }
+  push(tone: Toast['tone'], text: string): void {
+    const id = Date.now() + Math.random()
+    this.list = [...this.list, { id, tone, text }].slice(-4)
+    this.emit()
+    setTimeout(() => { this.list = this.list.filter((t) => t.id !== id); this.emit() }, tone === 'bad' ? 9000 : 4000)
+  }
+  private emit() { for (const l of this.listeners) l() }
+}
+
 const AppContext = createContext<AppContextValue | null>(null)
+const ToastContext = createContext<ToastStore | null>(null)
 
 export function AppProvider({ store, host, children }: { store: EngineStore; host: HostBridge; children: ReactNode }) {
-  const state = useEngine(store)
   const [route, setRoute] = useState<Route>({ view: 'home' })
-  const [toasts, setToasts] = useState<Toast[]>([])
-
-  const toast = useCallback((tone: Toast['tone'], text: string) => {
-    const id = Date.now() + Math.random()
-    setToasts((all) => [...all, { id, tone, text }])
-    setTimeout(() => setToasts((all) => all.filter((t) => t.id !== id)), tone === 'bad' ? 9000 : 4000)
-  }, [])
+  const [toasts] = useState(() => new ToastStore())
 
   const run = useCallback(async (command: Record<string, unknown>, success?: string) => {
     try {
       const ack = await store.transport.execute(command)
-      if (!ack.ok) toast('bad', ack.error.message)
-      else if (success) toast('info', success)
+      if (!ack.ok) toasts.push('bad', ack.error.message)
+      else if (success) toasts.push('info', success)
       return ack
     } catch (error) {
-      toast('bad', (error as Error).message)
+      toasts.push('bad', (error as Error).message)
       return { ok: false as const, error: { code: 'unavailable' as const, message: (error as Error).message } }
     }
-  }, [store, toast])
+  }, [store, toasts])
 
-  return <AppContext.Provider value={{ store, state, route, go: setRoute, run, toasts, host, isRemote: store.transport.kind === 'remote' }}>{children}</AppContext.Provider>
+  const value = useMemo(() => ({ store, route, go: setRoute, run, host, isRemote: store.transport.kind === 'remote' }), [store, route, run, host])
+  return <ToastContext.Provider value={toasts}><AppContext.Provider value={value}>{children}</AppContext.Provider></ToastContext.Provider>
 }
 
 export function useApp(): AppContextValue {
   const value = useContext(AppContext)
   if (!value) throw new Error('useApp outside AppProvider')
   return value
+}
+
+/** A slice of the engine state; the component re-renders only when the slice changes. */
+export function useAppState<T>(selector: (state: AppState) => T, isEqual?: (a: T, b: T) => boolean): T {
+  return useEngine(useApp().store, selector, isEqual)
+}
+
+export function useToasts(): Toast[] {
+  const store = useContext(ToastContext)!
+  return useSyncExternalStore(store.subscribe, store.get, store.get)
 }

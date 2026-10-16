@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, ShieldAlert, Sparkles } from 'lucide-react'
 import { routeRequest, type AutonomyMode, type DepthChoice, type ProviderId, type Task } from '@hydra/protocol'
 import { Button, Callout, Field, Segmented } from '../design/components'
-import { useApp } from '../app/context'
+import { useApp, useAppState } from '../app/context'
 import { MODE_INFO } from '../lib/format'
 
 const DEFAULT_BUDGET = { safe: { cost: 2, minutes: 30 }, developer: { cost: 5, minutes: 60 }, autonomous: { cost: 15, minutes: 120 } }
@@ -16,8 +16,9 @@ const DEPTH_HINT = {
 
 /** One box for questions and changes. Hydra picks how to handle it (Auto) unless you choose. */
 export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: boolean }) {
-  const { state, run, go, store } = useApp()
-  const ready = state.providers.filter((p) => p.installed && p.problems.length === 0).map((p) => p.id)
+  const { run, go, store } = useApp()
+  const providers = useAppState((s) => s.providers)
+  const ready = providers.filter((p) => p.installed && p.problems.length === 0).map((p) => p.id)
   const [prompt, setPrompt] = useState('')
   const [choice, setChoice] = useState<DepthChoice>('auto')
   const [mode, setMode] = useState<AutonomyMode>('safe')
@@ -42,11 +43,11 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
   const isChange = depth === 'deep'
   const effectiveMode: AutonomyMode = isChange && route.risk === 'high' ? 'safe' : mode
 
-  const label = (id: string) => state.providers.find((p) => p.id === id)?.displayName ?? id
+  const label = (id: string) => providers.find((p) => p.id === id)?.displayName ?? id
   const select = (role: keyof typeof assignment, hint: string) => (
     <Field label={role === 'planner' ? (isChange ? 'Planner' : 'Answers with') : role === 'implementer' ? 'Implementer' : 'Reviewer'} hint={hint} htmlFor={`role-${role}`}>
       <select id={`role-${role}`} className="hx-select" value={assignment[role]} onChange={(e) => { setPicked(true); setAssignment({ ...assignment, [role]: e.target.value as ProviderId }) }}>
-        {state.providers.map((p) => <option key={p.id} value={p.id} disabled={!ready.includes(p.id)}>{p.displayName}{ready.includes(p.id) ? '' : ' (not ready)'}</option>)}
+        {providers.map((p) => <option key={p.id} value={p.id} disabled={!ready.includes(p.id)}>{p.displayName}{ready.includes(p.id) ? '' : ' (not ready)'}</option>)}
       </select>
     </Field>
   )

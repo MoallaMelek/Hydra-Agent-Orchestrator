@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ShieldAlert, Wifi, WifiOff } from 'lucide-react'
 import { Badge, Button, Callout, Field, Panel } from '../design/components'
-import { useApp } from '../app/context'
+import { useApp, useAppState } from '../app/context'
 
 const DURATIONS = [{ minutes: 60, label: '1 hour' }, { minutes: 8 * 60, label: '8 hours' }, { minutes: 0, label: 'Until Hydra closes' }]
 
@@ -10,8 +10,8 @@ const DURATIONS = [{ minutes: 60, label: '1 hour' }, { minutes: 8 * 60, label: '
  * travels over plain HTTP on the local network, so exposure is kept short and visible.
  */
 export function PhoneAccessPanel() {
-  const { state, run, store } = useApp()
-  const remote = state.remote
+  const { run, store } = useApp()
+  const remote = useAppState((s) => s.remote)
   const addresses = remote?.addresses ?? []
   const [host, setHost] = useState('')
   const [minutes, setMinutes] = useState(60)

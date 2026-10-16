@@ -1,6 +1,6 @@
 import type { Task } from '@hydra/protocol'
 import { Badge, type Tone } from '../../design/components'
-import { useApp } from '../../app/context'
+import { useAppState } from '../../app/context'
 import { duration, STAGE_LABELS } from '../../lib/format'
 
 const RECORD_TONE: Record<Task['stages'][number]['status'], Tone> = { running: 'accent', succeeded: 'ok', failed: 'bad', interrupted: 'warn', canceled: 'neutral', skipped: 'neutral' }
@@ -8,8 +8,7 @@ const LEVEL_COLOR = { info: 'var(--text-2)', warn: 'var(--warn)', error: 'var(--
 
 /** Stage history (durable) plus the engine's log lines for this task (this session). */
 export function ActivityTab({ task }: { task: Task }) {
-  const { state } = useApp()
-  const logs = state.logs[task.id] ?? []
+  const logs = useAppState((s) => s.logs[task.id]) ?? []
   return (
     <div className="grid-2">
       <div className="hx-panel">

@@ -1,66 +1,92 @@
-/* Hydra v2 design tokens. Dark is the primary theme; light mirrors it. */
+/*
+ * Hydra "Relay" design tokens (docs/v2/REDESIGN.md §4).
+ * Graphite ground in tone steps, one signal accent, state colours only where they mean
+ * something: amber = needs you, green = passed/verified, red = failed/blocked.
+ */
 :root {
-  --font-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", "Cascadia Code", "SF Mono", ui-monospace, Consolas, monospace;
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif;
+  --font-mono: "Cascadia Mono", "Cascadia Code", "SF Mono", ui-monospace, Consolas, monospace;
 
-  --text-xs: 11px; --text-sm: 12.5px; --text-md: 13.5px; --text-lg: 15px; --text-xl: 19px; --text-2xl: 24px;
+  --text-xs: 12px; --text-sm: 12.5px; --text-md: 13.5px; --text-lg: 15px; --text-xl: 17px; --text-2xl: 21px; --text-3xl: 27px;
   --lh: 1.5;
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px;
-  --radius-sm: 5px; --radius-md: 8px; --radius-lg: 12px;
-  --ease: cubic-bezier(.2, .7, .2, 1);
-  --dur-fast: 120ms; --dur: 200ms;
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px;
 
-  /* Dark (default) — deep ink with a cool cyan signal colour */
-  --bg: #0b0d12;
-  --bg-raised: #11141b;
-  --bg-sunken: #080a0e;
-  --surface: #151923;
-  --surface-hover: #1b2030;
-  --border: #232a39;
-  --border-strong: #2f3850;
-  --text: #e6e9f0;
-  --text-2: #a4acbe;
-  --text-3: #6f7890;
-  --accent: #39c6d6;
-  --accent-strong: #5ee0ee;
-  --accent-ink: #062a2f;
-  --accent-soft: rgba(57, 198, 214, .12);
-  --ok: #3ccf8e; --ok-soft: rgba(60, 207, 142, .12);
-  --warn: #f2b84b; --warn-soft: rgba(242, 184, 75, .13);
-  --bad: #f2617a; --bad-soft: rgba(242, 97, 122, .13);
-  --info: #8f9cff; --info-soft: rgba(143, 156, 255, .13);
-  --diff-add-bg: rgba(60, 207, 142, .10); --diff-add-fg: #9be8c4;
-  --diff-del-bg: rgba(242, 97, 122, .10); --diff-del-fg: #f6a9b6;
-  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.35);
+  /* Motion vocabulary: short, ease-out, transform and opacity only. */
+  --ease-out: cubic-bezier(.23, 1, .32, 1);
+  --ease-in-out: cubic-bezier(.77, 0, .175, 1);
+  --ease: var(--ease-out);
+  --dur-fast: 120ms; --dur: 180ms; --dur-slow: 220ms;
+
+  /* Dark (default) */
+  --bg: #0f1114;
+  --bg-sunken: #0b0d0f;
+  --rail: #121418;
+  --surface: #16191e;
+  --surface-2: #1c2026;
+  --surface-3: #252a32;
+  --surface-hover: var(--surface-2);
+  --bg-raised: var(--surface-2);
+  --border: #262b33;
+  --border-strong: #353c47;
+  --text: #e9ebee;
+  --text-2: #aab0b9;
+  --text-3: #858c97;
+  --accent: #6db6f2;
+  --accent-strong: #93c9f5;
+  --accent-ink: #06121c;
+  --accent-soft: rgba(109, 182, 242, .14);
+  --you: #f0b04a; --you-soft: rgba(240, 176, 74, .14); --you-ink: #1d1300;
+  --ok: #5cc994; --ok-soft: rgba(92, 201, 148, .13);
+  --bad: #f0707a; --bad-soft: rgba(240, 112, 122, .14);
+  --warn: var(--you); --warn-soft: var(--you-soft);
+  --info: #a3b1c6; --info-soft: rgba(163, 177, 198, .12);
+  --lane: #1a1d23;
+  --lane-alt: #181b20;
+  --seg: #3a4250;
+  --seg-done: #4a5464;
+  --diff-add-bg: rgba(92, 201, 148, .11); --diff-add-fg: #a7e6c6;
+  --diff-del-bg: rgba(240, 112, 122, .11); --diff-del-fg: #f6b0b6;
+  --float-shadow: 0 12px 32px rgba(0, 0, 0, .45), 0 2px 6px rgba(0, 0, 0, .3);
+  --shadow: var(--float-shadow);
   --focus: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --bg: #f6f7f9;
-  --bg-raised: #ffffff;
-  --bg-sunken: #eef0f4;
+  --bg: #f3f4f6;
+  --bg-sunken: #eceef1;
+  --rail: #eceef1;
   --surface: #ffffff;
-  --surface-hover: #f1f3f7;
-  --border: #e1e5ec;
-  --border-strong: #cbd2de;
-  --text: #141821;
-  --text-2: #4c5468;
-  --text-3: #7c869c;
-  --accent: #0e8f9e;
-  --accent-strong: #0a7581;
+  --surface-2: #f5f6f8;
+  --surface-3: #e9ecf0;
+  --border: #e2e5ea;
+  --border-strong: #cdd2da;
+  --text: #15181d;
+  --text-2: #4a515d;
+  --text-3: #636b78;
+  --accent: #1d6fbf;
+  --accent-strong: #165a9c;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(14, 143, 158, .10);
-  --ok: #138a59; --ok-soft: rgba(19, 138, 89, .10);
-  --warn: #a96b00; --warn-soft: rgba(169, 107, 0, .10);
-  --bad: #c62848; --bad-soft: rgba(198, 40, 72, .09);
-  --info: #4c5bd4; --info-soft: rgba(76, 91, 212, .09);
-  --diff-add-bg: rgba(19, 138, 89, .09); --diff-add-fg: #0d6b45;
-  --diff-del-bg: rgba(198, 40, 72, .08); --diff-del-fg: #9c1f39;
-  --shadow: 0 1px 2px rgba(20,24,33,.06), 0 8px 24px rgba(20,24,33,.06);
+  --accent-soft: rgba(29, 111, 191, .1);
+  --you: #a35f00; --you-soft: rgba(196, 122, 0, .12); --you-ink: #ffffff;
+  --ok: #16804d; --ok-soft: rgba(22, 128, 77, .1);
+  --bad: #c2343f; --bad-soft: rgba(194, 52, 63, .09);
+  --info: #4c5a70; --info-soft: rgba(76, 90, 112, .09);
+  --lane: #f6f7f9;
+  --lane-alt: #f1f3f6;
+  --seg: #c3cad4;
+  --seg-done: #9aa4b2;
+  --diff-add-bg: rgba(22, 128, 77, .09); --diff-add-fg: #0e5e37;
+  --diff-del-bg: rgba(194, 52, 63, .08); --diff-del-fg: #96222c;
+  --float-shadow: 0 12px 32px rgba(20, 24, 33, .12), 0 2px 6px rgba(20, 24, 33, .08);
   color-scheme: light;
 }
 
+/* Adaptive quality (Settings → Display). Reduced: no movement. Minimal: no transitions at all. */
+[data-quality="reduced"] { --dur-fast: 80ms; --dur: 120ms; --dur-slow: 120ms; }
+[data-quality="minimal"] { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }
 @media (prefers-reduced-motion: reduce) {
-  :root { --dur-fast: 0ms; --dur: 0ms; }
+  :root:not([data-quality="full"]) { --dur-fast: 80ms; --dur: 120ms; --dur-slow: 120ms; }
 }

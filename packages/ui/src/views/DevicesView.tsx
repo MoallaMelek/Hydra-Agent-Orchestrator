@@ -1,14 +1,14 @@
 import { Smartphone } from 'lucide-react'
 import { Badge, Button, Callout, EmptyState, Panel } from '../design/components'
-import { useApp } from '../app/context'
+import { useApp, useAppState } from '../app/context'
 import { ago } from '../lib/format'
 import { PairPhonePanel } from './PairPhonePanel'
 import { PhoneAccessPanel } from './PhoneAccessPanel'
 
 /** Paired phones: pair, inspect and revoke. */
 export function DevicesView() {
-  const { state, run } = useApp()
-  const devices = [...state.devices].sort((a, b) => b.pairedAt.localeCompare(a.pairedAt))
+  const { run } = useApp()
+  const devices = [...useAppState((s) => s.devices)].sort((a, b) => b.pairedAt.localeCompare(a.pairedAt))
   return (
     <div className="page">
       <div className="page__head"><div className="page__title"><h1>Remote devices</h1><p className="muted">Phones that can follow tasks and, if you allow it, approve them.</p></div></div>

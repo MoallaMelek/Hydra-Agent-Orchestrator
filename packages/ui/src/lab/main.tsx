@@ -4,6 +4,7 @@ import '../design/tokens.css'
 import '../design/base.css'
 import '../design/components.css'
 import '../views/app.css'
+import '../ops/relay.css'
 import { EngineStore } from '../api/store'
 import { AppProvider, useApp } from '../app/context'
 import { Shell } from '../app/Shell'
@@ -23,6 +24,7 @@ const speed = Math.max(0.1, Number(params.get('speed') ?? 1))
 const bench = params.get('bench') === '1'
 
 const world = new FixtureWorld()
+world.realtime = true
 const transport = new FixtureTransport(world)
 world.slots = Number(params.get('slots') ?? 3)
 const sleep = (simMs: number) => new Promise<void>((resolve) => setTimeout(() => { world.now += simMs; resolve() }, simMs / speed))

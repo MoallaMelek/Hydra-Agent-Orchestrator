@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'default' | 'primary' | 'danger' | 'ghost'
+  variant?: 'default' | 'primary' | 'danger' | 'ghost' | 'you'
   size?: 'sm' | 'md' | 'lg'
   icon?: ReactNode
   busy?: boolean
@@ -107,7 +107,7 @@ export function Meter({ value, max, label }: { value: number; max: number; label
   const tone = ratio >= 1 ? 'bad' : ratio >= 0.8 ? 'warn' : ''
   return (
     <div className="hx-meter" role="meter" aria-label={label} aria-valuenow={value} aria-valuemin={0} aria-valuemax={max}>
-      <div className={`hx-meter__fill ${tone ? `hx-meter__fill--${tone}` : ''}`} style={{ width: `${ratio * 100}%` }} />
+      <div className={`hx-meter__fill ${tone ? `hx-meter__fill--${tone}` : ''}`} style={{ transform: `scaleX(${ratio})` }} />
     </div>
   )
 }

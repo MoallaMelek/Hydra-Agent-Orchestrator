@@ -1,20 +1,21 @@
 import { Bot } from 'lucide-react'
 import type { AgentRunInfo } from '@hydra/protocol'
 import { Badge, EmptyState, type Tone } from '../../design/components'
-import { useApp } from '../../app/context'
+import { useAppState } from '../../app/context'
 import { duration, money, STAGE_LABELS, tokens } from '../../lib/format'
 
 const STATUS_TONE: Record<AgentRunInfo['status'], Tone> = { running: 'accent', succeeded: 'ok', failed: 'bad', canceled: 'neutral', interrupted: 'warn' }
 
 /** Every agent run with its role, real usage and live output. */
 export function AgentsTab({ runs }: { runs: AgentRunInfo[] }) {
-  const { state } = useApp()
+  const providers = useAppState((s) => s.providers)
+  const outputs = useAppState((s) => s.output)
   if (!runs.length) return <EmptyState icon={<Bot size={28} />} title="No agent has run yet" />
-  const name = (id: string) => state.providers.find((p) => p.id === id)?.displayName ?? id
+  const name = (id: string) => providers.find((p) => p.id === id)?.displayName ?? id
   return (
     <div>
       {[...runs].reverse().map((run) => {
-        const live = state.output[run.id]
+        const live = outputs[run.id]
         const ended = run.endedAt ? Date.parse(run.endedAt) : Date.now()
         return (
           <section key={run.id} className="run">

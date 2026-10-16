@@ -1,11 +1,13 @@
 import { Fragment, useEffect, useState } from 'react'
-import { Button, Panel } from '../design/components'
-import { useApp } from '../app/context'
+import { Button, Panel, Segmented } from '../design/components'
+import { setChoice, useQuality, type QualityChoice } from '../app/quality'
+import { useApp, useAppState } from '../app/context'
 import { HttpTransport } from '../api/transport'
 import { MODE_INFO } from '../lib/format'
 
 export function SettingsView() {
-  const { state, store, isRemote, run } = useApp()
+  const { store, isRemote, run } = useApp()
+  const engineVersion = useAppState((s) => s.engineVersion)
   const [history, setHistory] = useState<{ count: number } | null>(null)
   const loadHistory = () => void store.transport.execute({ type: 'outcomes.get' }).then((ack) => { if (ack.ok) setHistory(ack.result as { count: number }) }).catch(() => {})
   useEffect(loadHistory, [store])
@@ -22,7 +24,8 @@ export function SettingsView() {
 
   return (
     <div className="page">
-      <div className="page__head"><div className="page__title"><h1>Settings</h1><p className="muted">Engine v{state.engineVersion}</p></div></div>
+      <div className="page__head"><div className="page__title"><h1>Settings</h1><p className="muted">Engine v{engineVersion}</p></div></div>
+      <DisplayPanel />
       <Panel title="Autonomy modes">
         <dl className="hx-kv">
           {(['safe', 'developer', 'autonomous'] as const).map((m) => <Fragment key={m}><dt>{MODE_INFO[m].label}</dt><dd>{MODE_INFO[m].detail}</dd></Fragment>)}
@@ -43,7 +46,7 @@ export function SettingsView() {
           </>
         )}
       </Panel>
-      {!isRemote && <UpdatesPanel version={state.engineVersion} />}
+      {!isRemote && <UpdatesPanel version={engineVersion} />}
       {!isRemote && (
         <Panel title="Task history used for suggestions">
           <p className="muted">Hydra keeps a short local record of each finished task (kind of task, which agents, time, cost, whether checks passed and whether you accepted). It never contains your prompts, code or answers, and never leaves this computer. Suggestions use it only once there are at least 5 similar tasks.</p>
@@ -54,6 +57,22 @@ export function SettingsView() {
         </Panel>
       )}
     </div>
+  )
+}
+
+/** Visual quality: lower levels remove motion and per-tool marks, never information. */
+function DisplayPanel() {
+  const [choice, effective] = useQuality()
+  return (
+    <Panel title="Display">
+      <div className="spread" style={{ flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <p className="muted" style={{ maxWidth: '62ch' }}>Visual quality of the live views. Auto follows your system's reduced-motion setting and switches to Minimal if this computer starts missing frames. Lower levels remove animation and tool-call marks; every piece of information stays.</p>
+        <Segmented<QualityChoice> label="Visual quality" value={choice} onChange={setChoice} options={[
+          { value: 'auto', label: 'Auto' }, { value: 'full', label: 'Full' }, { value: 'reduced', label: 'Reduced' }, { value: 'minimal', label: 'Minimal' }
+        ]} />
+      </div>
+      {choice === 'auto' && <p className="faint" style={{ marginTop: 8, fontSize: 12 }}>Now: {effective}.</p>}
+    </Panel>
   )
 }
 

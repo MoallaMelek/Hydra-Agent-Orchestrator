@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { CheckCircle2, Circle, RefreshCw } from 'lucide-react'
 import type { ProviderStatus } from '@hydra/protocol'
 import { Badge, Button, Panel } from '../design/components'
-import { useApp } from '../app/context'
+import { useApp, useAppState } from '../app/context'
 
 /** How a customer installs and signs in to each CLI with their own account. Hydra never sees the credentials. */
 const SETUP: Record<string, { install: string; signIn: string; signInNote: string }> = {
@@ -37,10 +37,12 @@ function ProviderStep({ p }: { p: ProviderStatus }) {
 
 /** First-run guidance: at least one agent CLI ready, then a project. */
 export function SetupChecklist({ onAddProject }: { onAddProject?: () => void }) {
-  const { state, run, isRemote } = useApp()
+  const { run, isRemote } = useApp()
+  const providers = useAppState((s) => s.providers)
+  const hasProjects = useAppState((s) => s.projects.length > 0)
   const [busy, setBusy] = useState(false)
-  const anyReady = state.providers.some(providerReady)
-  const hasProject = state.projects.length > 0
+  const anyReady = providers.some(providerReady)
+  const hasProject = hasProjects
   const refresh = async () => { setBusy(true); await run({ type: 'providers.refresh' }); setBusy(false) }
   const mark = (done: boolean) => done ? <CheckCircle2 size={18} aria-label="Done" color="var(--ok)" /> : <Circle size={18} aria-label="To do" />
 
@@ -50,7 +52,7 @@ export function SetupChecklist({ onAddProject }: { onAddProject?: () => void }) 
         <li>
           <div className="row">{mark(anyReady)}<span>Install and sign in to at least one agent: Claude Code or Codex.</span></div>
           <p className="faint" style={{ fontSize: 12, margin: '4px 0 8px 26px' }}>Hydra uses your own subscriptions. Your logins stay in each CLI; Hydra never reads or stores them. After installing or signing in, press Re-check.</p>
-          <ul className="setup-providers">{state.providers.map((p) => <ProviderStep key={p.id} p={p} />)}</ul>
+          <ul className="setup-providers">{providers.map((p) => <ProviderStep key={p.id} p={p} />)}</ul>
         </li>
         <li>
           <div className="row">{mark(hasProject)}<span>Add a project: any folder that is a git repository with at least one commit.</span></div>

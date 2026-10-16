@@ -26,6 +26,27 @@ export class KeyedMutex {
   }
 }
 
+/**
+ * A short, factual record of what a successful stage produced, kept on its stage record so
+ * every round stays visible after later rounds replace the task's plan or review. Purely
+ * descriptive: decisions are made from the StageResult, never from this text.
+ */
+export function outcomeNote(task: Task, result: StageResult): string | null {
+  if (!result.ok) return null
+  switch (result.stage) {
+    case 'plan': return task.intent === 'analyze' ? 'Answered' : task.plan ? `Plan: ${task.plan.steps.length} step${task.plan.steps.length === 1 ? '' : 's'}` : null
+    case 'implement':
+    case 'fix': return task.workspace?.headSha ? `Commit ${task.workspace.headSha.slice(0, 10)}` : null
+    case 'review': {
+      const findings = task.review?.findings.length ?? 0
+      return result.approved ? `Approved${findings ? ` with ${findings} note${findings === 1 ? '' : 's'}` : ''}` : `Changes requested: ${findings} finding${findings === 1 ? '' : 's'}`
+    }
+    case 'verify': return result.requiredFailures ? `${result.requiredFailures} required check${result.requiredFailures === 1 ? '' : 's'} failed` : 'Required checks passed'
+    case 'demo': return task.demo ? `Before → after: ${task.demo.deltas.filter((d) => d.after === 'pass').length}/${task.demo.deltas.length} pass` : null
+    case 'apply': return task.applied ? `Applied ${task.applied.afterSha.slice(0, 10)}` : null
+  }
+}
+
 export class Orchestrator {
   private readonly running = new Map<string, AbortController>()
   private readonly done = new Map<string, Promise<void>>()
@@ -222,7 +243,7 @@ export class Orchestrator {
         result = { stage, ok: false, error: budget ? `Budget limit reached: ${error.message}` : errorMessage(error) }
       }
       if (signal.aborted && stage !== 'apply') return this.markCanceled(taskId, stage, attempt)
-      this.endStage(taskId, stage, attempt, result.ok ? 'succeeded' : 'failed', result.ok ? null : result.error)
+      this.endStage(taskId, stage, attempt, result.ok ? 'succeeded' : 'failed', result.ok ? outcomeNote(this.ctx.store.getTask(taskId)!, result) : result.error)
       const fresh = this.ctx.store.getTask(taskId)!
       step = nextStep(fresh, result, policyFor(fresh.mode))
     }

@@ -1,0 +1,89 @@
+/* ── Relay trace ─────────────────────────────────────────────────────────────
+ * Lanes are actors, bars are work they really did, diamonds are artifacts handed on.
+ * Nothing loops: new work enters once (clip-path / opacity), live time steps once a second. */
+.relay { --lane-h: 46px; --gutter: 156px; position: relative; font-size: 12px; user-select: none; }
+.relay__gutter { width: var(--gutter); flex: none; }
+.relay__stages { display: flex; height: 26px; }
+.relay__band { position: relative; flex: 1; }
+.relay__stage { position: absolute; top: 3px; height: 19px; display: flex; align-items: center; padding: 0 7px; border-radius: 5px; background: var(--surface-2); color: var(--text-3); font-size: 11px; font-weight: 600; overflow: hidden; box-shadow: inset -1px 0 0 var(--surface); }
+.relay__stage--running { background: var(--accent-soft); color: var(--accent); }
+.relay__stage--failed, .relay__stage--interrupted { background: var(--bad-soft); color: var(--bad); }
+
+.relay__lanes { position: relative; display: flex; flex-direction: column; }
+.relay__lane { display: flex; height: var(--lane-h); }
+.relay__lane + .relay__lane .relay__track { border-top: 1px solid var(--surface); }
+.relay__who { width: var(--gutter); flex: none; display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: 0 12px 0 2px; border: 0; background: none; text-align: left; cursor: pointer; color: inherit; border-radius: var(--radius-sm); min-width: 0; }
+.relay__who:hover .relay__role { color: var(--accent); }
+.relay__lane.is-selected .relay__role { color: var(--accent); }
+.relay__role { font-size: 12.5px; font-weight: 650; color: var(--text); }
+.relay__actor { font-size: 11.5px; color: var(--text-3); }
+.relay__track { position: relative; flex: 1; background: var(--lane); min-width: 0; }
+
+.relay__seg {
+  position: absolute; top: 7px; height: 21px; padding: 0 7px; border: 0; border-radius: 5px; display: flex; align-items: center;
+  overflow: hidden; font: 600 11.5px/1 var(--font-sans); text-align: left; cursor: pointer;
+  background: var(--seg-done); color: var(--text);
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.relay__seg-label { position: relative; z-index: 1; pointer-events: none; }
+.relay__seg--running { background: var(--accent); color: var(--accent-ink); }
+.relay__seg.is-open { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.relay__seg--failed { background: var(--bad); color: #fff; }
+.relay__seg--canceled, .relay__seg--interrupted { background: transparent; color: var(--text-2); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.relay__seg--check { top: 11px; height: 13px; font-size: 10.5px; background: color-mix(in srgb, var(--ok) 70%, var(--lane)); color: var(--you-ink); }
+.relay__seg--check.relay__seg--failed { background: var(--bad); color: #fff; }
+.relay__seg--gate { background: var(--you-soft); color: var(--you); }
+.relay__seg--gate.relay__seg--waiting { background: var(--you); color: var(--you-ink); }
+.relay__seg--apply { background: color-mix(in srgb, var(--ok) 70%, var(--lane)); color: var(--you-ink); }
+/* Inferred: outlined, never filled, so it cannot be mistaken for something the engine reported. */
+.relay__seg.is-inferred { background: transparent; color: var(--text-2); box-shadow: inset 0 0 0 1px var(--border-strong); background-image: none; }
+.relay__seg--checking.is-inferred { color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent); }
+.relay__seg.is-selected { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text); z-index: 2; }
+.relay__seg:focus-visible { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent); z-index: 2; }
+
+.relay__ticks-in { position: absolute; left: 0; right: 0; bottom: 2px; height: 4px; pointer-events: none; }
+.relay__ticks-in i { position: absolute; bottom: 0; width: 1px; height: 4px; background: currentColor; }
+.relay__ticks-in .k-read { opacity: .35; } .relay__ticks-in .k-search { opacity: .3; height: 3px; }
+.relay__ticks-in .k-edit { opacity: 1; width: 2px; } .relay__ticks-in .k-command { opacity: .7; } .relay__ticks-in .k-other { opacity: .45; }
+
+.relay__baton { position: absolute; top: 31px; display: flex; align-items: center; gap: 5px; padding: 0 4px 0 0; border: 0; background: none; color: var(--text-2); cursor: pointer; transform: translateX(-5px); border-radius: 4px; z-index: 1; }
+.relay__baton-mark { width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: var(--text-3); flex: none; }
+.relay__baton-label { font-size: 11px; font-weight: 600; white-space: nowrap; max-width: 210px; overflow: hidden; text-overflow: ellipsis; }
+.relay__baton--ok { color: var(--ok); } .relay__baton--ok .relay__baton-mark { background: var(--ok); }
+.relay__baton--bad { color: var(--bad); } .relay__baton--bad .relay__baton-mark { background: var(--bad); }
+.relay__baton--you { color: var(--you); } .relay__baton--you .relay__baton-mark { background: var(--you); }
+.relay__baton--accent { color: var(--accent); } .relay__baton--accent .relay__baton-mark { background: var(--accent); }
+.relay__baton:hover .relay__baton-label, .relay__baton.is-selected .relay__baton-label { color: var(--text); }
+.relay__baton.is-selected .relay__baton-mark { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text); }
+
+.relay__overlay { position: absolute; top: 0; bottom: 0; left: var(--gutter); right: 0; pointer-events: none; }
+.relay__link { position: absolute; width: 0; border-left: 1.5px solid currentColor; color: var(--text-3); transform: translateX(-.75px); opacity: .8; }
+.relay__link.is-repair { border-left-style: dashed; }
+.relay__link::after { content: ''; position: absolute; left: -4.75px; border: 4px solid transparent; }
+.relay__link.is-down::after { bottom: -5px; border-top: 5px solid currentColor; border-bottom-width: 0; }
+.relay__link.is-up::after { top: -5px; border-bottom: 5px solid currentColor; border-top-width: 0; }
+.relay__link--ok { color: var(--ok); } .relay__link--bad { color: var(--bad); } .relay__link--you { color: var(--you); } .relay__link--accent { color: var(--accent); }
+.relay__now { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); opacity: .7; }
+.relay__cursor { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--text); }
+
+.relay__axis { display: flex; height: 22px; }
+.relay__ticks { position: relative; flex: 1; }
+.relay__ticks span { position: absolute; top: 5px; transform: translateX(-50%); font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.relay__ticks span:first-child { transform: none; }
+
+/* Work that arrives while you watch enters once. Full quality: reveal + rise; reduced: fade; minimal: none. */
+[data-quality="full"] .relay__seg[data-fresh] { animation: relay-reveal var(--dur-slow) var(--ease-out) both; }
+[data-quality="full"] .relay__baton[data-fresh] { animation: relay-hand var(--dur) var(--ease-out) both; }
+[data-quality="reduced"] .relay__seg[data-fresh], [data-quality="reduced"] .relay__baton[data-fresh] { animation: hx-fade var(--dur) var(--ease-out) both; }
+@keyframes relay-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes relay-hand { from { opacity: 0; transform: translateX(-11px); } to { opacity: 1; transform: translateX(-5px); } }
+[data-quality="minimal"] .relay__ticks-in { display: none; }
+
+/* Compact (overview rows): the same drawing, one thin line per lane, no labels. */
+.relay--compact { --lane-h: 7px; --gutter: 0px; }
+.relay--compact .relay__lane + .relay__lane .relay__track { border-top: 1px solid transparent; }
+.relay--compact .relay__track { background: transparent; }
+.relay--compact .relay__seg { top: 1px; height: 5px; padding: 0; border-radius: 2px; pointer-events: none; }
+.relay--compact .relay__seg--check { top: 1px; height: 5px; }
+
+@media (max-width: 720px) { .relay { --gutter: 104px; --lane-h: 44px; } .relay__actor { display: none; } }

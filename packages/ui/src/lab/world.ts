@@ -39,7 +39,10 @@ export class FixtureWorld {
     return () => { const next = this.waiting.shift(); if (next) next(); else this.inUse-- }
   }
 
-  iso(offsetMs = 0): string { return new Date(this.now + offsetMs).toISOString() }
+  /** Lab pages use the real clock (as the engine does); tests advance `now` by hand. */
+  realtime = false
+
+  iso(offsetMs = 0): string { return new Date((this.realtime ? Date.now() : this.now) + offsetMs).toISOString() }
 
   on(listener: (e: EventEnvelope) => void): () => void {
     this.listeners.add(listener)
