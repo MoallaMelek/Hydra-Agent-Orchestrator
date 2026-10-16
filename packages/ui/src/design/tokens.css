@@ -38,8 +38,8 @@
   --accent-ink: #06121c;
   --accent-soft: rgba(109, 182, 242, .14);
   --you: #f0b04a; --you-soft: rgba(240, 176, 74, .14); --you-ink: #1d1300;
-  --ok: #5cc994; --ok-soft: rgba(92, 201, 148, .13);
-  --bad: #f0707a; --bad-soft: rgba(240, 112, 122, .14);
+  --ok: #5cc994; --ok-soft: rgba(92, 201, 148, .13); --ok-ink: #04140c;
+  --bad: #f0707a; --bad-soft: rgba(240, 112, 122, .14); --bad-ink: #1a0507;
   --warn: var(--you); --warn-soft: var(--you-soft);
   --info: #a3b1c6; --info-soft: rgba(163, 177, 198, .12);
   --lane: #1a1d23;
@@ -71,8 +71,8 @@
   --accent-ink: #ffffff;
   --accent-soft: rgba(29, 111, 191, .1);
   --you: #a35f00; --you-soft: rgba(196, 122, 0, .12); --you-ink: #ffffff;
-  --ok: #16804d; --ok-soft: rgba(22, 128, 77, .1);
-  --bad: #c2343f; --bad-soft: rgba(194, 52, 63, .09);
+  --ok: #16804d; --ok-soft: rgba(22, 128, 77, .1); --ok-ink: #ffffff;
+  --bad: #c2343f; --bad-soft: rgba(194, 52, 63, .09); --bad-ink: #ffffff;
   --info: #4c5a70; --info-soft: rgba(76, 90, 112, .09);
   --lane: #f6f7f9;
   --lane-alt: #f1f3f6;

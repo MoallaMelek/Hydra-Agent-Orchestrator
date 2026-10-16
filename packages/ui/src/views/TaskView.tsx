@@ -76,7 +76,8 @@ function ChangeView({ task }: { task: Task }) {
   const warnings = approvalWarnings(task, evidence, diff)
   const status = statusLabel(task)
   const used = task.usage.inputTokens + task.usage.outputTokens
-  const elapsed = Date.parse(live ? new Date(now).toISOString() : task.updatedAt) - Date.parse(task.createdAt)
+  // Never behind the last real update (the shared clock pauses while the window is hidden).
+  const elapsed = (live ? Math.max(now, Date.parse(task.updatedAt)) : Date.parse(task.updatedAt)) - Date.parse(task.createdAt)
   const headline = shown?.headline
 
   return (
@@ -110,6 +111,7 @@ function ChangeView({ task }: { task: Task }) {
 
       {task.status === 'waiting_input' && <DecisionBar task={task} blockingWarnings={warnings.filter((w) => w.tone === 'bad').length} />}
 
+      <div className="ops-grid">
       <section className="hx-panel relay-panel" aria-label="Live operations">
         <div className="relay-panel__bar">
           <h2 className="hx-panel__title row"><Waypoints size={15} aria-hidden /> Relay</h2>
@@ -132,6 +134,8 @@ function ChangeView({ task }: { task: Task }) {
           )}
         </div>
       </section>
+      {shown && <div className="ops-grid__side"><Inspector trace={shown} task={task} runs={runs} evidence={evidence} selection={active} onSelect={setSelection} /></div>}
+      </div>
 
       <div className="task-grid">
         <section className="hx-panel task-grid__main">
@@ -148,7 +152,6 @@ function ChangeView({ task }: { task: Task }) {
             {tab === 'log' && <ActivityTab task={task} />}
           </div>
         </section>
-        {shown && <div className="task-grid__side"><Inspector trace={shown} task={task} runs={runs} evidence={evidence} selection={active} onSelect={setSelection} /></div>}
       </div>
     </>
   )

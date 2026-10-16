@@ -103,12 +103,15 @@ function RunDetail({ run, segment, task, trace }: { run: AgentRunInfo; segment: 
       </section>
       <section className="inspector__block">
         <h4>Output</h4>
-        <pre className="hx-log" style={{ maxHeight: 220 }}>{(output ?? run.tail) || '(no text output)'}</pre>
+        {/* Only the latest part: re-laying out tens of kilobytes on every update would cost frames. */}
+        <pre className="hx-log" style={{ maxHeight: 220 }}>{tail((output ?? run.tail) || '(no text output)')}</pre>
         <p className="faint" style={{ fontSize: 11.5 }}>Agent output is untrusted text, shown as written (secrets redacted by the engine). It is not the model's private reasoning.</p>
       </section>
     </aside>
   )
 }
+
+const tail = (text: string, max = 4000) => (text.length > max ? `…${text.slice(-max)}` : text)
 
 function FileList({ label, items, tone }: { label: string; items: string[]; tone: 'edit' | 'read' | 'command' }) {
   const [open, setOpen] = useState(false)

@@ -28,13 +28,13 @@
 .relay__seg-label { position: relative; z-index: 1; pointer-events: none; }
 .relay__seg--running { background: var(--accent); color: var(--accent-ink); }
 .relay__seg.is-open { border-top-right-radius: 0; border-bottom-right-radius: 0; }
-.relay__seg--failed { background: var(--bad); color: #fff; }
+.relay__seg--failed { background: var(--bad); color: var(--bad-ink); }
 .relay__seg--canceled, .relay__seg--interrupted { background: transparent; color: var(--text-2); box-shadow: inset 0 0 0 1px var(--border-strong); }
-.relay__seg--check { top: 11px; height: 13px; font-size: 10.5px; background: color-mix(in srgb, var(--ok) 70%, var(--lane)); color: var(--you-ink); }
-.relay__seg--check.relay__seg--failed { background: var(--bad); color: #fff; }
+.relay__seg--check { top: 11px; height: 13px; font-size: 10.5px; background: var(--ok); color: var(--ok-ink); }
+.relay__seg--check.relay__seg--failed { background: var(--bad); color: var(--bad-ink); }
 .relay__seg--gate { background: var(--you-soft); color: var(--you); }
 .relay__seg--gate.relay__seg--waiting { background: var(--you); color: var(--you-ink); }
-.relay__seg--apply { background: color-mix(in srgb, var(--ok) 70%, var(--lane)); color: var(--you-ink); }
+.relay__seg--apply { background: var(--ok); color: var(--ok-ink); }
 /* Inferred: outlined, never filled, so it cannot be mistaken for something the engine reported. */
 .relay__seg.is-inferred { background: transparent; color: var(--text-2); box-shadow: inset 0 0 0 1px var(--border-strong); background-image: none; }
 .relay__seg--checking.is-inferred { color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent); }

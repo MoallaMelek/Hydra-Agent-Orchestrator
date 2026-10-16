@@ -10,7 +10,7 @@
 .nav-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: var(--radius-md); border: 0; background: none; color: var(--text-2); cursor: pointer; text-align: left; font-size: var(--text-sm); font-weight: 550; transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
 .nav-item:hover { background: var(--surface-2); color: var(--text); }
 .nav-item[aria-current="page"] { background: var(--surface-3); color: var(--text); }
-.nav-item__meta { margin-left: auto; font-size: var(--text-xs); color: var(--accent); }
+.nav-item__meta { margin-left: auto; font-size: var(--text-xs); color: var(--accent); white-space: nowrap; flex: none; }
 .nav-item__you { margin-left: auto; font-size: 11px; font-weight: 650; color: var(--you); white-space: nowrap; }
 .rail__foot { padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .main { min-width: 0; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
@@ -59,8 +59,10 @@
 .relay-panel__scrub { display: block; width: calc(100% - 156px); margin: 2px 0 0 156px; height: 18px; accent-color: var(--accent); opacity: .75; }
 .relay-panel__scrub:hover, .relay-panel__scrub:focus-visible { opacity: 1; }
 @media (max-width: 720px) { .relay-panel__scrub { width: calc(100% - 104px); margin-left: 104px; } }
-.task-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 18px; align-items: start; }
-.task-grid__side { position: sticky; top: 12px; }
+.ops-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); gap: 14px; align-items: stretch; }
+.ops-grid__side { min-width: 0; position: relative; }
+.ops-grid__side .inspector { position: absolute; inset: 0; max-height: none; }
+.task-grid { display: block; }
 
 /* ── Inspector ─────────────────────────────────────────────────────────── */
 .inspector { background: var(--surface); border-radius: var(--radius-lg); padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 40px); overflow: auto; animation: hx-fade var(--dur) var(--ease-out); }
@@ -218,9 +220,8 @@
 /* ── Small screens and the phone ───────────────────────────────────────── */
 .mobile-bar { display: none; align-items: center; gap: 10px; padding: 10px 14px; background: var(--rail); position: sticky; top: 0; z-index: 20; }
 @media (max-width: 1100px) {
-  .task-grid { grid-template-columns: 1fr; }
-  .task-grid__side { position: static; }
-  .inspector { max-height: none; }
+  .ops-grid { grid-template-columns: 1fr; }
+  .ops-grid__side .inspector { position: static; }
 }
 @media (max-width: 900px) {
   .shell { grid-template-columns: 1fr; }

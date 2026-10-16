@@ -8,20 +8,38 @@ import { buildTrace, type Trace } from './model'
  * Wall-clock time for live drawings, advanced once a second and only while something is
  * live and the window is visible. Nothing is animated between ticks.
  */
-export function useNow(live: boolean, everyMs = 1000): number {
+export function useNow(live: boolean): number {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     if (!live) { setNow(Date.now()); return }
-    let timer: ReturnType<typeof setInterval> | null = null
-    const start = () => { if (!timer) timer = setInterval(() => setNow(Date.now()), everyMs) }
-    const stop = () => { if (timer) { clearInterval(timer); timer = null } }
-    const onVisibility = () => { if (document.visibilityState === 'visible') { setNow(Date.now()); start() } else stop() }
-    onVisibility()
-    document.addEventListener('visibilitychange', onVisibility)
-    return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
-  }, [live, everyMs])
+    setNow(Date.now())
+    return ticker.subscribe(setNow)
+  }, [live])
   return now
 }
+
+/**
+ * One shared one-second clock for every live element, so all of them update in the same
+ * frame (one repaint per second, not one per component). Paused while the window is hidden.
+ */
+const ticker = (() => {
+  const subscribers = new Set<(now: number) => void>()
+  let timer: ReturnType<typeof setInterval> | null = null
+  const tick = () => { const now = Date.now(); for (const s of subscribers) s(now) }
+  const sync = () => {
+    const run = subscribers.size > 0 && document.visibilityState === 'visible'
+    if (run && !timer) { tick(); timer = setInterval(tick, 1000) }
+    if (!run && timer) { clearInterval(timer); timer = null }
+  }
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', sync)
+  return {
+    subscribe(fn: (now: number) => void): () => void {
+      subscribers.add(fn)
+      sync()
+      return () => { subscribers.delete(fn); sync() }
+    }
+  }
+})()
 
 /** Runs of one task, as a stable list (re-renders only when one of them changes). */
 export function useTaskRuns(taskId: string): AgentRunInfo[] {

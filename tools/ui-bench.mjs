@@ -9,7 +9,7 @@
 import { app, BrowserWindow } from 'electron'
 import { createServer } from 'node:http'
 import { readFileSync, existsSync, writeFileSync } from 'node:fs'
-import { extname, join, normalize, dirname } from 'node:path'
+import { extname, join, normalize, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -20,7 +20,7 @@ const runs = Number(opt('--runs', 3))
 const events = Number(opt('--events', 600))
 const scenario = opt('--scenario', 'flood')
 const out = opt('--out', null)
-const root = join(here, '..', 'packages', 'ui', '.lab-dist')
+const root = resolve(opt('--root', join(here, '..', 'packages', 'ui', '.lab-dist')))
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' }
 
 function serve() {

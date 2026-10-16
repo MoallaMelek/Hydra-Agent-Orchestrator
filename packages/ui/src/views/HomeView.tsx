@@ -126,7 +126,7 @@ function SlotCell({ run, task }: { run: AgentRunInfo; task: Task | undefined }) 
     <button className="slot slot--busy" onClick={() => task && go({ view: 'task', taskId: task.id })}>
       <span className="slot__who"><b>{name(run.provider)}</b> <span className="faint">· {ROLE[run.role]}{run.stage === 'fix' ? ' (repair)' : ''}</span></span>
       <span className="slot__task truncate">{task?.title ?? 'Task'}</span>
-      <span className="slot__doing truncate mono">{last ? `${last.tool} ${shortTarget(last.target, 48)}` : 'Starting…'}</span>
+      <span className="slot__doing truncate mono">{last ? `${last.tool} ${shortTarget(last.target, 48)}` : now - Date.parse(run.startedAt) > 3000 ? 'Working · no tool call reported yet' : 'Starting…'}</span>
       <span className="slot__time faint num">{duration(Math.max(0, now - Date.parse(run.startedAt)))}</span>
     </button>
   )
