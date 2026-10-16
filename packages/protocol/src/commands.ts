@@ -41,6 +41,9 @@ export const Command = z.discriminatedUnion('type', [
   z.object({ type: z.literal('outcomes.clear') }),
   /** Asks the release server (only when the person presses the button). Desktop only. */
   z.object({ type: z.literal('update.check') }),
+  z.object({ type: z.literal('update.prepare') }),
+  z.object({ type: z.literal('update.release'), lease: Id }),
+  z.object({ type: z.literal('update.confirm'), lease: Id }),
   /** Starts an answering agent ahead of time for this project so the next question is faster. */
   z.object({ type: z.literal('agent.prewarm'), projectId: Id }),
   z.object({ type: z.literal('task.resume'), taskId: Id }),

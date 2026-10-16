@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FileDiff, FlaskConical, List, Pause, Play, Rewind, ScrollText, Waypoints } from 'lucide-react'
 import type { Task } from '@hydra/protocol'
-import { Badge, Button, EmptyState, Tabs } from '../design/components'
+import { Badge, Button, EmptyState, Segmented, Tabs } from '../design/components'
 import { useApp, useAppState } from '../app/context'
 import { DecisionBar } from './task/DecisionBar'
 import { OverviewTab } from './task/OverviewTab'
@@ -17,6 +17,7 @@ import { Inspector } from '../ops/Inspector'
 import { TraceList } from '../ops/TraceList'
 import { useNow, useTaskEvidence, useTaskLoaded, useTaskRuns, useTrace } from '../ops/hooks'
 import type { Trace } from '../ops/model'
+import { Workflow, ArtifactPath } from '../ops/Workflow'
 
 type TabId = 'summary' | 'changes' | 'checks' | 'log'
 
@@ -39,6 +40,7 @@ export function TaskView({ taskId }: { taskId: string }) {
 }
 
 function ChangeView({ task }: { task: Task }) {
+  const [visual, setVisual] = useState<'workflow' | 'timeline' | 'artifacts'>('workflow')
   const runs = useTaskRuns(task.id)
   const evidence = useTaskEvidence(task.id)
   const live = task.status === 'running' || task.status === 'queued' || task.status === 'waiting_input'
@@ -101,7 +103,7 @@ function ChangeView({ task }: { task: Task }) {
         </dl>
       </header>
 
-      {headline && (
+      {headline && task.status !== 'waiting_input' && (
         <div className={`now-line now-line--${headline.tone}`}>
           <span className="now-line__dot" aria-hidden />
           <span className="grow now-line__text">
@@ -109,7 +111,7 @@ function ChangeView({ task }: { task: Task }) {
             {headline.last && <span className="now-line__last">Last reported: {headline.last.text} · {now - headline.last.at < 2000 ? 'just now' : `${duration(now - headline.last.at)} ago`}</span>}
           </span>
           {headline.basis === 'inferred' && <span className="faint now-line__basis" title="Deduced from the engine's stage records">inferred</span>}
-          {task.status !== 'waiting_input' && <span className="now-line__actions"><DecisionBar task={task} blockingWarnings={0} /></span>}
+          <span className="now-line__actions"><DecisionBar task={task} blockingWarnings={0} /></span>
         </div>
       )}
 
@@ -119,26 +121,28 @@ function ChangeView({ task }: { task: Task }) {
       <section className="hx-panel relay-panel" aria-label="Live operations">
         <div className="relay-panel__bar">
           <h2 className="hx-panel__title row"><Waypoints size={15} aria-hidden /> Relay</h2>
-          <span className="relay-panel__legend faint">Bars: work reported by the engine · outlined: inferred · ◆ artifacts handed on</span>
+          <Segmented label="Explore the work" value={visual} onChange={value => { setVisual(value); setCursor(null); setPlaying(false) }} options={[{ value: 'workflow', label: 'Workspaces' }, { value: 'timeline', label: 'Timeline' }, { value: 'artifacts', label: 'Evidence path' }]} />
+          {visual === 'timeline' && <span className="relay-panel__legend faint">Bars: recorded work · outlined: inferred · ◆ outputs handed on</span>}
           <span className="grow" />
           {cursor !== null && <span className="faint num">{duration(cursor - (shown?.start ?? 0))} into the task</span>}
-          <Button size="sm" variant="ghost" icon={playing ? <Pause size={13} /> : <Play size={13} />} onClick={() => { if (!playing && cursor === null && shown) setCursor(shown.start); setPlaying(!playing) }}>{playing ? 'Pause replay' : 'Replay'}</Button>
+          {visual === 'timeline' && <Button size="sm" variant="ghost" icon={playing ? <Pause size={13} /> : <Play size={13} />} onClick={() => { if (!playing && cursor === null && shown) setCursor(shown.start); setPlaying(!playing) }}>{playing ? 'Pause replay' : 'Replay'}</Button>}
           {cursor !== null && <Button size="sm" variant="ghost" icon={<Rewind size={13} />} onClick={() => { setPlaying(false); setCursor(null) }}>Back to now</Button>}
           {live && <Button size="sm" variant="ghost" aria-pressed={Boolean(frozen)} onClick={() => { if (frozen) { setFrozen(null); setMissed(0) } else setFrozen(current) }}>{frozen ? `Resume view${missed ? ` · ${missed} update${missed === 1 ? '' : 's'}` : ''}` : 'Freeze view'}</Button>}
-          <Button size="sm" variant="ghost" icon={<List size={13} />} aria-pressed={listView} onClick={() => setListView(!listView)}>{listView ? 'Diagram' : 'List'}</Button>
+          {visual === 'timeline' && <Button size="sm" variant="ghost" icon={<List size={13} />} aria-pressed={listView} onClick={() => setListView(!listView)}>{listView ? 'Diagram' : 'List'}</Button>}
         </div>
         {frozen && <p className="relay-panel__note">The view is frozen. Hydra keeps working; resume to catch up.</p>}
         <div className="relay-panel__body">
-          {!shown ? <p className="faint">Loading…</p> : listView ? <TraceList trace={shown} cursor={cursor} onSelect={setSelection} /> : (
+          {!shown ? <p className="faint">Loading…</p> : visual === 'workflow' ? <Workflow trace={shown} onSelect={setSelection} /> : visual === 'artifacts' ? <ArtifactPath trace={shown} onSelect={setSelection} /> : listView ? <TraceList trace={shown} cursor={cursor} onSelect={setSelection} /> : (
             <RelayTrace trace={shown} selection={active} onSelect={setSelection} cursor={cursor} />
           )}
-          {shown && (
+          {shown && visual === 'timeline' && (
             <input className="relay-panel__scrub" type="range" aria-label="Replay position" min={shown.start} max={shown.live ? shown.now : shown.end} step={250}
               value={cursor ?? (shown.live ? shown.now : shown.end)} onChange={(e) => { setPlaying(false); const v = Number(e.target.value); setCursor(v >= (shown.live ? shown.now : shown.end) - 250 ? null : v) }} />
           )}
         </div>
       </section>
-      {shown && <div className="ops-grid__side"><Inspector trace={shown} task={task} runs={runs} evidence={evidence} selection={active} onSelect={setSelection} /></div>}
+      {shown && (cursor !== null || frozen) && <div className="ops-grid__side"><p className="hx-panel__body muted">This view is paused in time. Return to now to inspect the latest outputs and evidence; historical streamed output is not retained.</p></div>}
+      {shown && cursor === null && !frozen && <div className="ops-grid__side"><Inspector trace={shown} task={task} runs={runs} evidence={evidence} selection={active} onSelect={setSelection} /></div>}
       </div>
 
       <div className="task-grid">

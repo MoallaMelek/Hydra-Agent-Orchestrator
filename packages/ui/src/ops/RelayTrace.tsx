@@ -75,7 +75,7 @@ export const RelayTrace = memo(function RelayTrace({ trace, selection, onSelect,
           <span className="relay__gutter" />
           <div className="relay__band">
             {trace.stages.filter((s) => s.start <= at).map((s) => (
-              <span key={`${s.stage}-${s.attempt}`} className={`relay__stage relay__stage--${s.status}`} style={{ left: pct(s.start), width: `calc(${pct(Math.min(s.end ?? at, at))} - ${pct(s.start)})` }}>
+              <span key={`${s.stage}-${s.attempt}`} className={`relay__stage relay__stage--${s.end !== null && s.end <= at ? s.status : 'running'}`} style={{ left: pct(s.start), width: `calc(${pct(Math.min(s.end ?? at, at))} - ${pct(s.start)})` }}>
                 <span className="truncate">{STAGE_LABEL[s.stage]}{s.stage === 'fix' || s.attempt > 1 ? ` ${s.attempt}` : ''}</span>
               </span>
             ))}
@@ -99,11 +99,11 @@ export const RelayTrace = memo(function RelayTrace({ trace, selection, onSelect,
                 return (
                   <Tag
                     key={s.id} type={compact ? undefined : 'button'}
-                    className={`relay__seg relay__seg--${s.kind} relay__seg--${s.status} ${s.basis === 'inferred' ? 'is-inferred' : ''} ${open ? 'is-open' : ''} ${isSelected('segment', s.id) ? 'is-selected' : ''}`}
+                    className={`relay__seg relay__seg--${s.kind} relay__seg--${open ? 'running' : s.status} ${s.basis === 'inferred' ? 'is-inferred' : ''} ${open ? 'is-open' : ''} ${isSelected('segment', s.id) ? 'is-selected' : ''}`}
                     data-fresh={initial.current!.has(s.id) ? undefined : ''}
                     style={{ left: pct(s.start), width: `max(4px, calc(${pct(end)} - ${pct(s.start)}))` }}
                     onClick={compact ? undefined : () => onSelect({ kind: 'segment', id: s.id })}
-                    aria-label={`${lane.title}${lane.actor !== lane.title ? ` (${lane.actor})` : ''}: ${s.label}, ${duration(Math.max(0, end - s.start))}, ${STATUS_WORD[s.status]}${s.basis === 'inferred' ? ', inferred' : ''}`}
+                    aria-label={`${lane.title}${lane.actor !== lane.title ? ` (${lane.actor})` : ''}: ${s.label}, ${duration(Math.max(0, end - s.start))}, ${STATUS_WORD[open ? 'running' : s.status]}${s.basis === 'inferred' ? ', inferred' : ''}`}
                   >
                     {!compact && ((Math.min(end, trace.end) - s.start) / span) * width >= s.label.length * 6.4 + 16 && <span className="relay__seg-label truncate">{s.label}</span>}
                     {!compact && s.ticks.length > 0 && <Ticks ticks={s.ticks} start={s.start} end={end} at={at} />}

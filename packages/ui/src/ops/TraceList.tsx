@@ -7,7 +7,7 @@ export function TraceList({ trace, cursor, onSelect }: { trace: Trace; cursor: n
   const at = cursor ?? trace.now
   const lane = (id: string) => trace.lanes.find((l) => l.id === id)
   const items = [
-    ...trace.segments.filter((s) => s.start <= at).map((s) => ({ at: s.start, key: `s-${s.id}`, who: lane(s.lane), text: s.label, note: s.end === null ? 'in progress' : duration(Math.max(0, s.end - s.start)), basis: s.basis, select: { kind: 'segment' as const, id: s.id }, tone: s.status })),
+    ...trace.segments.filter((s) => s.start <= at).map((s) => ({ at: s.start, key: `s-${s.id}`, who: lane(s.lane), text: s.label, note: s.end === null || s.end > at ? 'in progress' : duration(Math.max(0, s.end - s.start)), basis: s.basis, select: { kind: 'segment' as const, id: s.id }, tone: s.end === null || s.end > at ? 'running' : s.status })),
     ...trace.batons.filter((b) => b.at <= at).map((b) => ({ at: b.at, key: `b-${b.id}`, who: lane(b.lane), text: `◆ ${b.label}${b.to ? ` → ${lane(b.to)?.title ?? b.to}` : ''}`, note: '', basis: b.basis, select: { kind: 'baton' as const, id: b.id }, tone: b.tone }))
   ].sort((a, b) => a.at - b.at)
   return (

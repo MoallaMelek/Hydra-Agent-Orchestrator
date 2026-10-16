@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useTheme, setTheme } from './preferences'
+import { useLayoutEffect, useState } from 'react'
 import { Cpu, FolderGit2, LayoutDashboard, Menu, Moon, Plus, Settings, Smartphone, Sun } from 'lucide-react'
 import { HydraMark } from '../brand/HydraMark'
 import { Badge, Button } from '../design/components'
@@ -20,17 +21,6 @@ const CONNECTION = {
   offline: { tone: 'bad', label: 'Offline' }
 } as const
 
-function useTheme(): [string, () => void] {
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('hydra.theme') ?? 'dark' } catch { return 'dark' }
-  })
-  document.documentElement.dataset.theme = theme
-  return [theme, () => {
-    const next = theme === 'dark' ? 'light' : 'dark'
-    try { localStorage.setItem('hydra.theme', next) } catch { /* private mode */ }
-    setTheme(next)
-  }]
-}
 
 const same = (a: Route, b: Route) => JSON.stringify(a) === JSON.stringify(b)
 
@@ -48,6 +38,7 @@ function useProjectStatus() {
 
 export function Shell() {
   const { route, go, isRemote } = useApp()
+  useLayoutEffect(() => { document.querySelector('.main')?.scrollTo({ top: 0 }) }, [route])
   const connection = useAppState((s) => s.connection)
   const version = useAppState((s) => s.engineVersion)
   const error = useAppState((s) => s.error)
@@ -55,7 +46,8 @@ export function Shell() {
   const status = useProjectStatus()
   const [adding, setAdding] = useState(false)
   const [navOpen, setNavOpen] = useState(false)
-  const [theme, toggleTheme] = useTheme()
+  const theme = useTheme()
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'terracotta' : 'dark')
   useQuality()
   const conn = CONNECTION[connection]
   const navigate = (r: Route) => { go(r); setNavOpen(false) }
@@ -96,7 +88,7 @@ export function Shell() {
         </div>
         <div className="rail__foot">
           <Badge tone={conn.tone} live={connection === 'reconnecting'}>{conn.label}</Badge>
-          <Button variant="ghost" size="sm" aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} icon={theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />} onClick={toggleTheme} />
+          <Button variant="ghost" size="sm" aria-label={theme === 'dark' ? 'Switch to light theme' : theme === 'light' ? 'Switch to terracotta theme' : 'Switch to midnight theme'} icon={theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />} onClick={toggleTheme} />
         </div>
       </aside>
       <main className="main">
@@ -106,8 +98,8 @@ export function Shell() {
         </div>
         {error && <div className="page"><div className="hx-callout hx-callout--bad">{error}</div></div>}
         {route.view === 'home' && <HomeView onAddProject={() => setAdding(true)} />}
-        {route.view === 'project' && <ProjectView projectId={route.projectId} />}
-        {route.view === 'task' && <TaskView taskId={route.taskId} />}
+        {route.view === 'project' && <ProjectView key={route.projectId} projectId={route.projectId} />}
+        {route.view === 'task' && <TaskView key={route.taskId} taskId={route.taskId} />}
         {route.view === 'providers' && <ProvidersView />}
         {route.view === 'devices' && <DevicesView />}
         {route.view === 'settings' && <SettingsView />}

@@ -189,7 +189,7 @@ export class EngineStore {
         loaded: pruned.loaded,
         tasks: this.state.tasks[taskId] && detail.task.updatedAt < this.state.tasks[taskId].updatedAt ? this.state.tasks : { ...this.state.tasks, [taskId]: detail.task }
       })
-    }).catch(() => {}).finally(() => this.loading.delete(taskId))
+    }).catch(error => { this.set({ error: `Could not load task evidence: ${(error as Error).message}. Reopen the task to retry.` }) }).finally(() => this.loading.delete(taskId))
     this.loading.set(taskId, promise)
     return promise
   }
@@ -204,7 +204,9 @@ export class EngineStore {
       case 'task.updated': {
         const current = this.state.tasks[event.task.id]
         if (current && event.task.updatedAt < current.updatedAt) return // out of order: keep the newer state
-        return this.set({ tasks: { ...this.state.tasks, [event.task.id]: event.task } })
+        const drafts = { ...this.state.drafts }
+        if (!['running', 'queued'].includes(event.task.status)) delete drafts[event.task.id]
+        return this.set({ tasks: { ...this.state.tasks, [event.task.id]: event.task }, drafts })
       }
       case 'task.deleted': {
         // Everything cached for the task goes with it.
@@ -221,12 +223,16 @@ export class EngineStore {
       }
       case 'task.log': {
         const lines = [...(this.state.logs[event.taskId] ?? []), { at, level: event.level, message: event.message }].slice(-LIMITS.logLines)
-        return this.set({ logs: { ...this.state.logs, [event.taskId]: lines } })
+        return this.set({ logs: boundKeys({ ...this.state.logs, [event.taskId]: lines }, LIMITS.loadedTasks) })
       }
       case 'run.output': {
         if (event.stream === 'answer') {
+          const run = this.state.runs[event.runId]
+          if (run && TERMINAL.has(run.status)) return
+          const task = this.state.tasks[event.taskId]
+          if (task && !['running', 'queued'].includes(task.status)) return
           const draft = ((this.state.drafts[event.taskId] ?? '') + event.text).slice(-LIMITS.draftChars)
-          return this.set({ drafts: { ...this.state.drafts, [event.taskId]: draft } })
+          return this.set({ drafts: boundKeys({ ...this.state.drafts, [event.taskId]: draft }, LIMITS.outputRuns) })
         }
         const text = ((this.state.output[event.runId] ?? '') + event.text).slice(-LIMITS.outputChars)
         return this.set({ output: boundKeys({ ...this.state.output, [event.runId]: text }, LIMITS.outputRuns) })
@@ -239,6 +245,12 @@ export class EngineStore {
         const merged = mergeRun(this.state.runs[event.run.id], event.run)
         const pruned = this.pruneRuns({ ...this.state.runs, [event.run.id]: merged }, this.state.loaded)
         const patch: Partial<AppState> = { runs: pruned.runs, loaded: pruned.loaded }
+        if (merged.status === 'running' && !this.state.runs[event.run.id]) {
+          const drafts = { ...this.state.drafts }; delete drafts[merged.taskId]; patch.drafts = drafts
+        }
+        if (TERMINAL.has(merged.status)) {
+          const drafts = { ...this.state.drafts }; delete drafts[merged.taskId]; patch.drafts = drafts
+        }
         // The finished run carries the complete list: the live copy is no longer needed.
         if (TERMINAL.has(merged.status) && this.state.activity[event.run.id]) {
           const { [event.run.id]: _done, ...rest } = this.state.activity

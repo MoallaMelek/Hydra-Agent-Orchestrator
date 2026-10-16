@@ -49,6 +49,7 @@
 .decision { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--you-soft); flex-wrap: wrap; animation: hx-enter var(--dur-slow) var(--ease-out); }
 [data-quality="reduced"] .decision { animation-name: hx-fade; } [data-quality="minimal"] .decision { animation: none; }
 .decision__text { flex: 1; min-width: 260px; }
+.decision__text > small { display: block; margin-top: 4px; }
 .decision__text b { display: block; margin-bottom: 2px; font-size: var(--text-lg); }
 
 /* ── Relay panel ───────────────────────────────────────────────────────── */

@@ -4,13 +4,16 @@ import type { Task } from '@hydra/protocol'
 import { Button, Dialog, Field } from '../../design/components'
 import { useApp } from '../../app/context'
 import { shortSha } from '../../lib/format'
+import { useDraft } from '../../app/preferences'
 
 /** The human control point: what Hydra is waiting for and the actions available right now. */
 export function DecisionBar({ task, blockingWarnings }: { task: Task; blockingWarnings: number }) {
   const { run, go, isRemote } = useApp()
   const [busy, setBusy] = useState<string | null>(null)
   const [changes, setChanges] = useState(false)
-  const [feedback, setFeedback] = useState('')
+  const feedbackDraft = useDraft(`feedback:${task.id}`)
+  const feedback = feedbackDraft.text
+  const setFeedback = (text: string) => feedbackDraft.set({ text })
   const [confirmDelete, setConfirmDelete] = useState(false)
   const act = async (key: string, command: Record<string, unknown>, success?: string) => {
     setBusy(key)
@@ -35,8 +38,9 @@ export function DecisionBar({ task, blockingWarnings }: { task: Task; blockingWa
       <>
         <div className="decision">
           <div className="decision__text">
-            <b>Review the result at <code>{shortSha(head)}</code></b>
-            <span className="muted">{task.error ?? 'Accept fast-forwards your branch to exactly this commit. Nothing has been written to your branch yet.'}</span>
+            <b>Ready for your review</b>
+            <span className="muted">{task.error ?? 'Accept applies this verified change to your project. Your working files stay as they are until you accept.'}</span>
+            <small className="faint">Reviewed revision <code>{shortSha(head)}</code> · applies by fast-forward only</small>
           </div>
           <Button variant="ghost" icon={<GitBranch size={15} />} busy={busy === 'keep'} onClick={() => void act('keep', { type: 'task.decide', decision: 'keep_branch' }, 'Branch kept for manual merge')}>Keep branch</Button>
           <Button variant="danger" icon={<Trash2 size={15} />} busy={busy === 'reject'} onClick={() => void act('reject', { type: 'task.decide', decision: 'reject' }, 'Discarded')}>Reject</Button>

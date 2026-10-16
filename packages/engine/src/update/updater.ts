@@ -66,11 +66,23 @@ export function compareVersions(a: string, b: string): number {
   if (pa === pb) return 0
   if (!pa) return 1
   if (!pb) return -1
-  return pa < pb ? -1 : 1
+  const aa = pa.split('.')
+  const bb = pb.split('.')
+  for (let i = 0; i < Math.max(aa.length, bb.length); i++) {
+    const left = aa[i], right = bb[i]
+    if (left === right) continue
+    if (left === undefined) return -1
+    if (right === undefined) return 1
+    const ln = /^\d+$/.test(left), rn = /^\d+$/.test(right)
+    if (ln && rn) return Number(left) < Number(right) ? -1 : 1
+    if (ln !== rn) return ln ? -1 : 1
+    return left < right ? -1 : 1
+  }
+  return 0
 }
 
-export interface UpdateConfig { manifestUrl: string | null; publicKeyHex: string | null; currentVersion: string; platform: string }
-export type Fetcher = (url: string) => Promise<{ ok: boolean; status: number; json(): Promise<unknown>; body: ReadableStream<Uint8Array> | null }>
+export interface UpdateConfig { manifestUrl: string | null; publicKeyHex: string | null; currentVersion: string; platform: string; channel?: 'stable' | 'preview' }
+export type Fetcher = (url: string, options?: { signal?: AbortSignal }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown>; body: ReadableStream<Uint8Array> | null }>
 
 export type UpdateCheck =
   | { state: 'not_configured'; reason: string }
@@ -84,9 +96,10 @@ export async function checkForUpdate(config: UpdateConfig, fetcher: Fetcher = fe
   const response = await fetcher(config.manifestUrl)
   if (!response.ok) throw new Error(`The update server answered ${response.status}.`)
   const manifest = verifyManifest(await response.json(), config.publicKeyHex)
+  if (config.channel && (manifest.version.includes('-') ? 'preview' : 'stable') !== config.channel) throw new Error('The signed update belongs to a different release channel.')
   if (compareVersions(manifest.version, config.currentVersion) <= 0) return { state: 'up_to_date', version: config.currentVersion }
   const file = manifest.files.find((f) => f.platform === config.platform)
-  if (!file) return { state: 'up_to_date', version: config.currentVersion }
+  if (!file) return { state: 'not_configured', reason: 'No compatible package is available for this platform.' }
   if (!/^https:\/\//.test(file.url)) throw new Error('Updates are only downloaded over HTTPS.')
   return { state: 'available', version: manifest.version, notes: manifest.notes, file }
 }
@@ -100,38 +113,45 @@ export async function checkForUpdate(config: UpdateConfig, fetcher: Fetcher = fe
  * verified, closed file is renamed into place, which replaces a link at the final name
  * instead of following it. A stalled server or a failing disk ends the download.
  */
-export async function downloadUpdate(file: z.infer<typeof UpdateFile>, dir: string, fetcher: Fetcher = fetch as unknown as Fetcher, stallMs = 60_000): Promise<string> {
+export async function downloadUpdate(file: z.infer<typeof UpdateFile>, dir: string, fetcher: Fetcher = fetch as unknown as Fetcher, stallMs = 60_000, options: { signal?: AbortSignal; onProgress?: (bytes: number) => void } = {}): Promise<string> {
   if (!/^https:\/\//.test(file.url)) throw new Error('Updates are only downloaded over HTTPS.')
   mkdirSync(dir, { recursive: true })
   const target = join(dir, file.name)
-  const response = await withDeadline(fetcher(file.url), stallMs, 'The update server did not answer.')
+  const response = await withDeadline(fetcher(file.url, { signal: options.signal }), stallMs, 'The update server did not answer.')
   if (!response.ok || !response.body) throw new Error(`The download failed (${response.status}).`)
   const temp = join(dir, `.${file.name}.${randomBytes(8).toString('hex')}.part`)
   const reader = response.body.getReader()
+  const abort = () => { void reader.cancel().catch(() => {}) }
+  options.signal?.addEventListener('abort', abort, { once: true })
   let handle: FileHandle | null = null
   try {
     handle = await open(temp, 'wx', 0o600)
     const hash = createHash('sha256')
     let size = 0
+    let lastProgress = 0
     for (;;) {
+      if (options.signal?.aborted) throw new Error('Download canceled. Retry when ready.')
       const { done, value } = await withDeadline(reader.read(), stallMs, 'The download stalled.')
+      if (options.signal?.aborted) throw new Error('Download canceled. Retry when ready.')
       if (done) break
       size += value.byteLength
       if (size > file.size) throw new Error('The download is larger than the signed size.')
       hash.update(value)
-      await handle.write(value) // rejects on a disk error instead of waiting forever
+      await handle.writeFile(value) // Handles partial writes; rejects on disk errors.
+      if (Date.now() - lastProgress >= 100) { options.onProgress?.(size); lastProgress = Date.now() }
     }
     await handle.close()
     handle = null
     if (size !== file.size || hash.digest('hex') !== file.sha256) throw new Error('The download does not match the signed checksum. It was deleted.')
     await rename(temp, target)
+    options.onProgress?.(size)
     return target
   } catch (error) {
     void reader.cancel().catch(() => { /* already finished */ })
     await handle?.close().catch(() => { /* already failing */ })
     await rm(temp, { force: true })
     throw error
-  }
+  } finally { options.signal?.removeEventListener('abort', abort) }
 }
 
 function withDeadline<T>(work: Promise<T>, ms: number, message: string): Promise<T> {

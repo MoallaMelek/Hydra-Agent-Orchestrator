@@ -47,6 +47,28 @@ async function create(engine: Engine, projectId: string, over: Record<string, un
   return ack.result as Task
 }
 
+describe('desktop update maintenance barrier', () => {
+  it('backs up data and blocks new work until released; remote devices cannot acquire it', async () => {
+    const { engine, projectId } = await setup(script())
+    const remote = await engine.execute({ type: 'update.prepare' }, { kind: 'remote', deviceId: 'test-device', scopes: ['control', 'approve'] })
+    expect(remote.ok).toBe(false)
+    const ready = await engine.execute({ type: 'update.prepare' })
+    expect(ready.ok).toBe(true)
+    if (ready.ok) expect(readFileSync((ready.result as { backup: string }).backup).length).toBeGreaterThan(0)
+    const refused = await engine.execute({ type: 'task.create', projectId, prompt: 'Explain the code', mode: 'safe', assignment: ALL })
+    expect(refused.ok).toBe(false)
+    const lease = ready.ok ? (ready.result as { lease: string }).lease : ''
+    expect(await engine.execute({ type: 'update.confirm', lease })).toMatchObject({ ok: true })
+    expect(await engine.execute({ type: 'update.release', lease })).toMatchObject({ ok: true })
+    expect(await engine.execute({ type: 'agents.recommend', prompt: 'Explain' })).toMatchObject({ ok: true })
+  })
+  it('refuses maintenance while a task is queued or executing', async () => {
+    const { engine, projectId } = await setup(script())
+    await create(engine, projectId)
+    expect(await engine.execute({ type: 'update.prepare' })).toMatchObject({ ok: false, error: { code: 'conflict' } })
+  })
+})
+
 async function until(engine: Engine, taskId: string, predicate: (t: Task) => boolean, ms = 120_000): Promise<Task> {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {

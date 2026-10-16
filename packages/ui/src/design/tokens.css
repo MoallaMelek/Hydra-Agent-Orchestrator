@@ -90,3 +90,22 @@
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-quality="full"]) { --dur-fast: 80ms; --dur: 120ms; --dur-slow: 120ms; }
 }
+
+/* Terracotta: the warm Hydra identity, with the same semantic contract. */
+[data-theme="terracotta"] {
+  --bg: #262624; --bg-sunken: #21211f; --rail: #2b2b29;
+  --surface: #30302e; --surface-2: #373733; --surface-3: #41413b;
+  --border: #45453e; --border-strong: #68685e;
+  --text: #eeeae5; --text-2: #d2ccc3; --text-3: #bdb5aa;
+  --accent: #efa88b; --accent-strong: #ffd0ba; --accent-ink: #262624; --accent-soft: rgba(239,168,139,.12);
+  --you: #edc579; --you-soft: rgba(237,197,121,.12); --you-ink: #262624;
+  --ok: #91d3a2; --ok-soft: rgba(145,211,162,.12); --ok-ink: #262624;
+  --bad: #ff9d9d; --bad-soft: rgba(255,157,157,.12); --bad-ink: #262624;
+  --lane: #292927; --lane-alt: #2e2e2b; --seg: #686459; --seg-done: #999182;
+  --diff-add-bg: rgba(145,211,162,.12); --diff-add-fg: #b3ebbf;
+  --diff-del-bg: rgba(255,157,157,.12); --diff-del-fg: #ffb6b6;
+  color-scheme: dark;
+}
+.draft-files { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+.saved-draft { padding: 16px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.update-error { margin-top: 16px; padding: 12px; background: var(--bad-soft); border-radius: var(--radius-sm); color: var(--text); }

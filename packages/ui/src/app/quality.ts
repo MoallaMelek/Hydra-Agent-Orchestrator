@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { getPreferences, setQuality } from './preferences'
 
 /**
  * Visual quality, per viewer: Auto (default), Full, Reduced (no movement, short fades)
@@ -14,15 +15,19 @@ const listeners = new Set<() => void>()
 let strained = false
 
 export function readChoice(): QualityChoice {
+  const saved = getPreferences().quality
+  if (saved) return saved
   try { const v = localStorage.getItem(KEY); return v === 'full' || v === 'reduced' || v === 'minimal' ? v : 'auto' } catch { return 'auto' }
 }
 
 export function setChoice(choice: QualityChoice): void {
+  setQuality(choice)
   try { localStorage.setItem(KEY, choice) } catch { /* private mode: this session only */ }
   for (const l of listeners) l()
 }
 
 export function effective(choice: QualityChoice): Quality {
+  if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return choice === 'minimal' ? 'minimal' : 'reduced'
   if (choice !== 'auto') return choice
   if (strained) return 'minimal'
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduced' : 'full'

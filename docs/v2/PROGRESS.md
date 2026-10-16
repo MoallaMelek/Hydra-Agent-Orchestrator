@@ -2,6 +2,14 @@
 
 Newest entry first.
 
+## 2026-10-16 · workbench trust and Windows update implementation
+
+- Owner delegated baseline selection: extend installed v2 from cc78c30 on `feat/hydra-workbench-updates`; preserve original old Desktop and newer v2 checkouts.
+- Durable independent drafts, bounded text/code attachments, saved-draft recovery, explicit routing/mode, three themes and display-quality preference. Guarded keyboard submission, authoritative final-output precedence and task-keyed replay/freeze.
+- Implemented and rendered Workspaces, Timeline and Evidence path over real coordinator records. Two real disposable change tasks reached final approval with 74 s overlap; screenshots use those actual records. No new chain-of-thought display or invented activity.
+- Windows update UI/controller, bounded HTTPS, Ed25519/hash verification, opt-in background downloads, unsaved-work refusal, expiring maintenance lease, consistent backup and NSIS handoff. Owner-dispatched protected build/draft-release workflow prepared; no release published or secrets changed.
+- Full check/build/native acceptance passed; exact evidence and remaining gaps in WORKBENCH_ACCEPTANCE.md and WINDOWS_UPDATES.md. Full legacy capability parity, participant testing, physical platform matrix, long soak and actual signed installer version-to-version acceptance remain open. Do not claim the entire mandate complete.
+
 ## 2026-10-16 · session 6 · Relay interface redesign
 - Baseline measured first on the owner's laptop (i7-1355U, Iris Xe, 120 Hz): the old interface spent 26 % of a core in the GPU process and 9 % in the renderer whenever agents ran, from infinite pulse animations; the store re-rendered the app on every event.
 - Instrumentation (engine-authoritative, no decision changes): tool activity per run, selection reasons, running runs and slot limit in the snapshot, stage outcome notes, Claude Bash targets.

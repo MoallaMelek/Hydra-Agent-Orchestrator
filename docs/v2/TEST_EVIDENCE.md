@@ -2,6 +2,26 @@
 
 Every entry records what was run, where, and the observed result. `VERIFIED` = observed; `UNVERIFIED` = not exercised; `BLOCKED` = cannot be exercised yet (reason given). Nothing here is inferred from code reading alone.
 
+## 2026-10-16 — Workbench trust and Windows update lifecycle
+
+This entry supersedes the older redesign entry's native-E2E limitation. Writer/integrator/tester: this Codex chat; two bounded fresh read-only consultant passes, centrally integrated. Base cc78c30; feature branch `feat/hydra-workbench-updates`. See WORKBENCH_ACCEPTANCE.md for the ten product questions and honest scope limits.
+
+| Check | Observed result |
+|---|---|
+| Full typecheck / lint / unit+integration / provenance | VERIFIED: `npm run check`, 35 files, 287 passed / 1 skipped. Includes late final-output/retry/cancel regression, draft/attachment/theme persistence, coalesced writes, signed update/controller/transport/helper tests and engine maintenance/backup refusal tests. |
+| Production build | VERIFIED: `npm run build`; JS 557.52 kB / 174.83 kB gzip; >500 kB chunk warning retained. No dependency added. |
+| Native Electron acceptance | VERIFIED: seven steps with providers hidden, onboarding, two project drafts/attachment retained through navigation/theme/reload, actual keyboard focus, readiness guard, check-error diagnostic, backup/export, engine stop and relaunch persistence. |
+| Genuine concurrent agents | VERIFIED: two disposable change tasks, Claude planning/review and Codex editing, both final approval, 74 s overlap / 103 s elapsed. Pre-review and verification passed; failing baseline demonstration retained as expected evidence. No change accepted into the user's projects. |
+| Three operation representations / three themes / narrow layout | VERIFIED: recorded same real runs in Workspaces, Timeline and Evidence path; Midnight/Light/Terracotta and 390 px renderer. Historical run is running until its actual end; current-output inspector hidden in replay; freeze does not leak between tasks; inspection changes no results. |
+| Event-load comparison | VERIFIED local experiment: alternating baseline/redesign five-sample blocks, ten/version, 13,518 simulated events/sample; median complete scenario 4,906 → 4,896 ms, average frame 10.10 → 9.55 ms, worst frame 71 → 71 ms; one median long task. Exploratory bootstrap difference interval −564 to +207 ms; no established speed difference or universal equivalence. |
+| Token contrast | VERIFIED arithmetic: 63 solid foreground/background pairs across three themes all ≥4.5:1. Alpha blends, chart marks and full WCAG/assistive-technology audit excluded. |
+| Startup, idle memory/CPU and profile | VERIFIED exploratory observations, five/version: rendered median 1,971 → 1,998 ms; working set 448.2 → 450.8 MiB; private 262.2 → 260.2 MiB. CPU 1.02 → 3.61% of one core with wide ranges; no statistical equivalence/regression claim, CPU acceptance OPEN. Paired renderer profile: zero DOM mutations, 99.603% / 99.587% JS idle; no repeating application render loop identified. Profiling adds overhead; native Chromium/OS CPU unresolved. |
+| Installed updater migration | VERIFIED read-only: installed unsigned 2.0.0-alpha.0 shell lacks this bridge/configuration; one trusted update-capable NSIS installation needed. No installed app/data modified. |
+| Real v1 → v2 installer, interrupted release download, failed NSIS install, post-install data/account survival, rollback | BLOCKED/UNVERIFIED: keys/certificate, protected trusted release and isolated installer environment not provisioned. Controller/helper tests are not real installation tests. |
+| Physical Mac/Linux/phone, screen reader, real usability participants, hour-long soak and large persisted history | UNVERIFIED. Native OS frame retained; no Mac drag test claimed. |
+
+Raw logs, native screenshots and JSON reports are delivered beside the task's local acceptance report. Windows release workflow was statically reviewed, not dispatched; no release/tag/publish/secret action occurred. Older evidence below describes earlier commits and must not be presented as newly rerun verification.
+
 Environment for all entries unless stated: Windows 11 Pro 10.0.26200 · Node 22.23.2 · npm 10.9.8 · git 2.51.2.windows.1 · Claude Code 2.1.282 · Codex CLI 0.154.0.
 
 ## 2026-10-13 — Milestone 1 (engine core)

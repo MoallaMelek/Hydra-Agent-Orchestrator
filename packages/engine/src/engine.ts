@@ -51,6 +51,9 @@ export class Engine {
   private readonly ctx: EngineContext
   private hooks: HostHooks
   private readonly lock: InstanceLock
+  private updatePrepared: string | null = null
+  private updateLeaseUntil = 0
+  private commandsInFlight = 0
 
   private constructor(options: EngineOptions) {
     const paths = enginePaths(options.dataDir)
@@ -153,24 +156,52 @@ export class Engine {
     const parsed = Command.safeParse(input)
     if (!parsed.success) return { ok: false, error: { code: 'invalid', message: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') } }
     const command = parsed.data
+    let counted = false
     try {
       if (actor.kind === 'remote') {
         const required = REMOTE_COMMAND_SCOPE[command.type]
         if (!required) throw forbidden(`${command.type} is only available on the desktop`)
         if (!actor.scopes.includes(required)) throw forbidden(`This device lacks the "${required}" permission`)
       }
+      if (Date.now() >= this.updateLeaseUntil) this.updatePrepared = null
+      if (this.updatePrepared && command.type !== 'update.release' && command.type !== 'update.confirm') throw conflict('Hydra is preparing an update. New work is temporarily blocked.')
+      this.commandsInFlight++
+      counted = true
       const result = await this.dispatch(command, actor)
       return { ok: true, result: result ?? null }
     } catch (error) {
       if (error instanceof HydraError) return { ok: false, error: { code: error.code, message: error.message } }
       return { ok: false, error: { code: 'internal', message: errorMessage(error) } }
-    }
+    } finally { if (counted) this.commandsInFlight-- }
   }
 
   private async dispatch(command: Command, actor: Actor): Promise<unknown> {
     const source = actor.kind === 'remote' ? 'remote' : 'desktop'
     const actorLabel = actor.kind === 'remote' ? `device:${actor.deviceId}` : 'desktop'
     switch (command.type) {
+      case 'update.prepare': {
+        if (this.commandsInFlight > 1 || this.store.tasksWithStatus(['running', 'queued']).length) throw conflict('Active tasks or operations must finish before updating.')
+        const lease = newId()
+        this.updatePrepared = lease
+        this.updateLeaseUntil = Date.now() + 30_000
+        let timer: ReturnType<typeof setTimeout> | undefined
+        try {
+          await Promise.race([this.ctx.registry.dispose(), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Idle agent shutdown timed out; update postponed.')), 10_000) })])
+          if (this.updatePrepared !== lease || Date.now() >= this.updateLeaseUntil) throw conflict('Update preparation expired; retry when ready.')
+          const backup = this.backup()
+          this.store.audit(actorLabel, 'update.prepared', { backup })
+          return { backup, lease }
+        } catch (error) { if (this.updatePrepared === lease) this.updatePrepared = null; throw error }
+        finally { if (timer) clearTimeout(timer) }
+      }
+      case 'update.release':
+        if (this.commandsInFlight > 1) throw conflict('Update preparation has not finished yet; its lease expires automatically.')
+        if (this.updatePrepared === command.lease) this.updatePrepared = null
+        return null
+      case 'update.confirm':
+        if (this.updatePrepared !== command.lease || Date.now() >= this.updateLeaseUntil) throw conflict('Update lease expired. Installation was refused.')
+        this.updateLeaseUntil = Date.now() + 60_000
+        return null
       case 'project.add': return this.addProject(command.root, command.name)
       case 'project.remove': {
         if (this.store.listTasks(command.projectId).some((t) => this.orchestrator.isRunning(t.id) || t.status === 'waiting_input')) {

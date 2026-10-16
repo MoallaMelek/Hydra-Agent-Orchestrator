@@ -1,3 +1,5 @@
+import { useDraft, composeRequest } from '../app/preferences'
+import { DraftAttachments } from './DraftAttachments'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, ShieldAlert, Sparkles } from 'lucide-react'
 import { routeRequest, type AutonomyMode, type DepthChoice, type ProviderId, type Task } from '@hydra/protocol'
@@ -19,9 +21,15 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
   const { run, go, store } = useApp()
   const providers = useAppState((s) => s.providers)
   const ready = providers.filter((p) => p.installed && p.problems.length === 0).map((p) => p.id)
-  const [prompt, setPrompt] = useState('')
-  const [choice, setChoice] = useState<DepthChoice>('auto')
-  const [mode, setMode] = useState<AutonomyMode>('safe')
+  const draft = useDraft(`project:${projectId}`)
+  const prompt = draft.text
+  const setPrompt = (text: string) => draft.set({ text, routing: choice, mode })
+  const [submitError, setSubmitError] = useState('')
+  const submitting = useRef(false)
+  const [choice, setChoiceValue] = useState<DepthChoice>(draft.routing ?? 'auto')
+  const setChoice = (value: DepthChoice) => { setChoiceValue(value); draft.set({ routing: value }) }
+  const [mode, setModeValue] = useState<AutonomyMode>(draft.mode ?? 'safe')
+  const setMode = (value: AutonomyMode) => { setModeValue(value); draft.set({ mode: value }) }
   const defaults = useMemo(() => ({
     planner: (ready.includes('claude') ? 'claude' : ready[0] ?? 'claude') as ProviderId,
     implementer: (ready.includes('codex') ? 'codex' : ready[0] ?? 'codex') as ProviderId,
@@ -72,22 +80,29 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
   }
 
   const submit = async () => {
+    if (submitting.current || !prompt.trim() || !ready.length || (choice === 'deep' && !isGit)) return
+    let content: string
+    try { content = composeRequest(prompt, draft.attachments) } catch (e) { setSubmitError((e as Error).message); return }
+    submitting.current = true
     setBusy(true)
     const budget: Record<string, number> = {}
     if (cost !== '') budget.maxCostUsd = Number(cost)
     if (minutes !== '') budget.maxWallMinutes = Number(minutes)
-    const ack = await run({ type: 'task.create', projectId, prompt, depth: choice, mode, assignment, ...(Object.keys(budget).length ? { budget } : {}) })
+    const ack = await run({ type: 'task.create', projectId, prompt: content, depth: choice, mode, assignment, ...(Object.keys(budget).length ? { budget } : {}) })
     setBusy(false)
-    if (ack.ok) { setPrompt(''); setChoice('auto'); go({ view: 'task', taskId: (ack.result as Task).id }) }
+    submitting.current = false
+    if (ack.ok) { draft.set({ text: '', attachments: [] }); setChoice('auto'); go({ view: 'task', taskId: (ack.result as Task).id }) }
   }
 
   return (
     <div className="composer">
       <Field label="Ask a question or describe a change" htmlFor="task-prompt">
-        <textarea id="task-prompt" className="hx-textarea" rows={4} value={prompt} onChange={(e) => setPrompt(e.target.value)} onFocus={prewarm}
+        <textarea id="task-prompt" className="hx-textarea" rows={4} maxLength={50000} disabled={busy} value={prompt} onChange={(e) => setPrompt(e.target.value)} onFocus={prewarm}
           placeholder='e.g. "How is authentication wired?" or "Cart totals ignore quantity. Fix total() and add a test."'
-          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && prompt.trim()) void submit() }} />
+          onKeyDown={(e) => { if (!e.nativeEvent.isComposing && e.key === 'Enter' && (e.metaKey || e.ctrlKey) && prompt.trim()) void submit() }} />
       </Field>
+      <DraftAttachments files={draft.attachments} onChange={attachments => draft.set({ attachments })} disabled={busy} />
+      {(draft.error || submitError) && <p role="alert">{draft.error || submitError}</p>}
       <div className="spread" style={{ flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <Field label="How Hydra handles it">
           <Segmented label="Handling" value={choice} onChange={setChoice} options={[

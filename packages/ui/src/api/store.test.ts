@@ -20,6 +20,27 @@ async function open() {
 const settle = () => new Promise((r) => setTimeout(r, 40))
 
 describe('engine store', () => {
+  it('rejects late answer text from a finished attempt, including after a retry starts', async () => {
+    const { world, task, store } = await open()
+    world.beginStage(task.id, 'implement')
+    const first = world.startRun(task.id, 'implement', 'implementer', 'codex')
+    world.publish({ type: 'run.output', taskId: task.id, runId: first.id, stream: 'answer', text: 'partial' })
+    await settle()
+    expect(store.get().drafts[task.id]).toBe('partial')
+    world.endRun(first.id)
+    world.publish({ type: 'run.output', taskId: task.id, runId: first.id, stream: 'answer', text: 'late' })
+    await settle()
+    expect(store.get().drafts[task.id]).toBeUndefined()
+    const retry = world.startRun(task.id, 'implement', 'implementer', 'codex')
+    world.publish({ type: 'run.output', taskId: task.id, runId: retry.id, stream: 'answer', text: 'retry' })
+    world.publish({ type: 'run.output', taskId: task.id, runId: first.id, stream: 'answer', text: 'stale first attempt' })
+    await settle()
+    expect(store.get().drafts[task.id]).toBe('retry')
+    world.update(task.id, task => { task.status = 'canceled' })
+    world.publish({ type: 'run.output', taskId: task.id, runId: retry.id, stream: 'answer', text: 'after cancel' })
+    await settle()
+    expect(store.get().drafts[task.id]).toBeUndefined()
+  })
   it('applies a burst of events but notifies listeners once', async () => {
     const { world, task, store, renders } = await open()
     world.beginStage(task.id, 'implement')

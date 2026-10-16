@@ -1,0 +1,101 @@
+name: Prepare Windows update (owner initiated)
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing version tag, e.g. v2.0.0-alpha.1'
+        required: true
+        type: string
+      stage_draft_release:
+        description: 'Upload to a DRAFT GitHub release. Publishing remains a separate owner action.'
+        default: false
+        type: boolean
+permissions:
+  contents: read
+concurrency:
+  group: windows-update-${{ inputs.release_tag }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: windows-latest
+    environment: windows-updates
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.release_tag }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Validate release identity and trusted public configuration
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          HYDRA_UPDATE_KEY: ${{ vars.HYDRA_UPDATE_KEY }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:RELEASE_TAG -cne "v$version") { throw 'Tag must equal the package version' }
+          $tagCommit = git rev-parse "refs/tags/$env:RELEASE_TAG`^{commit}"
+          if ($LASTEXITCODE -ne 0 -or $tagCommit -ne (git rev-parse HEAD)) { throw 'Checkout must be the exact existing tag commit' }
+          if ($env:HYDRA_UPDATE_KEY -notmatch '^[0-9a-f]{64}$') { throw 'Configure the reviewed publisher public key first' }
+      - run: npm ci
+      - run: npm run check
+      - name: Build with pinned release source
+        shell: pwsh
+        env:
+          HYDRA_UPDATE_KEY: ${{ vars.HYDRA_UPDATE_KEY }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $channel = if ($version.Contains('-')) { 'preview' } else { 'stable' }
+          # The owner updates this fixed channel tag only after testing and approval.
+          $env:HYDRA_UPDATE_URL = "https://github.com/MoallaMelek/Hydra-Agent-Orchestrator/releases/download/updates-$channel/hydra-update-$channel.json"
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package and Authenticode-sign NSIS installer
+        working-directory: apps/desktop
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+        run: npx --no-install electron-builder --win nsis --x64 --publish never --config electron-builder.yml --config.win.signExecutable=true --config.forceCodeSigning=true
+      - name: Verify signature and sign update manifest
+        shell: pwsh
+        env:
+          HYDRA_UPDATE_KEY: ${{ vars.HYDRA_UPDATE_KEY }}
+          HYDRA_UPDATE_SIGNING_KEY: ${{ secrets.HYDRA_UPDATE_SIGNING_KEY }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $installer = "apps/desktop/release/Hydra-Setup-$version-x64.exe"
+          if ((Get-AuthenticodeSignature -LiteralPath $installer).Status -ne 'Valid') { throw 'Installer is not authentically signed' }
+          $channel = if ($version.Contains('-')) { 'preview' } else { 'stable' }
+          node tools/prepare-update-release.mjs $installer docs/v2/UPDATE_RELEASE_NOTES.md "apps/desktop/release/hydra-update-$channel.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-update
+          path: |
+            apps/desktop/release/Hydra-Setup-*.exe
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/hydra-update-*.json
+          if-no-files-found: error
+  draft:
+    if: ${{ inputs.stage_draft_release }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment: windows-updates
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: windows-update
+          path: update
+      - name: Stage draft assets; never publish or replace channel metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$RELEASE_TAG" --verify-tag --draft --title "Hydra $RELEASE_TAG" --notes "Prepared update. Owner must complete disposable-data upgrade/recovery acceptance before publication."
+          gh release upload "$RELEASE_TAG" update/*

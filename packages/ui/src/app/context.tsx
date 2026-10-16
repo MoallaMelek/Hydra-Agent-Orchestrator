@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { CommandAck } from '@hydra/protocol'
+import type { Preferences } from './preferences'
+import type { DesktopUpdateState, UpdateAction } from './updateTypes'
 import { type AppState, type EngineStore, useEngine } from '../api/store'
 
 export type Route =
@@ -14,6 +16,9 @@ export interface Toast { id: number; tone: 'info' | 'bad'; text: string }
 
 /** Host capabilities provided by the desktop shell (absent in a plain browser or on the phone). */
 export interface HostBridge {
+  readPreferences?: () => Promise<Preferences>
+  writePreferences?: (value: Preferences) => Promise<void>
+  updates?: { state: () => Promise<DesktopUpdateState>; action: (action: UpdateAction) => Promise<DesktopUpdateState>; subscribe: (listener: (value: DesktopUpdateState) => void) => () => void }
   pickDirectory?: () => Promise<string | null>
   notify?: (title: string, body: string) => void
 }

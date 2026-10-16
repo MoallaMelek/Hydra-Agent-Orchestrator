@@ -26,6 +26,23 @@ const server = (body: unknown, file = installer): Fetcher => async (url) => url.
 const config = { manifestUrl: 'https://releases.example.com/manifest.json', publicKeyHex, currentVersion: '2.0.0-alpha.0', platform: 'win32-x64' }
 
 describe('update checks', () => {
+  it('cancels a partial download, removes partial bytes and can retry successfully', async () => {
+    const dir = tempDir('hydra-update-'); dirs.push(dir)
+    const file = manifest().files[0]!
+    const abort = new AbortController()
+    let canceled = false
+    const partial: Fetcher = async () => ({ ok: true, status: 200, json: async () => ({}), body: new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(new Uint8Array(installer.subarray(0, 10))) }, cancel() { canceled = true } }) })
+    await expect(downloadUpdate(file, dir, partial, 1000, { signal: abort.signal, onProgress: () => abort.abort() })).rejects.toThrow(/canceled/)
+    expect(canceled).toBe(true); expect(readdirSync(dir)).toEqual([])
+    const path = await downloadUpdate(file, dir, server(null))
+    expect(readFileSync(path).equals(installer)).toBe(true)
+  })
+  it('orders numeric prerelease identifiers and refuses cross-channel updates', async () => {
+    expect(compareVersions('2.0.0-alpha.10', '2.0.0-alpha.2')).toBe(1)
+    expect(compareVersions('2.0.0-alpha.2', '2.0.0-alpha.10')).toBe(-1)
+    const preview = manifest('2.1.0-beta.1')
+    await expect(checkForUpdate({ ...config, channel: 'stable' }, server({ manifest: preview, signature: signManifest(preview, secretHex) }))).rejects.toThrow('different release channel')
+  })
   it('does nothing until a release key and address are configured', async () => {
     expect(await checkForUpdate({ ...config, publicKeyHex: null })).toMatchObject({ state: 'not_configured' })
   })
@@ -50,7 +67,7 @@ describe('update checks', () => {
     const old = manifest('1.9.0')
     expect(await checkForUpdate(config, server({ manifest: old, signature: signManifest(old, secretHex) }))).toMatchObject({ state: 'up_to_date' })
     const mac = manifest('2.1.0', { platform: 'darwin-arm64' })
-    expect(await checkForUpdate(config, server({ manifest: mac, signature: signManifest(mac, secretHex) }))).toMatchObject({ state: 'up_to_date' })
+    expect(await checkForUpdate(config, server({ manifest: mac, signature: signManifest(mac, secretHex) }))).toMatchObject({ state: 'not_configured' })
   })
 
   it('orders versions, with pre-releases before releases', () => {

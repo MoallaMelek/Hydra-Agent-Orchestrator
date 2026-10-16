@@ -73,7 +73,7 @@ async function cdpConnect() {
 
 const result = { at: new Date().toISOString(), logicalCpus: cpus().length }
 const t0 = Date.now()
-const app = spawn(electron, ['apps/desktop', `--remote-debugging-port=${PORT}`], { env: { ...process.env, HYDRA_DATA_DIR: dataDir }, stdio: 'ignore' })
+const app = spawn(electron, [opt('--app', 'apps/desktop'), `--remote-debugging-port=${PORT}`, `--user-data-dir=${join(dataDir, 'electron-profile')}`], { env: { ...process.env, HYDRA_DATA_DIR: dataDir }, stdio: 'ignore' })
 try {
   const page = await cdpConnect()
   result.pageTargetMs = Date.now() - t0
@@ -87,7 +87,7 @@ try {
   result.paint = await page.evaluate(`Object.fromEntries(performance.getEntriesByType('paint').map((e) => [e.name, Math.round(e.startTime)]))`)
   result.navigation = await page.evaluate(`(() => { const n = performance.getEntriesByType('navigation')[0]; return n ? { domContentLoaded: Math.round(n.domContentLoadedEventEnd), load: Math.round(n.loadEventEnd) } : null })()`)
 
-  await sleep(3000)
+  await sleep(Number(opt('--warmup', 3)) * 1000)
   const before = tree(app.pid)
   const idleStart = Date.now()
   await sleep(idleSeconds * 1000)

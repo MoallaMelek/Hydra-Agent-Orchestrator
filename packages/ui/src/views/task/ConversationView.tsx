@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useDraft, composeRequest } from '../../app/preferences'
+import { DraftAttachments } from '../DraftAttachments'
+import { useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, Send, Wrench } from 'lucide-react'
 import { routeRequest, type AgentRunInfo, type Task } from '@hydra/protocol'
 import { Button } from '../../design/components'
@@ -25,7 +27,11 @@ export function ConversationView({ task }: { task: Task }) {
   const project = useAppState((s) => s.projects.find((p) => p.id === task.projectId))
   const tasks = useAppState((s) => s.tasks)
   const [details, setDetails] = useState(false)
-  const [followUp, setFollowUp] = useState('')
+  const unsent = useDraft(`follow:${task.id}`)
+  const followUp = unsent.text
+  const setFollowUp = (text: string) => unsent.set({ text })
+  const submitting = useRef(false)
+  const [submitError, setSubmitError] = useState('')
   const [busy, setBusy] = useState<'follow' | 'change' | null>(null)
   const thinking = task.status === 'running' || task.status === 'queued'
   const used = task.usage.inputTokens + task.usage.outputTokens
@@ -40,7 +46,10 @@ export function ConversationView({ task }: { task: Task }) {
   }
 
   const ask = async () => {
-    const text = followUp.trim()
+    if (submitting.current || !followUp.trim()) return
+    let text: string
+    try { text = composeRequest(followUp.trim(), unsent.attachments) } catch (e) { setSubmitError((e as Error).message); return }
+    submitting.current = true
     const route = routeRequest(text)
     setBusy('follow')
     // A follow-up that asks for a change starts a change, with the conversation as context.
@@ -50,7 +59,8 @@ export function ConversationView({ task }: { task: Task }) {
       : { type: 'task.create', projectId: task.projectId, prompt: text, depth: route.depth === 'deep' ? 'standard' : 'auto', followUpOf: task.id, mode: task.mode, assignment: task.assignment }
     const ack = await run(command)
     setBusy(null)
-    if (ack.ok) { setFollowUp(''); go({ view: 'task', taskId: (ack.result as Task).id }) }
+    submitting.current = false
+    if (ack.ok) { unsent.set({ text: '', attachments: [] }); go({ view: 'task', taskId: (ack.result as Task).id }) }
   }
 
   const makeChange = async () => {
@@ -102,11 +112,13 @@ export function ConversationView({ task }: { task: Task }) {
       </div>
       {!thinking && (
         <div className="chat__reply">
-          <textarea className="hx-textarea" rows={2} aria-label="Ask a follow-up" placeholder="Ask a follow-up…" value={followUp}
-            onChange={(e) => setFollowUp(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && followUp.trim()) { e.preventDefault(); void ask() } }} />
+          <textarea className="hx-textarea" rows={2} maxLength={50000} disabled={busy !== null} aria-label="Ask a follow-up" placeholder="Ask a follow-up…" value={followUp}
+            onChange={(e) => setFollowUp(e.target.value)} onKeyDown={(e) => { if (!e.nativeEvent.isComposing && e.key === 'Enter' && !e.shiftKey && followUp.trim()) { e.preventDefault(); void ask() } }} />
           <Button variant="primary" icon={<Send size={14} />} busy={busy === 'follow'} disabled={!followUp.trim()} onClick={() => void ask()}>Send</Button>
         </div>
       )}
+      {!thinking && <DraftAttachments files={unsent.attachments} onChange={attachments => unsent.set({ attachments })} disabled={busy !== null} />}
+      {(unsent.error || submitError) && <p role="alert">{unsent.error || submitError}</p>}
       {details && (
         <div className="hx-panel__body stack">
           <h4>Agent runs</h4>

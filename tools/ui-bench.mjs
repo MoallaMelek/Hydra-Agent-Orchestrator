@@ -8,11 +8,13 @@
  */
 import { app, BrowserWindow } from 'electron'
 import { createServer } from 'node:http'
-import { readFileSync, existsSync, writeFileSync } from 'node:fs'
+import { readFileSync, existsSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { extname, join, normalize, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
+app.setPath('userData', mkdtempSync(join(tmpdir(), 'hydra-renderer-bench-')))
 
 const args = process.argv.slice(2)
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback)
@@ -35,6 +37,9 @@ function serve() {
   })
 }
 
+// The benchmark deliberately closes each window before creating the next one.
+// Keep Electron alive between samples; otherwise its default quit races loadURL.
+app.on('window-all-closed', () => {})
 app.whenReady().then(async () => {
   const server = await serve()
   const port = server.address().port
