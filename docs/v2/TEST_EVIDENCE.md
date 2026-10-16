@@ -259,3 +259,23 @@ Findings from these runs:
 | Repo question | 5 ms | 5.9 s | 7.8 s | 8.5 s |
 
 No regression from job objects (previous: "hi" 2.1 s / 3.0 s warm).
+
+## 2026-10-16 — Concurrent git worktree bookkeeping (flake fix)
+
+Observed flake: `reliability.test.ts` › "runs two tasks on one project concurrently…" failed once with `git worktree add --detach … failed: fatal: failed to read .git/worktrees/<other-id>/commondir: No error`. Cause: `git worktree add/remove/prune` and `git branch -D` read every entry under `.git/worktrees`, and git dies on an entry that another `worktree add` (or `remove`) is still writing (or deleting). Two tasks on one project create task worktrees and check checkouts at the same time.
+
+Fix: `WorkspaceManager` (the engine-context object behind every worktree add/remove/prune/branch deletion) holds a per-repository lock keyed by the repository's shared git dir (`git rev-parse --git-common-dir`), so path spellings, subfolder projects and linked checkouts of one repository share it. Only the bookkeeping commands wait; checks inside a checkout still run in parallel. Hydra's git calls also run with `maintenance.auto=false`, so a commit or merge cannot start background maintenance that prunes worktrees outside the lock.
+
+| Check | Result |
+|---|---|
+| Real-git stress on the old code (6 rounds × 24 concurrent create/discard + check checkouts) | VERIFIED failing 4/5 runs: the exact `commondir: No error` error (3 runs; once also `commondir: No such file or directory`) or a leaked `hydra/*` branch whose `branch -D` failed silently (1 run) |
+| The same real-git stress test is too timing-dependent to be the regression test | VERIFIED: at 4 × 16 the old code failed only 1/8 runs and at 2 × 32, 0/4 |
+| `worktree-admin.test.ts` (real git plus a counter of concurrent bookkeeping commands), without the lock | VERIFIED failing 3/3 runs (peak 13–15 commands at once), and both lock tests fail after adding release and sweep (peaks 15 and 7) |
+| Same tests with the lock | VERIFIED passing in all 4 standalone runs and in the full gate; peak 1; no git errors; no leaked branches or worktrees |
+| Lock keyed by project path instead of the shared git dir | VERIFIED failing (peak 2, from the subfolder project) |
+| Checks are not serialized (two checks each wait until the other is running) | VERIFIED |
+| Full gate `npm run check` | VERIFIED: typecheck, lint, 269 passed / 1 skipped (Windows), provenance passed |
+| The originally flaky test (`reliability.test.ts` › two tasks on one project concurrently) | VERIFIED passing 3/3 standalone reruns (26–41 s) plus the full gate. A single flake cannot prove the fix by itself; the deterministic test above does |
+| Independent read-only review (Codex, fresh session) | Approach accepted, no deadlock found. Acted on: automatic maintenance disabled; sweep prune now counted; release, sweep and linked-checkout roots covered |
+
+Residual risk (not fixed): only this engine's commands are coordinated. Another engine with a different data directory on the same project, git commands run by agents or checks, and the user's own git can still race with Hydra's bookkeeping. The shared git dir is looked up once per project path, assuming a project folder stays the same repository while the engine runs.

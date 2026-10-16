@@ -14,10 +14,11 @@ export const HYDRA_IDENTITY = ['-c', 'user.name=Hydra', '-c', 'user.email=hydra@
 
 /**
  * Engine git calls never run repository hooks or fsmonitor helpers: hooks are
- * pointed at an empty, unpredictable, per-process directory.
+ * pointed at an empty, unpredictable, per-process directory. They never start
+ * automatic maintenance either, which can prune worktrees outside Hydra's lock.
  */
 const NO_HOOKS_DIR = mkdtempSync(join(tmpdir(), 'hydra-nohooks-'))
-const SAFE_CONFIG = ['-c', `core.hooksPath=${NO_HOOKS_DIR}`, '-c', 'core.fsmonitor=false', '-c', 'core.quotepath=false', '-c', 'advice.detachedHead=false']
+const SAFE_CONFIG = ['-c', `core.hooksPath=${NO_HOOKS_DIR}`, '-c', 'core.fsmonitor=false', '-c', 'core.quotepath=false', '-c', 'advice.detachedHead=false', '-c', 'maintenance.auto=false']
 
 /** Environment for git: everything except variables that would redirect repository discovery. */
 function gitEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
@@ -156,6 +157,12 @@ export async function diffFiles(pin: GitPin, base: string, head: string, maxByte
   return { files, truncated }
 }
 
+/** The git dir shared by every worktree and subfolder of one repository, or null outside a repository. */
+export async function gitCommonDir(dir: string): Promise<string | null> {
+  const result = await git(dir, ['rev-parse', '--path-format=absolute', '--git-common-dir'], { allowFail: true })
+  return result.code === 0 && result.stdout.trim() ? resolve(result.stdout.trim()) : null
+}
+
 export async function addWorktree(repo: string, path: string, branch: string, base: string): Promise<void> {
   await git(repo, ['worktree', 'add', '-b', branch, path, base])
 }
@@ -166,6 +173,10 @@ export async function addDetachedWorktree(repo: string, path: string, sha: strin
 
 export async function removeWorktree(repo: string, path: string): Promise<void> {
   await git(repo, ['worktree', 'remove', '--force', path], { allowFail: true })
+  await pruneWorktrees(repo)
+}
+
+export async function pruneWorktrees(repo: string): Promise<void> {
   await git(repo, ['worktree', 'prune'], { allowFail: true })
 }
 

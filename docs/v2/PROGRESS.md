@@ -2,6 +2,11 @@
 
 Newest entry first.
 
+## 2026-10-16 · git worktree bookkeeping lock (flake fix)
+- Fixed the intermittent `failed to read .git/worktrees/<id>/commondir` failure when two tasks on one project create worktrees and check checkouts at once. Worktree add/remove/prune and branch deletion now run one at a time per repository, keyed by the shared git dir; checks stay parallel. Hydra's git calls no longer start automatic maintenance.
+- `KeyedMutex` moved to `util/mutex.ts`. New `isolation/worktree-admin.test.ts` fails on the old code every time and passes with the lock (TEST_EVIDENCE.md, 2026-10-16).
+- Reviewed by Codex (read-only, fresh session); findings addressed. Branch `fix/git-worktree-admin-lock`; not merged.
+
 ## 2026-10-14 · session 5 · pre-beta hardening and intelligence
 - P0: Windows job objects (koffi) with real-process tests; phone access off by default, explicit, time-limited and bound to one address; links leaving the project refused for checks and Accept; crash leftovers swept safely; EXECUTION_BOUNDARIES.md.
 - P1/P2: provider failures classified (sign-in, limit, network with one retry, missing CLI) and paused with guidance; router evaluated on 114 labelled requests (dev 98.7%, held-out 94.7%, 0 risky missed); editable verification commands; local outcome history with transparent recommendations; plain-language failure explanations.

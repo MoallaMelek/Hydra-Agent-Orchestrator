@@ -3,7 +3,7 @@ import { emptyUsage, type Task } from '@hydra/protocol'
 import { agentEnv, verificationEnv } from './process/env.js'
 import { redact } from './util/redact.js'
 import { addUsage, assertCanStartRun } from './workflow/budget.js'
-import { KeyedMutex } from './orchestrator/orchestrator.js'
+import { KeyedMutex } from './util/mutex.js'
 
 const ENV = {
   PATH: '/usr/bin', HOME: '/home/u', ANTHROPIC_API_KEY: 'anthropic-secret', CLAUDE_CONFIG_DIR: '/c', OPENAI_API_KEY: 'openai-secret', CODEX_HOME: '/x',

@@ -1,12 +1,13 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, rmdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { AppliedInfo, WorkspaceInfo } from '@hydra/protocol'
 import { conflict, invalid } from '../util/errors.js'
 import { newId, shortId } from '../util/ids.js'
+import { KeyedMutex } from '../util/mutex.js'
 import { dependencyLinks } from '../verification/detect.js'
 import {
   absoluteGitDir, addDetachedWorktree, addWorktree, assertWorktreeIntact, branchExists, commitAll, currentBranch,
-  deleteBranch, diffFiles, git, outsideLinks, type GitPin, headSha, HYDRA_IDENTITY, isAncestor, isClean, removeWorktree, trackedChanges
+  deleteBranch, diffFiles, git, gitCommonDir, outsideLinks, type GitPin, headSha, HYDRA_IDENTITY, isAncestor, isClean, pruneWorktrees, removeWorktree, trackedChanges
 } from './git.js'
 
 /** Installed-dependency folders shared from the project into check checkouts; never committed. */
@@ -42,9 +43,37 @@ export function unlinkDependencies(checkout: string): void {
 export const pinOf = (ws: WorkspaceInfo): GitPin => ({ gitDir: ws.gitDir, workTree: ws.path })
 
 export class WorkspaceManager {
+  /**
+   * Serializes git's worktree bookkeeping (`worktree add/remove/prune`, `branch -D`) per
+   * repository. Each of these reads every entry under `.git/worktrees`, and git dies on an
+   * entry another `worktree add` is still writing ("failed to read .../commondir"). Only
+   * these commands wait on each other; checks running inside checkouts stay parallel.
+   */
+  private readonly adminLock = new KeyedMutex()
+  private readonly commonDirs = new Map<string, string>()
+
   constructor(private readonly worktreesDir: string, private readonly checkoutsDir: string) {
     mkdirSync(worktreesDir, { recursive: true })
     mkdirSync(checkoutsDir, { recursive: true })
+  }
+
+  /**
+   * Runs `fn` holding the repository's worktree-admin lock. Keyed by the shared git dir,
+   * so every spelling of a project path, subfolder projects and linked checkouts of one
+   * repository all wait on the same lock. The git dir is looked up once per project path:
+   * a project folder is assumed to stay the same repository while the engine runs.
+   * Only this engine's commands are coordinated; other processes running git are not.
+   */
+  private async admin<T>(repo: string, fn: () => Promise<T>): Promise<T> {
+    const path = resolve(repo)
+    const key = process.platform === 'win32' ? path.toLowerCase() : path
+    let common = this.commonDirs.get(key)
+    if (!common) {
+      const found = await gitCommonDir(path)
+      if (found) this.commonDirs.set(key, found)
+      common = found ?? path // not a repository (yet): the git command will report it
+    }
+    return this.adminLock.run(common, fn)
   }
 
   /**
@@ -65,7 +94,7 @@ export class WorkspaceManager {
     }
     const base = await headSha(projectRoot)
     if (!base) throw invalid('The project has no commits yet. Make an initial commit so Hydra can isolate changes.')
-    await addWorktree(projectRoot, path, branch, base)
+    await this.admin(projectRoot, () => addWorktree(projectRoot, path, branch, base))
     return { path, gitDir: await absoluteGitDir(path), branch, baseSha: base, headSha: base, removed: false }
   }
 
@@ -106,7 +135,7 @@ export class WorkspaceManager {
       if (info.isDirectory()) unlinkDependencies(dir)
       rmSync(dir, { recursive: true, force: true })
     }
-    if (leftovers.length) for (const root of projectRoots) await git(root, ['worktree', 'prune'], { allowFail: true })
+    if (leftovers.length) for (const root of projectRoots) await this.admin(root, () => pruneWorktrees(root))
     return leftovers.length
   }
 
@@ -117,7 +146,7 @@ export class WorkspaceManager {
    */
   async withCheckout<T>(projectRoot: string, sha: string, fn: (dir: string) => Promise<T>): Promise<{ result: T; mutated: boolean }> {
     const dir = join(this.checkoutsDir, newId())
-    await addDetachedWorktree(projectRoot, dir, sha)
+    await this.admin(projectRoot, () => addDetachedWorktree(projectRoot, dir, sha))
     try {
       linkDependencies(projectRoot, dir)
       const result = await fn(dir)
@@ -125,7 +154,7 @@ export class WorkspaceManager {
       return { result, mutated }
     } finally {
       unlinkDependencies(dir)
-      await removeWorktree(projectRoot, dir)
+      await this.admin(projectRoot, () => removeWorktree(projectRoot, dir))
       rmSync(dir, { recursive: true, force: true })
     }
   }
@@ -192,15 +221,17 @@ export class WorkspaceManager {
 
   async discard(projectRoot: string, workspace: WorkspaceInfo): Promise<WorkspaceInfo> {
     unlinkDependencies(workspace.path)
-    await removeWorktree(projectRoot, workspace.path)
-    await deleteBranch(projectRoot, workspace.branch)
+    await this.admin(projectRoot, async () => {
+      await removeWorktree(projectRoot, workspace.path)
+      await deleteBranch(projectRoot, workspace.branch)
+    })
     return { ...workspace, removed: true }
   }
 
   /** Release the worktree directory but keep the branch for the user. */
   async release(projectRoot: string, workspace: WorkspaceInfo): Promise<WorkspaceInfo> {
     unlinkDependencies(workspace.path)
-    await removeWorktree(projectRoot, workspace.path)
+    await this.admin(projectRoot, () => removeWorktree(projectRoot, workspace.path))
     return { ...workspace, removed: true }
   }
 }

@@ -5,26 +5,9 @@ import { afterFinalDecision, afterPlanDecision, nextStep, type FinalDecision, ty
 import { policyFor } from '../workflow/policy.js'
 import { BudgetExceededError, CanceledError, conflict, errorMessage, HydraError, invalid, ProviderUnavailableError } from '../util/errors.js'
 import { isoNow } from '../util/ids.js'
+import { KeyedMutex } from '../util/mutex.js'
 import { type EngineContext, logTask, updateTask } from './context.js'
 import { ReapprovalNeeded, STAGE_RUNNERS } from './stages.js'
-
-/** Serializes operations that mutate a user's repository (apply, rollback) per project. */
-export class KeyedMutex {
-  private readonly tails = new Map<string, Promise<void>>()
-  async run<T>(key: string, fn: () => Promise<T>): Promise<T> {
-    const normalized = process.platform === 'win32' ? key.toLowerCase() : key
-    const previous = this.tails.get(normalized) ?? Promise.resolve()
-    let release!: () => void
-    const current = new Promise<void>((resolve) => { release = resolve })
-    const tail = previous.then(() => current)
-    this.tails.set(normalized, tail)
-    await previous
-    try { return await fn() } finally {
-      release()
-      if (this.tails.get(normalized) === tail) this.tails.delete(normalized)
-    }
-  }
-}
 
 /**
  * A short, factual record of what a successful stage produced, kept on its stage record so
@@ -51,6 +34,7 @@ export function outcomeNote(task: Task, result: StageResult): string | null {
 export class Orchestrator {
   private readonly running = new Map<string, AbortController>()
   private readonly done = new Map<string, Promise<void>>()
+  /** Serializes operations that mutate a user's repository (apply, rollback) per project. */
   private readonly repoLock = new KeyedMutex()
   private shuttingDown = false
 
