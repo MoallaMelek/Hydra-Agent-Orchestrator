@@ -259,3 +259,10 @@ Findings from these runs:
 | Repo question | 5 ms | 5.9 s | 7.8 s | 8.5 s |
 
 No regression from job objects (previous: "hi" 2.1 s / 3.0 s warm).
+# 2026-10-17 — SemVer updater regression
+
+`npm run check`: typecheck and lint passed; 247 tests passed, 2 skipped;
+provenance passed. Numeric prerelease identifiers, identifier prefixes, embedded
+hyphens and ignored build metadata are covered by `update/versions.test.ts`.
+Executed on Linux, Node 24.19.0; desktop and Windows installation not exercised.
+

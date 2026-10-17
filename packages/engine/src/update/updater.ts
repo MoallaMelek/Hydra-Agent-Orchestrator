@@ -58,15 +58,31 @@ export function verifyManifest(signed: unknown, publicKeyHex: string): UpdateMan
 
 /** -1, 0 or 1. Pre-releases sort before the release with the same numbers. */
 export function compareVersions(a: string, b: string): number {
-  const [ma, pa = ''] = a.split('-', 2) as [string, string?]
-  const [mb, pb = ''] = b.split('-', 2) as [string, string?]
+  const parts = (version: string): [string, string] => {
+    const plain = version.split('+', 1)[0]!
+    const dash = plain.indexOf('-')
+    return dash < 0 ? [plain, ''] : [plain.slice(0, dash), plain.slice(dash + 1)]
+  }
+  const [ma, pa] = parts(a)
+  const [mb, pb] = parts(b)
   const na = ma.split('.').map(Number)
   const nb = mb.split('.').map(Number)
   for (let i = 0; i < 3; i++) if ((na[i] ?? 0) !== (nb[i] ?? 0)) return (na[i] ?? 0) < (nb[i] ?? 0) ? -1 : 1
   if (pa === pb) return 0
   if (!pa) return 1
   if (!pb) return -1
-  return pa < pb ? -1 : 1
+  const ia = pa.split('.'), ib = pb.split('.')
+  for (let i = 0; i < Math.max(ia.length, ib.length); i++) {
+    const x = ia[i], y = ib[i]
+    if (x === y) continue
+    if (x === undefined) return -1
+    if (y === undefined) return 1
+    const xn = /^\d+$/.test(x), yn = /^\d+$/.test(y)
+    if (xn && yn) return BigInt(x) < BigInt(y) ? -1 : 1
+    if (xn !== yn) return xn ? -1 : 1
+    return x < y ? -1 : 1
+  }
+  return 0
 }
 
 export interface UpdateConfig { manifestUrl: string | null; publicKeyHex: string | null; currentVersion: string; platform: string }
