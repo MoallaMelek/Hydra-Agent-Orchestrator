@@ -41,8 +41,8 @@ export class EventSequencer {
   private applyOnce(envelope: EventEnvelope): void {
     if (DURABLE_EVENT_TYPES.has(envelope.event.type)) {
       if (envelope.seq <= this.cursor) return
-      this.cursor = envelope.seq
     }
     this.apply(envelope)
+    if (DURABLE_EVENT_TYPES.has(envelope.event.type)) this.cursor = Math.max(this.cursor, envelope.seq)
   }
 }

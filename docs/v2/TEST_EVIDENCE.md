@@ -275,3 +275,7 @@ Paused budget failures now show budget recovery instructions instead of generic 
 
 ## 2026-10-17 — provider HTTP timeout recovery
 Undici connect/header/body timeout codes now classify as transient network failures for the existing retry/pause flow. Three regression cases; npm run check passed: 250 passed, 2 skipped; typecheck, lint and provenance passed.
+
+
+## 2026-10-17 — event cursor acknowledgment
+Durable events advance the replay cursor only after the view callback succeeds, so an isolated failed update can replay. Reentrant newer updates cannot move the cursor backwards. Two regressions; npm run check passed: 252 passed, 2 skipped; typecheck, lint and provenance passed. Independent read-only Codex review found no blocking regression in this five-fix batch. Residual: a subsequent durable event can still advance beyond a failed callback before reconnect.
