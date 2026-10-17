@@ -13,6 +13,7 @@ import { TaskView } from '../views/TaskView'
 import { ProvidersView } from '../views/ProvidersView'
 import { DevicesView } from '../views/DevicesView'
 import { SettingsView } from '../views/SettingsView'
+import './workbench.css'
 
 const CONNECTION = {
   connecting: { tone: 'neutral', label: 'Connecting' },
@@ -60,11 +61,10 @@ export function Shell() {
 
   return (
     <div className={`shell ${navOpen ? 'shell--nav-open' : ''}`}>
-      <aside className="rail" aria-label="Navigation">
+      <aside className="rail" id="workspace-navigation" aria-label="Navigation">
         <div className="rail__brand">
-          <HydraMark size={24} />
+          <HydraMark size={34} />
           <b>Hydra</b>
-          <small className="faint">{version ? `v${version}` : ''}</small>
         </div>
         <div className="rail__scroll">
           <div className="rail__section">
@@ -92,8 +92,12 @@ export function Shell() {
         </div>
       </aside>
       <main className="main">
+        <div className="workspace-bar">
+          <span>{isRemote ? 'Remote workspace' : 'Local workspace'}</span><span className="workspace-bar__location">{route.view === 'home' ? 'Command center' : route.view === 'project' ? projects.find(p => p.id === route.projectId)?.name ?? 'Project' : route.view === 'task' ? 'Task workspace' : route.view === 'providers' ? 'Agents & providers' : route.view === 'devices' ? 'Remote devices' : 'Settings'}</span>
+          <span className="grow" /><span className="workspace-bar__version">{version ? `v${version}` : 'Connecting to engine'}</span>
+        </div>
         <div className="mobile-bar">
-          <Button variant="ghost" size="sm" aria-label="Menu" icon={<Menu size={16} />} onClick={() => setNavOpen(!navOpen)} />
+          <Button variant="ghost" size="sm" aria-label="Menu" aria-expanded={navOpen} aria-controls="workspace-navigation" icon={<Menu size={16} />} onClick={() => setNavOpen(!navOpen)} />
           <HydraMark size={20} /><b>Hydra</b><span className="grow" /><Badge tone={conn.tone}>{conn.label}</Badge>
         </div>
         {error && <div className="page"><div className="hx-callout hx-callout--bad">{error}</div></div>}

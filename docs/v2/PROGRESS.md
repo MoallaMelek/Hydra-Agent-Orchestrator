@@ -2,6 +2,12 @@
 
 Newest entry first.
 
+## 2026-10-17 · visible opening workspace correction, alpha.2
+
+- Owner correctly reported that alpha.1 still resembled the installed design. Replaced the opening composition with selected real work/answer, recorded team operations and adjacent project launch controls; revised the shared frame/navigation while preserving Hydra's mark and three themes.
+- Historical work is inspectable while idle. Agent slots only occupy a separate board while real processes run; no demo activity. Inferred operations, disconnected snapshots, missing records and initial/detail loading remain distinct. Added mobile-menu accessible state and remote-empty guidance.
+- Check 288 passed/1 skipped, build/package and seven native steps passed. Actual Electron before/after captures, three themes, 390px, keyboard focus, failed-detail recovery and 3s idle DOM=0 validated. No performance equivalence or whole-mandate completion claimed; see OPENING_WORKSPACE.md.
+
 ## 2026-10-17 · installed alpha.1 migration
 
 - Following explicit local installation authorization, backed up the closed existing application, engine and desktop profile under restricted user/SYSTEM ACLs. Preserved product identity and install/data paths; no uninstall of the owner's app.
