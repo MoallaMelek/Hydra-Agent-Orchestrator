@@ -271,3 +271,7 @@ Even observation counts now average the central pair rather than underreporting 
 
 ## 2026-10-17 — budget failure guidance
 Paused budget failures now show budget recovery instructions instead of generic Resume guidance. Regression test plus npm run check passed: 247 passed, 2 skipped; typecheck, lint and provenance passed.
+
+
+## 2026-10-17 — provider HTTP timeout recovery
+Undici connect/header/body timeout codes now classify as transient network failures for the existing retry/pause flow. Three regression cases; npm run check passed: 250 passed, 2 skipped; typecheck, lint and provenance passed.

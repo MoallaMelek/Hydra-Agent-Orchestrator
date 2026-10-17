@@ -41,7 +41,7 @@ const PROVIDER_LIMIT = /usage limit|rate[ -]?limit|quota|too many requests|\b429
 export const isProviderLimit = (message: string): boolean => PROVIDER_LIMIT.test(message)
 
 const SIGN_IN = /not logged in|please (run )?\/?login|log ?in (again|required)|invalid api key|authentication (failed|error|required)|unauthori[sz]ed|\b401\b|token (has )?expired|expired (token|credentials|session)|not authenticated|codex login/i
-const NETWORK = /ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket hang up|fetch failed|network (error|is unreachable)|getaddrinfo|\b50[234]\b|bad gateway|service unavailable|gateway time-?out|connection (reset|closed|refused)/i
+const NETWORK = /ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|UND_ERR_(CONNECT|HEADERS|BODY)_TIMEOUT|socket hang up|fetch failed|network (error|is unreachable)|getaddrinfo|\b50[234]\b|bad gateway|service unavailable|gateway time-?out|connection (reset|closed|refused)/i
 const MISSING = /\bENOENT\b|could not start|not recognized as an internal or external command|command not found|no such file or directory/i
 
 export type ProviderFailure = 'limit' | 'sign_in' | 'network' | 'missing' | 'other'
