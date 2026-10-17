@@ -138,7 +138,9 @@ export function dependencyLinks(root: string): string[] {
 /** Files whose content decides what a check actually executes. */
 const DEFINITION_FILES = [
   join('.hydra', 'checks.json'), 'pyproject.toml', 'setup.cfg', 'setup.py', 'pytest.ini', 'tox.ini', 'conftest.py', 'requirements.txt',
-  'go.mod', 'Cargo.toml', 'pom.xml', 'build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts', 'CMakeLists.txt', 'Makefile', 'makefile'
+  'go.mod', 'Cargo.toml', 'pom.xml', 'build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts', 'CMakeLists.txt', 'Makefile', 'makefile',
+  // Detection chooses the executable from these files, not just package scripts.
+  'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb', 'requirements-dev.txt'
 ]
 
 /**
@@ -152,8 +154,9 @@ export function checkDefinitionDigest(root: string): string {
     try { hash.update(JSON.stringify((JSON.parse(pkg) as { scripts?: unknown }).scripts ?? {})) } catch { hash.update(pkg) }
   }
   for (const file of DEFINITION_FILES) {
-    const body = read(root, file)
-    hash.update(JSON.stringify([file, body ?? null]))
+    let body: Buffer | null = null
+    try { body = readFileSync(join(root, file)) } catch { /* missing definition */ }
+    hash.update(JSON.stringify([file, body?.toString('base64') ?? null]))
   }
   return hash.digest('hex')
 }

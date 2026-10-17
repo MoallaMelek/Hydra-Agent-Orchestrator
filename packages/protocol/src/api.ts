@@ -26,6 +26,18 @@ export const EngineSnapshot = z.object({
 })
 export type EngineSnapshot = z.infer<typeof EngineSnapshot>
 
+export const TaskHistoryQuery = z.object({
+  projectId: z.string().min(1).max(100),
+  before: z.object({ at: z.string().datetime(), id: z.string().min(1).max(100) }).optional(),
+  query: z.string().max(200).default(''),
+  archived: z.boolean().default(false)
+})
+export type TaskHistoryQuery = z.infer<typeof TaskHistoryQuery>
+export const TaskSummary = Task.pick({ id: true, projectId: true, title: true, intent: true, status: true, stage: true, waitReason: true, outcome: true, archivedAt: true, updatedAt: true, followUpOf: true, mode: true, usage: true, createdAt: true })
+export type TaskSummary = z.infer<typeof TaskSummary>
+export const TaskHistoryPage = z.object({ tasks: z.array(TaskSummary), next: z.object({ at: z.string(), id: z.string() }).nullable() })
+export type TaskHistoryPage = z.infer<typeof TaskHistoryPage>
+
 export const TaskDetail = z.object({
   task: Task,
   runs: z.array(AgentRunInfo),

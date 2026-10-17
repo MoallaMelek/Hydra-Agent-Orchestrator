@@ -20,6 +20,13 @@ const outcome = (strategy: string, ok: boolean, minutes = 5, category = 'change/
 })
 
 describe('agent recommendation', () => {
+  it('averages the middle pair for even-sized duration and cost histories', () => {
+    const history = [outcome('codex', true, 2, 'answer/fast'), outcome('codex', true, 8, 'answer/fast')]
+    history[0]!.costUsd = 0.2
+    history[1]!.costUsd = 0.8
+    const r = recommend('answer/fast', ['codex'], history)
+    expect(r.evidence[0]).toMatchObject({ medianMinutes: 5, medianCostUsd: 0.5 })
+  })
   it('uses a stated rule when there is no history', () => {
     const both = recommend('change/normal', ['claude', 'codex'], [])
     expect(both).toMatchObject({ strategy: 'claude→codex→claude', basis: 'rule' })

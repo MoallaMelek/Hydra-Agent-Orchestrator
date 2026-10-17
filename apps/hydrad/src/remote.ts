@@ -3,6 +3,7 @@ import { WebSocketServer, type WebSocket } from 'ws'
 import type { Engine } from '@hydra/engine'
 import { newId } from '@hydra/engine'
 import type { CommandAck, Device, DeviceScope, EngineEvent } from '@hydra/protocol'
+import { TaskHistoryQuery } from '@hydra/protocol'
 import {
   Channel, encodeOffer, fingerprint, fromHex, keyPairFromSecret, randomBytes, serverHandshake, toHex,
   type ClientHello, type Frame, type KeyPair
@@ -363,6 +364,7 @@ export class RemoteHost {
           const snapshot = engine.snapshot()
           return { ack: id, ok: true, result: { ...snapshot, devices: [], tasks: snapshot.tasks.slice(0, SNAPSHOT_TASK_LIMIT) } }
         }
+        if (message.query === 'history') return { ack: id, ok: true, result: engine.store.taskHistory(TaskHistoryQuery.parse(message.options)) }
         if (message.query === 'events') {
           // Catch-up after a disconnect: journal events after the phone's cursor, oldest first.
           const after = typeof message.after === 'number' && message.after >= 0 ? Math.floor(message.after) : engine.store.lastSeq

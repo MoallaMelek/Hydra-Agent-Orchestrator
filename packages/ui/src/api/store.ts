@@ -38,7 +38,7 @@ const initial: AppState = {
 }
 
 /** Memory bounds: the interface must stay small however long Hydra runs. */
-export const LIMITS = { outputChars: 60_000, draftChars: 60_000, activityPerRun: 200, logLines: 300, runs: 500, outputRuns: 60, loadedTasks: 40 } as const
+export const LIMITS = { outputChars: 60_000, draftChars: 60_000, activityPerRun: 200, logLines: 300, runs: 500, outputRuns: 60, loadedTasks: 40, tasks: 500 } as const
 
 const TERMINAL = new Set<AgentRunInfo['status']>(['succeeded', 'failed', 'canceled', 'interrupted'])
 
@@ -65,6 +65,12 @@ export class EngineStore {
   }
 
   private set(patch: Partial<AppState>): void {
+    if (patch.tasks && Object.keys(patch.tasks).length > LIMITS.tasks) {
+      const loaded = patch.loaded ?? this.state.loaded
+      const priority = (task: Task) => loaded[task.id] ? 3 : ['running', 'queued'].includes(task.status) ? 2 : task.status === 'waiting_input' ? 1 : 0
+      const retained = Object.values(patch.tasks).sort((a, b) => priority(b) - priority(a) || b.updatedAt.localeCompare(a.updatedAt)).slice(0, LIMITS.tasks)
+      patch.tasks = Object.fromEntries(retained.map(t => [t.id, t]))
+    }
     this.state = { ...this.state, ...patch }
     this.schedule()
   }
@@ -127,6 +133,9 @@ export class EngineStore {
     }
     // Tasks the snapshot does not know yet were created after it was taken.
     if (stale) for (const [id, t] of Object.entries(this.state.tasks)) if (!tasks[id]) tasks[id] = t
+    // A bounded boot snapshot intentionally omits older history. Keep details the
+    // user has opened, rather than replacing an on-screen historical task on reconnect.
+    for (const id of Object.keys(this.state.loaded)) if (!tasks[id] && this.state.tasks[id] && !this.deleted.has(id)) tasks[id] = this.state.tasks[id]!
     const runs = { ...this.state.runs }
     for (const run of snapshot.activeRuns ?? []) if (tasks[run.taskId]) runs[run.id] = mergeRun(runs[run.id], run)
     this.set({

@@ -168,7 +168,7 @@ try {
     await ui.waitText('Project folder')
     await ui.type('#project-root', repo)
     await ui.click('Add project')
-    await ui.waitText('Ask or change')
+    await ui.waitText('Ask a question or describe a change')
     await ui.shot('02-project')
   })
   await step('draft and attachment survive project switches, Settings and reload', async () => {
@@ -208,7 +208,7 @@ try {
     await ui.type('#task-prompt', 'UNSENT NATIVE DRAFT B')
     await openProject(); await ui.waitText('acceptance-notes.md')
     if (await ui.evaluate('document.querySelector("#task-prompt").value') !== 'UNSENT NATIVE DRAFT A') throw new Error('Draft leaked between projects')
-    await ui.evaluate('location.reload()'); await ui.waitText('Command center')
+    await ui.evaluate('location.reload()'); await ui.waitText('Workspace')
     await openProject(); await ui.waitText('acceptance-notes.md')
     if (await ui.evaluate('document.querySelector("#task-prompt").value') !== 'UNSENT NATIVE DRAFT A') throw new Error('Draft lost on reload')
     await ui.evaluate('document.querySelector("#task-prompt").focus()')
@@ -233,6 +233,7 @@ try {
     return { draftRetained: true, attachmentRetained: true, themes: 3, focusShadow: focus }
   })
   await step('verification editor shows the detected command and tests it for real', async () => {
+    await ui.evaluate("[...document.querySelectorAll('details')].find(d => d.querySelector('summary')?.textContent.includes('Project checks')).open = true")
     await ui.waitText('Using automatic detection')
     await ui.click('Test')
     await ui.waitText('on commit', 120_000)
@@ -344,7 +345,7 @@ try {
   await step('relaunch keeps projects and task history', async () => {
     app = launch()
     ui = driver(await connect())
-    await ui.waitText('Command center')
+    await ui.waitText('Workspace')
     const state = await ui.api('/api/state')
     await ui.shot('07-relaunch')
     if (state.projects.length !== 2) throw new Error(`expected 2 projects, got ${state.projects.length}`)

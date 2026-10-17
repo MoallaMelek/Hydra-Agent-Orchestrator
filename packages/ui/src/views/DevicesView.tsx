@@ -11,8 +11,8 @@ export function DevicesView() {
   const devices = [...useAppState((s) => s.devices)].sort((a, b) => b.pairedAt.localeCompare(a.pairedAt))
   return (
     <div className="page devices-workspace">
-      <div className="page__head"><div className="page__title"><h1>Remote devices</h1><p className="muted">Phones that can follow tasks and, if you allow it, approve them.</p></div></div>
-      <Callout tone="info">Remote control is end-to-end encrypted between your phone and this computer. No cloud database or third-party service is involved.</Callout>
+      <div className="page__head"><div className="page__title"><h1>Phone access</h1><p className="muted">Phones that can follow tasks and, if you allow it, approve them.</p></div></div>
+      <Callout tone="warn">Preview · trusted networks only. Commands are encrypted after pairing, but the phone page is delivered over HTTP. A network attacker could replace that page before encryption starts. Keep access off on shared or untrusted networks; secure HTTPS or a qualified native client is not available yet.</Callout>
       <PhoneAccessPanel />
       <PairPhonePanel />
       <Panel title="Paired devices">

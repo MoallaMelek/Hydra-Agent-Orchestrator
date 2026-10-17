@@ -15,6 +15,7 @@ import { DevicesView } from '../views/DevicesView'
 import { SettingsView } from '../views/SettingsView'
 import './workbench.css'
 import './surfaces.css'
+import './mission.css'
 
 const CONNECTION = {
   connecting: { tone: 'neutral', label: 'Connecting' },
@@ -62,6 +63,7 @@ export function Shell() {
 
   return (
     <div className={`shell ${navOpen ? 'shell--nav-open' : ''}`}>
+      <a className="skip-link" href="#main-content">Skip to workspace</a>
       <aside className="rail" id="workspace-navigation" aria-label="Navigation">
         <div className="rail__brand">
           <HydraMark size={34} />
@@ -69,7 +71,7 @@ export function Shell() {
         </div>
         <div className="rail__scroll">
           <div className="rail__section">
-            {item({ view: 'home' }, <LayoutDashboard size={15} />, 'Command center')}
+            {item({ view: 'home' }, <LayoutDashboard size={15} />, 'Workspace')}
           </div>
           <div className="rail__section">
             <div className="rail__heading">Projects {!isRemote && <Button variant="ghost" size="sm" icon={<Plus size={14} />} aria-label="Add project" onClick={() => setAdding(true)} />}</div>
@@ -82,8 +84,8 @@ export function Shell() {
           </div>
           <div className="rail__section">
             <div className="rail__heading">System</div>
-            {item({ view: 'providers' }, <Cpu size={15} />, 'Agents & providers')}
-            {!isRemote && item({ view: 'devices' }, <Smartphone size={15} />, 'Remote devices')}
+            {item({ view: 'providers' }, <Cpu size={15} />, 'AI accounts')}
+            {!isRemote && item({ view: 'devices' }, <Smartphone size={15} />, 'Phone access')}
             {item({ view: 'settings' }, <Settings size={15} />, 'Settings')}
           </div>
         </div>
@@ -92,9 +94,9 @@ export function Shell() {
           <Button variant="ghost" size="sm" aria-label={theme === 'dark' ? 'Switch to light theme' : theme === 'light' ? 'Switch to terracotta theme' : 'Switch to midnight theme'} icon={theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />} onClick={toggleTheme} />
         </div>
       </aside>
-      <main className="main">
+      <main className="main" id="main-content" tabIndex={-1}>
         <div className="workspace-bar">
-          <span>{isRemote ? 'Remote workspace' : 'Local workspace'}</span><span className="workspace-bar__location">{route.view === 'home' ? 'Command center' : route.view === 'project' ? projects.find(p => p.id === route.projectId)?.name ?? 'Project' : route.view === 'task' ? 'Task workspace' : route.view === 'providers' ? 'Agents & providers' : route.view === 'devices' ? 'Remote devices' : 'Settings'}</span>
+          <span>{isRemote ? 'Remote workspace' : 'Local workspace'}</span><span className="workspace-bar__location">{route.view === 'home' ? 'Workspace' : route.view === 'project' ? projects.find(p => p.id === route.projectId)?.name ?? 'Project' : route.view === 'task' ? 'Task workspace' : route.view === 'providers' ? 'AI accounts' : route.view === 'devices' ? 'Phone access' : 'Settings'}</span>
           <span className="grow" /><span className="workspace-bar__version">{version ? `v${version}` : 'Connecting to engine'}</span>
         </div>
         <div className="mobile-bar">

@@ -1,4 +1,5 @@
 import type { Task, TaskStage } from '@hydra/protocol'
+import { verificationReceipt } from '@hydra/protocol'
 import { currentBranch, headSha, isAncestor } from '../isolation/git.js'
 import { killOrphanAgent } from '../process/instance.js'
 import { afterFinalDecision, afterPlanDecision, nextStep, type FinalDecision, type StageResult, type Step } from '../workflow/machine.js'
@@ -129,7 +130,8 @@ export class Orchestrator {
     }
     if (decision === 'request_changes' && !feedback) throw invalid('Describe the changes you want')
     if (feedback) updateTask(this.ctx, taskId, (t) => { t.feedback.push({ at: isoNow(), text: feedback, source }); t.error = null })
-    this.ctx.store.audit(source, `task.${decision}`, { taskId, headSha: current })
+    const receipt = verificationReceipt(task, this.ctx.store.listEvidence(taskId))
+    this.ctx.store.audit(source, `task.${decision}`, { taskId, headSha: current, evidenceState: receipt.state, failedChecks: receipt.failed.map(c => c.spec.id), missingChecks: receipt.missing.map(c => c.spec.id) })
     this.continueWith(taskId, afterFinalDecision(decision))
   }
 

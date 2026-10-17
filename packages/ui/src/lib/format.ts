@@ -34,7 +34,7 @@ export function usageLine(usage: UsageTotals): string {
   return parts.join(' · ')
 }
 
-export function statusLabel(task: Task): { label: string; tone: Tone; live: boolean } {
+export function statusLabel(task: Pick<Task, 'status' | 'waitReason' | 'outcome'>): { label: string; tone: Tone; live: boolean } {
   const map: Record<TaskStatus, { label: string; tone: Tone }> = {
     queued: { label: 'Queued', tone: 'neutral' },
     running: { label: 'Running', tone: 'accent' },
@@ -58,7 +58,7 @@ export const STAGE_LABELS = { plan: 'Plan', implement: 'Implement', review: 'Rev
 export const MODE_INFO = {
   safe: { label: 'Safe', detail: 'You approve the plan and the exact check commands before any code is written. Final approval required.' },
   developer: { label: 'Developer', detail: 'Agents work autonomously inside the isolated worktree. Detected checks run automatically. Final approval required.' },
-  autonomous: { label: 'Autonomous', detail: 'Larger budgets and more fix rounds, still inside the worktree and sandboxes. Final approval required.' }
+  autonomous: { label: 'Autonomous', detail: 'Larger budgets and more repair rounds in the isolated worktree. Project checks run as your user, not in a security container. Final approval required.' }
 } as const
 
 const TEST_PATH = /(^|\/)(tests?|__tests__|spec)(\/|$)|(\.|_)(test|spec)\.[a-z]+$|^test_.*\.py$|_test\.(go|py)$/i

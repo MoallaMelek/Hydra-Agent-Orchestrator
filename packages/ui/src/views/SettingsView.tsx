@@ -34,10 +34,11 @@ export function SettingsView() {
         <dl className="hx-kv">
           {(['safe', 'developer', 'autonomous'] as const).map((m) => <Fragment key={m}><dt>{MODE_INFO[m].label}</dt><dd>{MODE_INFO[m].detail}</dd></Fragment>)}
         </dl>
-        <p className="faint" style={{ marginTop: 12, fontSize: 12 }}>Every mode keeps agents inside the task worktree and requires your final approval. These are enforced by the engine, not by instructions to the agents.</p>
+        <p className="faint" style={{ marginTop: 12, fontSize: 12 }}>Every mode requires your final approval. Git worktrees separate changes; they are not security containers. Provider restrictions differ by CLI and platform. Project checks execute with your user permissions.</p>
       </Panel>
       <Panel title="Your data">
         <p className="muted">Tasks, history and evidence are stored only on this computer in a local SQLite database, with a daily backup. Nothing is sent to Hydra's developers or any cloud database. Agent prompts go only to the providers you selected, using your own accounts.</p>
+        <p className="muted" style={{ marginTop: 12 }}>Removing a task clears its current records and logs, but the event journal, backups and earlier exports may retain its content. Archive only hides it. No secure-erasure or automatic restore guarantee is provided. Keep a known-good installer and test restoration using disposable data before relying on a backup.</p>
         {!isRemote && (
           <>
             <div className="row" style={{ marginTop: 12 }}>

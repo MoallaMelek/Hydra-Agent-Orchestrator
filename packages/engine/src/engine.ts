@@ -119,7 +119,7 @@ export class Engine {
       engineVersion: this.version,
       lastSeq: this.store.lastSeq,
       projects: this.store.listProjects(),
-      tasks: this.store.listTasks(),
+      tasks: this.store.initialTasks(),
       providers: this.ctx.registry.status(),
       devices: this.store.listDevices(),
       activeRuns: this.store.runsWithStatus('running'),

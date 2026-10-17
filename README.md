@@ -4,7 +4,7 @@ Hydra is a desktop app that supervises AI coding agents (Claude Code and Codex C
 
 **PLAN → IMPLEMENT → REVIEW → FIX → VERIFY → DEMO → APPROVAL**
 
-- **Isolated by default.** Every change runs in its own git worktree on a `hydra/*` branch. Your working tree changes only when you press Accept, and every apply can be rolled back with a revert commit.
+- **Isolated changes.** Every change runs in its own git worktree on a `hydra/*` branch. Hydra delivers a task revision only after your approval. Recorded applies offer revert-based rollback, subject to branch state and conflict resolution. Project checks still execute as your user; use trusted repositories.
 - **Evidence, not claims.** Hydra runs your project's tests and builds itself (Node, Python, Go, Rust, Java, C/C++, or your own `.hydra/checks.json`), records exit codes against the exact commit, and shows before/after results.
 - **Independent review.** A second agent (a different provider when available) reviews the diff together with the real test results. Fix rounds are bounded.
 - **Budgets.** Per-task limits on cost, tokens, active time and agent runs.
@@ -13,7 +13,7 @@ Hydra is a desktop app that supervises AI coding agents (Claude Code and Codex C
 
 ## Status
 
-**Alpha.** The engine, desktop app and encrypted phone control work and are verified with the real Claude Code and Codex CLIs. CI is green on Windows, macOS and Linux. Not yet released: installers are unsigned and an external beta is pending. See [COMMERCIAL_READINESS](docs/v2/COMMERCIAL_READINESS.md), [USER_GUIDE](docs/v2/USER_GUIDE.md) and [TEST_EVIDENCE](docs/v2/TEST_EVIDENCE.md).
+**Supervised developer preview.** Historical real-provider and CI evidence is dated in [TEST_EVIDENCE](docs/v2/TEST_EVIDENCE.md); it does not qualify every current build or platform. The [Mission Desk milestone](docs/v2/PRODUCT_MILESTONE.md) simplifies the full desktop product around conversation, a revision-bound receipt and explicit decisions. Signing, public feed/recovery, hostile-code containment, trusted remote bootstrap and broader hardware/accessibility qualification remain release gates. The [full-app distribution and Agensi plan](docs/v2/AGENSI_FULL_PRODUCT.md) separates the Electron application from any standalone companion skill. Nothing has been published by this milestone.
 
 ## Develop
 

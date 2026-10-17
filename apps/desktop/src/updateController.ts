@@ -1,6 +1,7 @@
 import { secureUpdateFetch } from './updateFetch.js'
 import { createHash } from 'node:crypto'
 import { createReadStream, existsSync, lstatSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { checkForUpdate, downloadUpdate, type Fetcher, type UpdateCheck, type UpdateConfig } from '../../../packages/engine/src/update/updater.js'
 import type { DesktopUpdateState, UpdateAction } from './updateTypes.js'
 
@@ -32,8 +33,9 @@ export class DesktopUpdates {
     try { const saved = JSON.parse(readFileSync(host.preferencesPath, 'utf8')); settings = { autoCheck: saved.autoCheck !== false, autoDownload: saved.autoDownload === true } } catch { /* defaults */ }
     let recovery: string | null = null
     try {
-      const previous = JSON.parse(readFileSync(host.journalPath, 'utf8').replace(/^\uFEFF/, '')) as { target: string; phase: string; backup?: string; error?: string }
-      recovery = previous.target === host.config.currentVersion && previous.phase !== 'failed' ? `Running updated version ${previous.target}. A pre-update database backup is available.` : `Previous update did not finish (${previous.phase}). ${previous.error ?? ''} ${previous.backup ? `Backup: ${previous.backup}` : 'Retry the download or use the last trusted installer.'}`
+      let previous = JSON.parse(readFileSync(host.journalPath, 'utf8').replace(/^\uFEFF/, '')) as { target: string; phase: string; backup?: string; error?: string; attemptJournal?: string }
+      if (previous.attemptJournal && /^[A-Za-z0-9_-]+\.[0-9a-f-]{36}\.json$/.test(previous.attemptJournal)) previous = JSON.parse(readFileSync(join(dirname(host.journalPath), previous.attemptJournal), 'utf8').replace(/^\uFEFF/, '')) as typeof previous
+      recovery = previous.target === host.config.currentVersion && previous.phase === 'launched' ? `Running updated version ${previous.target}. A pre-update database backup is available.` : `Previous update did not finish (${previous.phase}). ${previous.error ?? ''} ${previous.backup ? `Backup: ${previous.backup}` : 'Retry the download or use the last trusted installer.'}`
     } catch { /* no previous handoff */ }
     this.state = { currentVersion: host.config.currentVersion, latestVersion: null, channel: host.config.currentVersion.includes('-') ? 'preview' : 'stable', status: 'idle', notes: '', transferred: 0, total: 0, ...settings, error: null, recovery }
   }

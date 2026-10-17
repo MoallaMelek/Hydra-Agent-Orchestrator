@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'default' | 'primary' | 'danger' | 'ghost' | 'you'
@@ -62,7 +62,15 @@ export function Tabs<T extends string>({ value, tabs, onChange }: { value: T; ta
   return (
     <div className="hx-tabs" role="tablist">
       {tabs.map((tab) => (
-        <button key={tab.id} role="tab" type="button" className="hx-tab" aria-selected={value === tab.id} onClick={() => onChange(tab.id)}>
+        <button key={tab.id} role="tab" type="button" className="hx-tab" tabIndex={value === tab.id ? 0 : -1} aria-selected={value === tab.id} onClick={() => onChange(tab.id)} onKeyDown={e => {
+          if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return
+          e.preventDefault()
+          const index = tabs.findIndex(t => t.id === value)
+          const next = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (index + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length
+          onChange(tabs[next]!.id)
+          const buttons = e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+          buttons?.[next]?.focus()
+        }}>
           {tab.icon}{tab.label}{tab.count !== undefined && <span className="hx-tab__count">{tab.count}</span>}
         </button>
       ))}
@@ -72,6 +80,7 @@ export function Tabs<T extends string>({ value, tabs, onChange }: { value: T; ta
 
 export function Dialog({ open, title, children, footer, onClose }: { open: boolean; title: ReactNode; children: ReactNode; footer?: ReactNode; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
@@ -79,8 +88,8 @@ export function Dialog({ open, title, children, footer, onClose }: { open: boole
     if (!open && dialog.open) dialog.close()
   }, [open])
   return (
-    <dialog ref={ref} className="hx-dialog" onClose={onClose} onCancel={onClose}>
-      <header className="hx-dialog__head"><h3>{title}</h3></header>
+    <dialog ref={ref} className="hx-dialog" aria-labelledby={titleId} onClose={onClose} onCancel={onClose}>
+      <header className="hx-dialog__head"><h3 id={titleId}>{title}</h3></header>
       <div className="hx-dialog__body">{children}</div>
       {footer && <footer className="hx-dialog__foot">{footer}</footer>}
     </dialog>

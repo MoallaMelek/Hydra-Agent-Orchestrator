@@ -4,6 +4,7 @@ import { extname, join, normalize, resolve, sep } from 'node:path'
 import { WebSocketServer, type WebSocket } from 'ws'
 import type { Engine } from '@hydra/engine'
 import type { EventEnvelope } from '@hydra/protocol'
+import { TaskHistoryQuery } from '@hydra/protocol'
 import { bearerMatches, hostAllowed, originAllowed, safePath, SECURITY_HEADERS } from './security.js'
 
 const MAX_BODY = 1024 * 1024
@@ -73,6 +74,11 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
     const method = req.method ?? 'GET'
     let match: RegExpExecArray | null
     if (method === 'GET' && path === '/api/state') return send(res, 200, engine.snapshot())
+    if (method === 'POST' && path === '/api/history') {
+      const parsed = TaskHistoryQuery.safeParse(await readJson(req))
+      if (!parsed.success) throw new HttpError(400, 'Invalid history query')
+      return send(res, 200, engine.store.taskHistory(parsed.data))
+    }
     if (method === 'GET' && path === '/api/audit') return send(res, 200, engine.store.listAudit(300))
     if (method === 'POST' && path === '/api/commands') {
       const ack = await engine.execute(await readJson(req), { kind: 'desktop' })
@@ -153,11 +159,19 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
  * First client frame must be {type:'auth', token, after}. The server then replays
  * journal events after `after` and streams live events in order.
  */
-function attachStream(ws: WebSocket, engine: Engine, token: string): void {
+export function attachStream(ws: WebSocket, engine: Engine, token: string): void {
   let unsubscribe: (() => void) | null = null
+  const BUFFER_LIMIT = 2 * 1024 * 1024
+  let closed = false
   const authTimer = setTimeout(() => ws.close(4401, 'auth timeout'), 5000)
   const heartbeat = setInterval(() => { if (ws.readyState === ws.OPEN) ws.ping() }, 20_000)
-  const sendEnvelope = (envelope: EventEnvelope) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'event', envelope })) }
+  const sendEnvelope = (envelope: EventEnvelope) => {
+    if (closed || ws.readyState !== ws.OPEN) return false
+    const frame = JSON.stringify({ type: 'event', envelope })
+    if (ws.bufferedAmount + Buffer.byteLength(frame) > BUFFER_LIMIT) { closed = true; ws.close(4413, 'slow consumer; reconnect from applied cursor'); return false }
+    ws.send(frame)
+    return true
+  }
 
   ws.once('message', (raw) => {
     clearTimeout(authTimer)
@@ -165,21 +179,35 @@ function attachStream(ws: WebSocket, engine: Engine, token: string): void {
     try { msg = JSON.parse(String(raw)) as typeof msg } catch { return ws.close(4400, 'bad frame') }
     if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return ws.close(4400, 'bad frame')
     if (msg.type !== 'auth' || typeof msg.token !== 'string' || !bearerMatches(`Bearer ${msg.token}`, token)) return ws.close(4401, 'unauthorized')
-    let cursor = typeof msg.after === 'number' && msg.after >= 0 ? msg.after : engine.store.lastSeq
+    if (msg.after !== undefined && (typeof msg.after !== 'number' || !Number.isSafeInteger(msg.after) || msg.after < 0 || msg.after > engine.store.lastSeq)) return ws.close(4400, 'invalid cursor')
+    let cursor = typeof msg.after === 'number' ? msg.after : engine.store.lastSeq
+    const through = engine.store.lastSeq
     // Buffer live events while the backlog is replayed so nothing is lost or reordered.
     const live: EventEnvelope[] = []
+    let liveBytes = 0
     let replaying = true
     unsubscribe = engine.subscribe((envelope) => {
-      if (replaying) live.push(envelope)
+      if (closed) return
+      if (replaying) {
+        liveBytes += Buffer.byteLength(JSON.stringify(envelope))
+        if (live.length >= 256 || liveBytes > BUFFER_LIMIT) { closed = true; ws.close(4413, 'replay overflow; reconnect from applied cursor'); return }
+        live.push(envelope)
+      }
       else sendEnvelope(envelope)
     })
-    for (let batch = engine.store.eventsAfter(cursor); batch.length; batch = engine.store.eventsAfter(cursor)) {
-      for (const envelope of batch) { sendEnvelope(envelope); cursor = envelope.seq }
-    }
-    replaying = false
-    for (const envelope of live) if (envelope.seq > cursor || envelope.event.type === 'run.output' || envelope.event.type === 'providers.updated') sendEnvelope(envelope)
-    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'ready', lastSeq: engine.store.lastSeq }))
+    void (async () => {
+      while (!closed && ws.readyState === ws.OPEN && cursor < through) {
+        const batch = engine.store.eventsAfter(cursor, 64).filter(e => e.seq <= through)
+        if (!batch.length) break
+        for (const envelope of batch) { if (!sendEnvelope(envelope)) return; cursor = envelope.seq }
+        await new Promise<void>(resolve => setImmediate(resolve))
+      }
+      if (closed || ws.readyState !== ws.OPEN) return
+      replaying = false
+      for (const envelope of live) if (envelope.seq > cursor || envelope.event.type === 'run.output' || envelope.event.type === 'providers.updated') { if (!sendEnvelope(envelope)) return }
+      ws.send(JSON.stringify({ type: 'ready', lastSeq: engine.store.lastSeq }))
+    })().catch(() => ws.close(1011, 'replay failed; reconnect'))
   })
-  ws.on('close', () => { clearTimeout(authTimer); clearInterval(heartbeat); unsubscribe?.() })
+  ws.on('close', () => { closed = true; clearTimeout(authTimer); clearInterval(heartbeat); unsubscribe?.() })
   ws.on('error', () => ws.terminate())
 }

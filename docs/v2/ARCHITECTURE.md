@@ -6,10 +6,10 @@
 
 1. **Nothing reaches the user's working tree without explicit approval.** All agent work happens in a dedicated git worktree on a task branch.
 2. **Evidence over claims.** Hydra itself runs tests and builds and records exit codes, output digests and the exact commit they ran against. An agent saying "tests pass" is never evidence.
-3. **Durable by default.** Every state change is an append-only event in SQLite. A crash loses at most the in-flight agent run, and the task resumes from its last completed stage.
+3. **Durable task state.** Task/stage/run transitions are journaled with their projections in SQLite. Live output is not all retained. Recovery reconciles interrupted work and pauses it for deliberate resume; it does not silently repeat side effects. WAL/NORMAL is not a zero-data-loss promise under power failure.
 4. **Provider-neutral orchestration.** The workflow never branches on "Claude" or "Codex". It asks adapters for *capabilities*.
 5. **Honest safety.** Each restriction is labelled as enforced by the OS, by the provider CLI, or by a prompt only. See THREAT_MODEL.md.
-6. **Owned remote access.** The phone talks to the engine end-to-end encrypted through a relay the owner controls. The relay never sees plaintext.
+6. **Optional LAN preview.** Phone access is off by default and uses an encrypted session after pairing. The HTTP-delivered client does not protect against active network replacement. No production relay deployment or qualified HTTPS/native client is established.
 
 ## 2. System overview
 
@@ -44,7 +44,7 @@
 | `packages/ui` | React SPA: design system plus app views. Talks to an `ApiClient` (local) or a `RemoteClient` (encrypted). |
 | `apps/hydrad` | Engine host: HTTP/WS API, static UI hosting, remote bridge, CLI entry (`hydrad serve`, `hydrad doctor`). |
 | `apps/desktop` | Electron shell: starts hydrad, opens a window, provides native dialogs. |
-| `apps/relay` | Zero-knowledge WebSocket relay plus static PWA hosting. Dockerfile included. |
+| `apps/relay` | Reserved/proposed relay workspace; not evidence of deployed remote infrastructure. Shipped phone behavior is the hydrad LAN path. |
 | `skills/` | Standalone Agensi-compatible SKILL.md skills derived from Hydra's methods. |
 | `tools/` | Originality check, licence report, release and test helpers. |
 
@@ -142,7 +142,7 @@ type AgentEvent = { type: 'started', pid } | { type: 'text', text } | { type: 't
 | Write roles | `--tools Read,Glob,Grep,Edit,Write --permission-mode acceptEdits`; `--restricted` confines file tools to cwd = worktree | `-s workspace-write` (OS sandbox on macOS/Linux; Windows sandbox per Codex) |
 | Shell for the agent | **never** (no Bash; Claude has no OS sandbox) | inside the Codex sandbox only, network off |
 | Structured output | `--json-schema` | `--output-schema <file>` |
-| Usage and cost | `result.usage`, `total_cost_usd` | `turn.completed.usage`; cost estimated from a configurable price table (labelled *estimate*) |
+| Usage and cost | `result.usage`, `total_cost_usd` | `turn.completed.usage`; unpriced tokens recorded separately, not a complete dollar bill |
 | Budget cap | `--max-budget-usd` + engine-side abort | engine-side abort |
 | Prompt delivery | stdin (never argv, never a shell) | stdin (`-`) |
 
@@ -175,7 +175,7 @@ Detectors (`packages/engine/src/verification/detectors/*`) each inspect a projec
 
 The runner spawns with `shell:false`. On Windows, `.cmd`/`.bat` shims are run through `cmd.exe /d /s /c` only after every argument passes a strict character allowlist. Runs have per-check timeouts, process-tree kill, a scrubbed environment (allowlist: PATH, HOME, temp, locale, toolchain variables), output capped in memory, and full logs on disk with a SHA-256 digest.
 
-Execution profiles: `host` (default) and `container` (optional: `docker run --network none` with the worktree mounted; used when Docker is available and the user selects it). The host profile runs project test code with the user's privileges; this is stated in the UI and in THREAT_MODEL.md.
+Execution profile: host checks run project code with the user's privileges. A container profile is proposed but NOT IMPLEMENTED or selectable. Worktree isolation and a scrubbed environment do not contain arbitrary filesystem or network access. Use trusted repositories only.
 
 ## 8. Autonomy modes (enforced by `Policy`, not by prompts)
 

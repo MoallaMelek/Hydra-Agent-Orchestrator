@@ -1,92 +1,55 @@
-import { useMemo, useState } from 'react'
-import { Archive, GitBranch, MessagesSquare, Search, Trash2 } from 'lucide-react'
-import type { Task } from '@hydra/protocol'
+import { useEffect, useState } from 'react'
+import { Archive, GitBranch, RefreshCw, Search, Trash2 } from 'lucide-react'
+import type { TaskHistoryPage, TaskHistoryQuery } from '@hydra/protocol'
 import { Badge, Button, EmptyState, Panel } from '../design/components'
 import { useApp, useAppState } from '../app/context'
-import { shallow } from '../api/store'
 import { NewTaskForm } from './NewTaskForm'
 import { ChecksPanel } from './ChecksPanel'
-import { ago, statusLabel, usageLine } from '../lib/format'
-
-const PAGE = 25
-
-/** A conversation is a first message plus its follow-ups; a change is a conversation of one. */
-interface Thread { root: Task; latest: Task; turns: Task[] }
-
-function threads(tasks: Task[]): Thread[] {
-  const byId = new Map(tasks.map((t) => [t.id, t]))
-  const rootOf = (t: Task): Task => {
-    let current = t
-    for (let i = 0; i < 50 && current.followUpOf && byId.has(current.followUpOf); i++) current = byId.get(current.followUpOf)!
-    return current
-  }
-  const groups = new Map<string, Task[]>()
-  for (const t of tasks) {
-    const root = rootOf(t)
-    groups.set(root.id, [...(groups.get(root.id) ?? []), t])
-  }
-  return [...groups.entries()].map(([rootId, turns]) => {
-    turns.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    return { root: byId.get(rootId)!, latest: turns.at(-1)!, turns }
-  }).sort((a, b) => b.latest.updatedAt.localeCompare(a.latest.updatedAt))
-}
+import { ago, statusLabel } from '../lib/format'
 
 export function ProjectView({ projectId }: { projectId: string }) {
-  const { go, run, isRemote } = useApp()
-  const project = useAppState((s) => s.projects.find((p) => p.id === projectId))
-  const mine = useAppState((s) => Object.values(s.tasks).filter((t) => t.projectId === projectId), shallow)
+  const { go, run, store, isRemote } = useApp()
+  const project = useAppState(s => s.projects.find(p => p.id === projectId))
   const [query, setQuery] = useState('')
   const [archived, setArchived] = useState(false)
-  const [shown, setShown] = useState(PAGE)
-  const all = useMemo(() => threads(mine), [mine])
+  const [before, setBefore] = useState<TaskHistoryQuery['before']>()
+  const [page, setPage] = useState<TaskHistoryPage | null>(null)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(true)
+  const [refresh, setRefresh] = useState(0)
+  useEffect(() => {
+    let canceled = false
+    setBusy(true); setError('')
+    const timer = setTimeout(() => {
+      const load = store.transport.taskHistory
+        ? store.transport.taskHistory({ projectId, query, archived, before })
+        : Promise.resolve({ tasks: Object.values(store.get().tasks).filter(t => t.projectId === projectId && Boolean(t.archivedAt) === archived).slice(0, 25), next: null })
+      void load.then(result => { if (!canceled) setPage(result) }).catch(e => { if (!canceled) setError((e as Error).message) }).finally(() => { if (!canceled) setBusy(false) })
+    }, 200)
+    return () => { canceled = true; clearTimeout(timer) }
+  }, [store, projectId, query, archived, before, refresh])
   if (!project) return <div className="page"><EmptyState title="Project not found" /></div>
-
-  const needle = query.trim().toLowerCase()
-  const visible = all
-    .filter((th) => Boolean(th.root.archivedAt) === archived)
-    .filter((th) => !needle || th.turns.some((t) => `${t.title}\n${t.prompt}\n${t.answer ?? ''}`.toLowerCase().includes(needle)))
-  const archivedCount = all.filter((th) => th.root.archivedAt).length
-
-  return (
-    <div className="page project-workspace">
-      <div className="page__head">
-        <div className="page__title">
-          <h1>{project.name}</h1>
-          <div className="row faint mono" style={{ fontSize: 12 }}>{project.root}{project.isGit ? <Badge tone="info" plain><GitBranch size={11} />git</Badge> : <Badge tone="warn">not a git repo</Badge>}</div>
-        </div>
-        {!isRemote && <Button variant="ghost" size="sm" icon={<Trash2 size={14} />} onClick={() => void run({ type: 'project.remove', projectId }, 'Project removed from Hydra (files untouched)').then((ack) => ack.ok && go({ view: 'home' }))}>Remove</Button>}
+  return <div className="page project-workspace">
+    <header className="page__head">
+      <div className="page__title"><h1>{project.name}</h1><p className="muted">A question, a change, a clear next step.</p><p className="project-location"><GitBranch size={13} aria-hidden /> <span>{project.root}</span><Badge tone={project.isGit ? 'neutral' : 'warn'}>{project.isGit ? 'Git project' : 'Questions only'}</Badge></p></div>
+      {!isRemote && <Button variant="ghost" size="sm" icon={<Trash2 size={14} />} onClick={() => void run({ type: 'project.remove', projectId }, 'Project removed from Hydra (files untouched)').then(ack => ack.ok && go({ view: 'home' }))}>Remove</Button>}
+    </header>
+    <section className="request-sheet" aria-label="Start a conversation"><NewTaskForm projectId={projectId} isGit={project.isGit} /></section>
+    {!isRemote && <details className="disclosure"><summary>Project checks <span>Commands Hydra runs to gather evidence</span></summary><ChecksPanel projectId={projectId} isGit={project.isGit} /></details>}
+    <Panel title={archived ? 'Archive' : 'History'} actions={<>
+      <label className="history-search"><Search size={14} aria-hidden /><input className="hx-input" type="search" placeholder="Search all project history" aria-label="Search history" maxLength={200} value={query} onChange={e => { setQuery(e.target.value); setBefore(undefined) }} /></label>
+      <Button size="sm" variant="ghost" icon={<Archive size={14} />} aria-pressed={archived} onClick={() => { setArchived(!archived); setBefore(undefined) }}>{archived ? 'Back to history' : 'Archived'}</Button>
+      <Button size="sm" variant="ghost" aria-label="Refresh history" icon={<RefreshCw size={14} />} onClick={() => setRefresh(n => n + 1)} />
+    </>}>
+      <p className="faint section-note">Saved questions and changes · 25 per page. Search includes saved answers.</p>
+      {error && <p role="alert">History could not load: {error} <button onClick={() => setRefresh(n => n + 1)}>Retry</button></p>}
+      <div aria-busy={busy}>
+        {busy ? <p role="status" className="muted">Loading history…</p> : !page?.tasks.length ? <EmptyState title={query ? 'No matching work' : archived ? 'Nothing archived' : 'Your next idea starts above'} /> : <div className="task-rows">{page.tasks.map(task => {
+          const status = statusLabel(task)
+          return <button key={task.id} className="task-row" onClick={() => go({ view: 'task', taskId: task.id })}><span className="task-row__main"><strong className="task-row__title truncate">{task.title}</strong><span className="faint">{task.followUpOf ? 'Follow-up' : task.intent === 'analyze' ? 'Question' : 'Change'} · {ago(task.updatedAt)}</span></span><Badge tone={status.tone}>{status.label}</Badge></button>
+        })}</div>}
       </div>
-      <Panel title="Ask or change"><NewTaskForm projectId={projectId} isGit={project.isGit} /></Panel>
-      {!isRemote && <ChecksPanel projectId={projectId} isGit={project.isGit} />}
-      <Panel title={archived ? `Archived · ${visible.length}` : `History · ${visible.length}`} actions={
-        <>
-          <label className="history-search"><Search size={14} aria-hidden /><input className="hx-input" type="search" placeholder="Search questions, answers, changes" aria-label="Search history" value={query} onChange={(e) => { setQuery(e.target.value); setShown(PAGE) }} /></label>
-          <Button size="sm" variant="ghost" icon={<Archive size={14} />} aria-pressed={archived} onClick={() => { setArchived(!archived); setShown(PAGE) }}>{archived ? 'Back to history' : `Archived${archivedCount ? ` (${archivedCount})` : ''}`}</Button>
-        </>
-      }>
-        {visible.length === 0 ? (
-          <p className="muted">{needle ? 'Nothing matches your search.' : archived ? 'Nothing archived.' : 'No tasks in this project yet.'}</p>
-        ) : (
-          <div className="task-rows">
-            {visible.slice(0, shown).map(({ root, latest, turns }) => {
-              const s = statusLabel(latest)
-              return (
-                <button key={root.id} className="task-row" onClick={() => go({ view: 'task', taskId: latest.id })}>
-                  <span className="task-row__main">
-                    <span className="task-row__title truncate">{root.title}</span>
-                    <span className="task-row__now faint truncate">
-                      <span>{root.intent === 'analyze' ? (turns.length > 1 ? <><MessagesSquare size={11} aria-hidden /> {turns.length} messages</> : 'Question') : `Change · ${root.mode}`}</span>
-                      <span> · {usageLine(latest.usage)} · {ago(latest.updatedAt)}</span>
-                    </span>
-                  </span>
-                  <span className="task-row__meta"><Badge tone={s.tone} live={s.live}>{s.label}</Badge></span>
-                </button>
-              )
-            })}
-            {visible.length > shown && <Button variant="ghost" onClick={() => setShown(shown + PAGE)}>Show {Math.min(PAGE, visible.length - shown)} more of {visible.length - shown}</Button>}
-          </div>
-        )}
-      </Panel>
-    </div>
-  )
+      <div className="history-paging">{before && <Button size="sm" onClick={() => setBefore(undefined)}>Back to newest</Button>}{page?.next && <Button size="sm" disabled={busy} onClick={() => setBefore(page.next ?? undefined)}>Older work</Button>}</div>
+    </Panel>
+  </div>
 }

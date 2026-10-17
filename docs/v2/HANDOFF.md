@@ -1,5 +1,9 @@
 # Handoff — Hydra v2 (read this first)
 
+## Current milestone — 2026-10-17
+
+See PRODUCT_MILESTONE.md and AGENSI_FULL_PRODUCT.md before the historical notes below. Active branch: feat/hydra-product-milestone-20261017, integrating assessed alpha.3 / 4d2a48b with remote main d18a690. No main merge or public release in this milestone. Final results are recorded in TEST_EVIDENCE.md. The following session-5 table and next-action list are retained historical context and are not current qualification claims. Job objects and desktop signed-manifest update foundations exist; container containment, trusted phone bootstrap, production signing/feed and failure recovery remain open. Current UI uses Workspace, AI accounts and Phone access.
+
 **Branch:** `v2-rebuild` (worktree `C:\Users\moall\hydra-v2`), merged into `main` with the owner's approval on 2026-10-13.
 
 ## Where things stand (2026-10-14, pre-beta hardening, session 5)

@@ -2,6 +2,15 @@
 
 Newest entry first.
 
+## 2026-10-17 · Mission Desk product milestone
+
+- Compared three interaction concepts and selected conversation + mission receipt. Workspace/project, onboarding, accounts, task approvals, history, settings and phone-access hierarchy now follow progressive disclosure. Existing operations/replay, orchestration, drafts, CLI accounts and Git delivery remain.
+- Revision-bound verification labels include absent/stale/failed/untrusted results. UI unresolved-evidence acceptance requires acknowledgement; engine audit records observed evidence state. Deletion/host execution/HTTP phone limits and prompt evidence rules are explicit.
+- History: 25 summary records/page with keyset cursor and database search, 100 boot tasks and 500 cached task records. Local replay: 64-event yielding batches and bounded queues. Check logs redact across chunks/lines/UTF-8 with conservative bounded suppression. Update helpers require a UUID/PID-bound grant on a unique attempt journal after readiness, with launch deadline.
+- Regression work reproduced the existing commondir race; ported the reviewed 6e8c4a2 bookkeeping lock and original real-Git tests. Checks stay parallel. No changes to main, user data, installed app, license or public release.
+- Final full check: 43 files, 328 passed/1 skipped; types/lint/provenance passed. Build/unpacked Windows package and 87-file resource scan passed. Packaged product acceptance 10/10; fresh-profile native acceptance 7/7. Solid-token contrast 63/63 at 4.5:1; narrow/medium/wide, keyboard, reduced-motion, pass/fail/no-check and real fixture apply/revert recorded. Scripted agents and real checks/Git; no new Hydra provider jobs. Final expanded secret-format split tests 3/3 and driver lint passed.
+- Full product direction and limits: PRODUCT_MILESTONE.md. Full-app distribution, Agensi policies/companion proposal, listing/onboarding/demo drafts and versioned release gates: AGENSI_FULL_PRODUCT.md. Production signing/feed/restore, hostile-code containment, HTTPS/native phone delivery, journal purge/retention, broad performance/platform/assistive qualification remain open.
+
 ## 2026-10-17 · alpha.3 conversation and system surfaces
 
 - Reproduced and removed 1,191px outer-document scrolling in addition to main scrolling. Fixed shell containment; long conversation still scrolls fully inside workspace. New reading/source/execution/composer layout, with matching Settings/Providers/Remote/Project/change-task treatment.
@@ -76,3 +85,29 @@ Newest entry first.
 
 ## 2026-10-13 · session 1 · M0 + M1/M2 engine
 - Architecture and decisions; engine with worktree isolation, engine-run verification, budgets and recovery; hardening after the first Codex review (D-013); live acceptance with real Claude and Codex.
+# 2026-10-17
+
+- Corrected updater SemVer precedence; regression tests and required checks passed.
+- Bounded update manifest network waits and corrected equal numeric prerelease comparison after independent review.
+- Approval digests now include package-manager lockfiles and development requirements, preserving binary bytes.
+
+
+
+## 2026-10-17 — greeting-prefixed bug reports
+Short greetings no longer hide crash/broken symptoms. Added three routing regressions; npm run check passed (245 passed, 2 skipped), typecheck, lint and provenance passed. Codex implemented and verified.
+
+
+## 2026-10-17 — outcome medians
+Even observation counts now average the central pair rather than underreporting duration and cost. Regression test covers both fields. npm run check passed: 246 passed, 2 skipped; typecheck, lint and provenance passed.
+
+
+## 2026-10-17 — budget failure guidance
+Paused budget failures now show budget recovery instructions instead of generic Resume guidance. Regression test plus npm run check passed: 247 passed, 2 skipped; typecheck, lint and provenance passed.
+
+
+## 2026-10-17 — provider HTTP timeout recovery
+Undici connect/header/body timeout codes now classify as transient network failures for the existing retry/pause flow. Three regression cases; npm run check passed: 250 passed, 2 skipped; typecheck, lint and provenance passed.
+
+
+## 2026-10-17 — event cursor acknowledgment
+Durable events advance the replay cursor only after the view callback succeeds, so an isolated failed update can replay. Reentrant newer updates cannot move the cursor backwards. Two regressions; npm run check passed: 252 passed, 2 skipped; typecheck, lint and provenance passed. Independent read-only Codex review found no blocking regression in this five-fix batch. Residual: a subsequent durable event can still advance beyond a failed callback before reconnect.

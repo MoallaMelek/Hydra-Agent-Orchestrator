@@ -18,6 +18,7 @@ import { TraceList } from '../ops/TraceList'
 import { useNow, useTaskEvidence, useTaskLoaded, useTaskRuns, useTrace } from '../ops/hooks'
 import type { Trace } from '../ops/model'
 import { Workflow, ArtifactPath } from '../ops/Workflow'
+import { MissionReceipt } from './task/MissionReceipt'
 
 type TabId = 'summary' | 'changes' | 'checks' | 'log'
 
@@ -30,7 +31,7 @@ export function TaskView({ taskId }: { taskId: string }) {
   return (
     <div className={`page page--wide task-page ${task.intent === 'analyze' ? 'task-page--conversation' : ''}`}>
       <nav className="crumbs" aria-label="Breadcrumbs">
-        <button onClick={() => go({ view: 'home' })}>Command center</button><span>/</span>
+        <button onClick={() => go({ view: 'home' })}>Workspace</button><span>/</span>
         {project && <><button onClick={() => go({ view: 'project', projectId: project.id })}>{project.name}</button><span>/</span></>}
         <span className="truncate" style={{ maxWidth: 420 }} title={task.title}>{task.title}</span>
       </nav>
@@ -40,10 +41,11 @@ export function TaskView({ taskId }: { taskId: string }) {
 }
 
 function ChangeView({ task }: { task: Task }) {
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [visual, setVisual] = useState<'workflow' | 'timeline' | 'artifacts'>('workflow')
   const runs = useTaskRuns(task.id)
   const evidence = useTaskEvidence(task.id)
-  const live = task.status === 'running' || task.status === 'queued' || task.status === 'waiting_input'
+  const live = task.status === 'running' || task.status === 'queued'
   const [tab, setTab] = useState<TabId>('summary')
   // On a phone the chronological list reads better than a wide diagram (both stay available).
   const [listView, setListView] = useState(() => typeof matchMedia === 'function' && matchMedia('(max-width: 700px)').matches)
@@ -51,7 +53,7 @@ function ChangeView({ task }: { task: Task }) {
   // Freeze: the drawing holds still (execution is unaffected); updates are counted until resumed.
   const [frozen, setFrozen] = useState<Trace | null>(null)
   const [missed, setMissed] = useState(0)
-  const now = useNow(live && !frozen)
+  const now = useNow(live && detailsOpen && !frozen)
   const current = useTrace(task.id, now)
   useEffect(() => { if (frozen && current) setMissed((n) => n + 1) }, [current])
   const shown = frozen ?? current
@@ -96,12 +98,14 @@ function ChangeView({ task }: { task: Task }) {
           </div>
         </div>
         <dl className="task-head__stats num">
-          <div><dt>Time</dt><dd>{duration(Math.max(0, elapsed))}</dd></div>
-          <div><dt>Cost</dt><dd>{money(task.usage.costUsd)}<span className="faint"> / {money(task.budget.maxCostUsd)}</span></dd></div>
+          <div><dt>Elapsed</dt><dd>{duration(Math.max(0, elapsed))}</dd></div>
+          <div><dt>Reported cost</dt><dd>{money(task.usage.costUsd)}<span className="faint"> / {money(task.budget.maxCostUsd)}</span>{task.usage.unpricedTokens > 0 && <small className="faint"> + unpriced usage</small>}</dd></div>
           <div><dt>Tokens</dt><dd>{tokens(used)}</dd></div>
           <div><dt>Agent runs</dt><dd>{task.usage.agentRuns}<span className="faint"> / {task.budget.maxAgentRuns}</span></dd></div>
         </dl>
       </header>
+      {task.status === 'waiting_input' && <DecisionBar task={task} blockingWarnings={warnings.filter((w) => w.tone === 'bad').length} />}
+      <MissionReceipt task={task} evidence={evidence} />
 
       {headline && task.status !== 'waiting_input' && (
         <div className={`now-line now-line--${headline.tone}`}>
@@ -115,9 +119,8 @@ function ChangeView({ task }: { task: Task }) {
         </div>
       )}
 
-      {task.status === 'waiting_input' && <DecisionBar task={task} blockingWarnings={warnings.filter((w) => w.tone === 'bad').length} />}
-
-      <div className="ops-grid">
+      <details className="disclosure work-details" onToggle={e => setDetailsOpen(e.currentTarget.open)}><summary>Work details <span>Observed operations, handoffs and replay</span></summary>
+      {detailsOpen && <div className="ops-grid">
       <section className="hx-panel relay-panel" aria-label="Live operations">
         <div className="relay-panel__bar">
           <h2 className="hx-panel__title row"><Waypoints size={15} aria-hidden /> Relay</h2>
@@ -143,7 +146,8 @@ function ChangeView({ task }: { task: Task }) {
       </section>
       {shown && (cursor !== null || frozen) && <div className="ops-grid__side"><p className="hx-panel__body muted">This view is paused in time. Return to now to inspect the latest outputs and evidence; historical streamed output is not retained.</p></div>}
       {shown && cursor === null && !frozen && <div className="ops-grid__side"><Inspector trace={shown} task={task} runs={runs} evidence={evidence} selection={active} onSelect={setSelection} /></div>}
-      </div>
+      </div>}
+      </details>
 
       <div className="task-grid">
         <section className="hx-panel task-grid__main">

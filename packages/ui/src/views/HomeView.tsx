@@ -11,6 +11,7 @@ import { RelayTrace } from '../ops/RelayTrace'
 import { useNow, useProviderName, useSlots, useTrace, useTaskLoaded, useTaskRuns } from '../ops/hooks'
 import { DID, shortTarget } from '../ops/model'
 import { Markdown } from '../lib/markdown'
+import { NewTaskForm } from './NewTaskForm'
 
 const ROLE = { planner: 'Planning', implementer: 'Implementing', reviewer: 'Reviewing' } as const
 const AGENT_STAGES = new Set(['plan', 'implement', 'fix', 'review'])
@@ -28,6 +29,9 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
   const onlyProject = projectName.length === 1 ? projectName[0] : undefined
   const slots = useSlots()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [composeProject, setComposeProject] = useState('')
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const writingIn = projectName.find(p => p.id === composeProject) ?? onlyProject ?? projectName[0]
 
   const sorted = useMemo(() => [...tasks].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [tasks])
   const needsYou = sorted.filter((t) => t.status === 'waiting_input')
@@ -41,9 +45,9 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
 
   // Compact traces need each active task's runs and checks.
   const activeIds = active.map((t) => t.id).join(',')
-  useEffect(() => { for (const id of activeIds.split(',').filter(Boolean).slice(0, 12)) void store.loadTask(id) }, [activeIds, store])
+  useEffect(() => { if (detailsOpen) for (const id of activeIds.split(',').filter(Boolean).slice(0, 12)) void store.loadTask(id) }, [activeIds, detailsOpen, store])
 
-  if (!ready) return <div className="page" aria-busy="true"><h1>Command center</h1><p role="status" className="muted">Loading your workspace…</p></div>
+  if (!ready) return <div className="page" aria-busy="true"><h1>Workspace</h1><p role="status" className="muted">Loading your workspace…</p></div>
 
   if (!hasProjects && isRemote) return <div className="page page--narrow"><h1>Your desktop has no projects yet</h1><p className="muted">Add a project in Hydra on your computer. Its tasks and recorded work will then be available here.</p></div>
 
@@ -52,8 +56,8 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
       <div className="page page--narrow onboarding">
         <div className="onboarding__hero">
           <HydraMark size={52} />
-          <h1>Several agents, one verified change</h1>
-          <p className="muted">Hydra has Claude Code and Codex plan, implement and review your change in an isolated copy of your repository, runs your tests itself, and changes nothing until you accept a verified result.</p>
+          <h1>Your idea.<br />A change you can inspect.</h1>
+          <p className="muted">Talk through a project with your own AI accounts. When you ask for a change, Hydra coordinates the work in an isolated copy, records the checks, and brings the decision back to you.</p>
         </div>
         <SetupChecklist onAddProject={onAddProject} />
         <ul className="onboarding__facts">
@@ -69,17 +73,17 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
     <div className="page operations-home">
       <header className="page__head operations-home__head">
         <div className="page__title">
-          <h1>Command center</h1>
+          <h1>What shall we work on?</h1>
           <p className="muted num">
-            {active.length ? `${active.length} task${active.length === 1 ? '' : 's'} in progress` : 'Nothing running'} · {slots.busy} of {slots.limit} agent slots in use{needsYou.length ? ` · ${needsYou.length} waiting for you` : ''}
+            {slots.busy ? `${slots.busy} agent${slots.busy === 1 ? '' : 's'} working` : 'Ready for your next idea'}{needsYou.length ? ` · ${needsYou.length} loaded task${needsYou.length === 1 ? '' : 's'} waiting for you` : ''}
           </p>
         </div>
-        <Button variant="primary" icon={<Plus size={15} />} onClick={() => onlyProject ? go({ view: 'project', projectId: onlyProject.id }) : document.getElementById('home-projects')?.focus()}>{onlyProject ? 'Start in ' + onlyProject.name : 'Choose a project'}</Button>
+        <Button icon={<Plus size={15} />} onClick={onAddProject}>Add project</Button>
       </header>
       {!noProviders && !anyReady && (
         <Callout tone="warn">
           No agent is ready, so new tasks cannot run. Install Claude Code or Codex and sign in with your own account.{' '}
-          <Button size="sm" variant="ghost" onClick={() => go({ view: 'providers' })}>Open Agents &amp; providers</Button>
+          <Button size="sm" variant="ghost" onClick={() => go({ view: 'providers' })}>Open AI accounts</Button>
         </Callout>
       )}
 
@@ -97,7 +101,12 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
         </section>
       )}
 
-      <div className="operations-desk">
+      {writingIn && <section className="request-sheet" aria-label="Start a conversation">
+        <div className="request-sheet__project"><label htmlFor="workspace-project">Working in</label><select id="workspace-project" className="hx-select" value={writingIn.id} onChange={e => setComposeProject(e.target.value)}>{projectName.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><span className="faint truncate" title={writingIn.root}>{writingIn.root}</span></div>
+        <NewTaskForm key={writingIn.id} projectId={writingIn.id} isGit={writingIn.isGit} />
+      </section>}
+
+      <details className="disclosure" onToggle={e => setDetailsOpen(e.currentTarget.open)}><summary>Work details <span>Recorded operations, agents and project workspaces</span></summary>{detailsOpen && <><div className="operations-desk">
         <section className="focus-desk" aria-label="Work in focus">
           <div className="focus-desk__head"><h2>Work in focus</h2><span className="faint">{!connected ? 'Saved snapshot · connection unavailable' : slots.busy > 0 ? 'Live and recorded work' : 'Recorded work · no agents running'}</span></div>
           {focused ? <FocusOperation key={focused.id} task={focused} project={nameOf(focused.projectId)} /> : <div className="focus-desk__empty"><HydraMark size={56} /><h3>Your first task starts here.</h3><p>Open a project to ask a question or describe a change. Agent work and verified results will appear here as they are recorded.</p></div>}
@@ -126,9 +135,11 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
           <div className="task-rows">{active.map((t) => <ActiveRow key={t.id} task={t} project={nameOf(t.projectId)} />)}</div>
         </section>
       )}
+      </>}</details>
 
       <section aria-label="Recent tasks">
         <h2 className="section-title">Recent</h2>
+        <p className="faint section-note">This workspace shows loaded recent work. Open a project’s History to search or page through every saved task.</p>
         {recent.length ? (
           <div className="task-rows">{recent.map((t) => <RecentRow key={t.id} task={t} project={nameOf(t.projectId)} />)}</div>
         ) : <p className="muted">No finished tasks yet. Open a project to ask a question or describe a change.</p>}

@@ -48,5 +48,7 @@ export const MIGRATIONS: readonly string[] = [
     doc TEXT NOT NULL
   );
   CREATE INDEX outcomes_category ON outcomes (category);
-  `
+  `,
+  `CREATE INDEX tasks_history_cursor ON tasks(project_id, updated_at DESC, id DESC);
+   CREATE INDEX tasks_boot_cursor ON tasks(updated_at DESC, id DESC);`
 ]

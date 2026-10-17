@@ -1,6 +1,6 @@
 import { useDraft, composeRequest } from '../../app/preferences'
 import { DraftAttachments } from '../DraftAttachments'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, FolderGit2, Send, Wrench } from 'lucide-react'
 import { routeRequest, type AgentRunInfo, type Task } from '@hydra/protocol'
 import { Button } from '../../design/components'
@@ -20,7 +20,7 @@ import { DID, filesOf, shortTarget } from '../../ops/model'
  * operations view shrinks to one line: who is answering and what it is looking at.
  */
 export function ConversationView({ task }: { task: Task }) {
-  const { run, go } = useApp()
+  const { run, go, store } = useApp()
   const providerName = useProviderName()
   const runs = useTaskRuns(task.id)
   const draft = useAppState((s) => s.drafts[task.id])
@@ -45,6 +45,8 @@ export function ConversationView({ task }: { task: Task }) {
     earlier.unshift(previous)
     id = previous.followUpOf
   }
+  const missingParent = earlier[0]?.followUpOf ?? (earlier.length ? null : task.followUpOf)
+  useEffect(() => { if (missingParent && !tasks[missingParent] && earlier.length < 10) void store.loadTask(missingParent) }, [missingParent, store, tasks, earlier.length])
 
   const ask = async () => {
     if (submitting.current || !followUp.trim()) return

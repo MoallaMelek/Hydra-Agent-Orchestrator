@@ -1,5 +1,7 @@
 # Decisions (ADR log)
 
+Current clarification (2026-10-17): historical entries below describe their decision dates. The container profile is not implemented. Final approval may include failed or missing checks; only the recorded commands can be said to pass. Codex tokens can be unpriced. Desktop update preferences can now schedule checks/downloads, with installation always explicit. These corrections supersede contrary wording in D-004/D-010/D-022. See PRODUCT_MILESTONE.md and AGENSI_FULL_PRODUCT.md for current capabilities and release gates.
+
 Format: ID · date · decision · alternatives considered · why · consequences. Newest last.
 
 ### D-001 · 2026-10-13 · New codebase on branch `v2-rebuild`

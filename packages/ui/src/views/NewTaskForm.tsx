@@ -43,7 +43,6 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
   const [minutes, setMinutes] = useState<number | ''>('')
   const [busy, setBusy] = useState(false)
   const [advanced, setAdvanced] = useState(false)
-  const warmed = useRef(0)
 
   const route = routeRequest(prompt, choice)
   // Mirrors the engine: without git, Auto answers instead of changing code.
@@ -72,13 +71,6 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
     return () => clearTimeout(timer)
   }, [prompt, choice, picked, store])
 
-  // Start an answering agent while the user types, so the reply begins sooner.
-  const prewarm = () => {
-    if (Date.now() - warmed.current < 60_000 || !ready.includes('claude')) return
-    warmed.current = Date.now()
-    void run({ type: 'agent.prewarm', projectId })
-  }
-
   const submit = async () => {
     if (submitting.current || !prompt.trim() || !ready.length || (choice === 'deep' && !isGit)) return
     let content: string
@@ -97,12 +89,13 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
   return (
     <div className="composer">
       <Field label="Ask a question or describe a change" htmlFor="task-prompt">
-        <textarea id="task-prompt" className="hx-textarea" rows={4} maxLength={50000} disabled={busy} value={prompt} onChange={(e) => setPrompt(e.target.value)} onFocus={prewarm}
+        <textarea id="task-prompt" className="hx-textarea" rows={4} maxLength={50000} disabled={busy} value={prompt} onChange={(e) => setPrompt(e.target.value)}
           placeholder='e.g. "How is authentication wired?" or "Cart totals ignore quantity. Fix total() and add a test."'
           onKeyDown={(e) => { if (!e.nativeEvent.isComposing && e.key === 'Enter' && (e.metaKey || e.ctrlKey) && prompt.trim()) void submit() }} />
       </Field>
       <DraftAttachments files={draft.attachments} onChange={attachments => draft.set({ attachments })} disabled={busy} />
       {(draft.error || submitError) && <p role="alert">{draft.error || submitError}</p>}
+      <details className="composer-options"><summary>Handling &amp; approvals <span>{choice === 'auto' ? 'Auto' : DEPTH_LABEL[choice]} · {MODE_INFO[effectiveMode].label}</span></summary>
       <div className="spread" style={{ flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <Field label="How Hydra handles it">
           <Segmented label="Handling" value={choice} onChange={setChoice} options={[
@@ -115,6 +108,7 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
           </Field>
         )}
       </div>
+      </details>
       {prompt.trim() && (
         <p className="route-preview" role="status">
           <b>{choice === 'auto' ? `Auto → ${DEPTH_LABEL[depth]}` : DEPTH_LABEL[depth]}.</b>{' '}
@@ -153,13 +147,14 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
         </Field>
       </div>}
       <div className="composer__row" style={{ justifyContent: 'flex-end' }}>
+        <p className="composer-trust faint">{label(assignment.planner)} receives your request and selected project context. Project checks run as your user. Use trusted repositories.</p>
         <div className="col" style={{ justifyContent: 'flex-end' }}>
           <Button variant="primary" size="lg" icon={<Sparkles size={16} />} busy={busy} disabled={!prompt.trim() || (choice === 'deep' && !isGit) || !ready.length} onClick={() => void submit()}>
             {isChange ? 'Start change' : 'Ask'}
           </Button>
         </div>
       </div>
-      {!ready.length && <Callout tone="bad">No agent is ready. Open <b>Agents &amp; providers</b> to see what to install or sign in to ({label('claude')}, {label('codex')}).</Callout>}
+      {!ready.length && <Callout tone="bad">No agent is ready. Open <b>AI accounts</b> to see what to install or sign in to ({label('claude')}, {label('codex')}).</Callout>}
     </div>
   )
 }

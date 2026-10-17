@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import {
-  AgentRunInfo, Device, DURABLE_EVENT_TYPES, Evidence, Outcome, Project, Task,
+  AgentRunInfo, Device, DURABLE_EVENT_TYPES, Evidence, Outcome, Project, Task, TaskSummary, type TaskHistoryQuery, type TaskHistoryPage,
   type EngineEvent, type EventEnvelope
 } from '@hydra/protocol'
 import type { z } from 'zod'
@@ -144,6 +144,27 @@ export class Store {
     return projectId
       ? this.docs('SELECT doc FROM tasks WHERE project_id = ? ORDER BY updated_at DESC', Task, projectId)
       : this.docs('SELECT doc FROM tasks ORDER BY updated_at DESC', Task)
+  }
+
+  /** Bounded boot payload; full history is read separately with a keyset cursor. */
+  initialTasks(): Task[] {
+    return this.docs("SELECT doc FROM tasks ORDER BY status IN ('running', 'queued', 'waiting_input') DESC, updated_at DESC, id DESC LIMIT 100", Task)
+  }
+
+  taskHistory(query: TaskHistoryQuery): TaskHistoryPage {
+    const conditions = ['project_id = ?', "(json_extract(doc, '$.archivedAt') IS NOT NULL) = ?"]
+    const args: Array<string | number> = [query.projectId, Number(query.archived)]
+    if (query.before) { conditions.push('(updated_at < ? OR (updated_at = ? AND id < ?))'); args.push(query.before.at, query.before.at, query.before.id) }
+    if (query.query.trim()) {
+      conditions.push("instr(lower(json_extract(doc, '$.title') || char(10) || json_extract(doc, '$.prompt') || char(10) || coalesce(json_extract(doc, '$.answer'), '')), lower(?)) > 0")
+      args.push(query.query.trim())
+    }
+    const fields = Object.keys(TaskSummary.shape)
+    const projection = fields.map(key => `'${key}', json_extract(doc, '$.${key}')`).join(', ')
+    const rows = this.db.prepare(`SELECT json_object(${projection}) AS doc FROM tasks WHERE ${conditions.join(' AND ')} ORDER BY updated_at DESC, id DESC LIMIT 26`).all(...args) as Row[]
+    const tasks = rows.slice(0, 25).map(row => TaskSummary.parse(JSON.parse(String(row.doc))))
+    const last = tasks.at(-1)
+    return { tasks, next: rows.length > 25 && last ? { at: last.updatedAt, id: last.id } : null }
   }
 
   tasksWithStatus(statuses: readonly string[]): Task[] {

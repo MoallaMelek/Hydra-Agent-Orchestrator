@@ -557,3 +557,72 @@ Full check:35files/289passed/1skipped,123.54s; final types/lint pass. Focused co
 Optional real-Claude test initially blocked by automatic approval for unspecified repository transmission. After explicit owner approval it ran read-only in copied application data, reported $0.0390898, distinguished host alpha.3 from selected repository0.2.61 and denied that checkout proved installed architecture. Original task records unchanged. This validates the observed reply, not universal model compliance.
 
 Installed alpha.3 NSIS exit0; database unchanged before first launch, one project/five tasks/providers and eight persisted tables retained. Installed UI and engine hashes exactly matched tested outputs. Installed executable re-inspected over copied history, including long-answer bottom; actual data health checked separately. Fresh restricted backup and normal reopen verified. No public release, secret change or main merge.
+# 2026-10-17 — SemVer updater regression
+
+`npm run check`: typecheck and lint passed; 247 tests passed, 2 skipped;
+provenance passed. Numeric prerelease identifiers, identifier prefixes, embedded
+hyphens and ignored build metadata are covered by `update/versions.test.ts`.
+Executed on Linux, Node 24.19.0; desktop and Windows installation not exercised.
+
+Updater follow-up: independent Codex review identified accepted leading-zero
+identifiers comparing inconsistently; added equality regression. Header and JSON
+body waits now time out separately; two stalled-server tests pass. Underlying
+fetch cancellation is not implemented. Full `npm run check` passed with the
+definition-digest regressions also present (257 passed, 2 skipped).
+
+Check definition digest: seven regressions cover package-manager lockfiles,
+development requirements, and distinct invalid-UTF-8 binary bytes. Independent
+review found the binary decoding collision; raw-byte hashing fixes it. Required
+typecheck, lint, all 257 tests and provenance passed on Linux.
+
+
+
+## 2026-10-17 — greeting-prefixed bug reports
+Short greetings no longer hide crash/broken symptoms. Added three routing regressions; npm run check passed (245 passed, 2 skipped), typecheck, lint and provenance passed. Codex implemented and verified.
+
+
+## 2026-10-17 — outcome medians
+Even observation counts now average the central pair rather than underreporting duration and cost. Regression test covers both fields. npm run check passed: 246 passed, 2 skipped; typecheck, lint and provenance passed.
+
+
+## 2026-10-17 — budget failure guidance
+Paused budget failures now show budget recovery instructions instead of generic Resume guidance. Regression test plus npm run check passed: 247 passed, 2 skipped; typecheck, lint and provenance passed.
+
+
+## 2026-10-17 — provider HTTP timeout recovery
+Undici connect/header/body timeout codes now classify as transient network failures for the existing retry/pause flow. Three regression cases; npm run check passed: 250 passed, 2 skipped; typecheck, lint and provenance passed.
+
+
+## 2026-10-17 — event cursor acknowledgment
+Durable events advance the replay cursor only after the view callback succeeds, so an isolated failed update can replay. Reentrant newer updates cannot move the cursor backwards. Two regressions; npm run check passed: 252 passed, 2 skipped; typecheck, lint and provenance passed. Independent read-only Codex review found no blocking regression in this five-fix batch. Residual: a subsequent durable event can still advance beyond a failed callback before reconnect.
+
+Reconciliation with concurrent main: retained both evidence sections and all code.
+Final `npm run check` passed: 267 tests passed, 2 skipped, typecheck, lint and
+provenance passed. Codex authored and verified these fixes; a separate Codex
+session reviewed the updater and approval-digest changes.
+
+## 2026-10-17 — Mission Desk final acceptance
+
+Branch: feat/hydra-product-milestone-20261017. Source reconciles assessed alpha.3 / 4d2a48b and remote main d18a690, plus the repository's 6e8c4a2 Git bookkeeping fix. Work stayed in the existing v2 worktree. Original Desktop source and installed application/data were not replaced.
+
+### Executed final evidence
+
+- `npm run check`: 43 files, **328 passed, 1 skipped**, 227.72 seconds for tests. TypeScript, ESLint and originality/provenance passed. The Windows permission-mode case remains skipped; no claim of new macOS/Linux CI execution.
+- Expanded final credential-format split-point tests: 3/3 passed; final acceptance-driver/test lint passed. Covered Anthropic/OpenAI/GitHub/AWS/Slack/Google/JWT, key blocks, generic assignments, HTTP credentials, flags, multiline labels, UTF-8, EOF and long lines. Pattern-based redaction is still not a universal secret detector. Raw output digest/byte counts describe observed process bytes; saved text is redacted and may conservatively suppress lines.
+- Real-Git reliability/admin-lock regressions: 7/7 passed. Bookkeeping invariant peak=1, actual checks stay concurrent, conflict refusal and dual-task delivery exercised. The original reviewed fix was ported from 6e8c4a2; external Git processes remain outside this engine's mutex.
+- Build and unsigned unpacked Windows Electron package passed. Final UI JavaScript 574.09 kB raw / about 179.14 kB gzip; CSS 58.36 kB / 12.40 kB gzip. Existing >500 kB chunk warning remains. No performance equivalence claim.
+- Artifact scanner: **87 files passed** across packaged UI/hydrad resources and desktop bundles. This is the configured pattern scan, not a supply-chain or vulnerability certification.
+- Packaged `product-acceptance.mjs`: **10/10 steps passed**. Captures include Workspace 1360×900, 900×760 and 390×844; accounts/settings/phone; dark/light passing, failed and no-check receipts; operations disclosure; plan/reject; deletion contract; actual fixture apply and revert; history summary API and check editor. Dialog title/focus/Escape, arrow-tab navigation, reduced motion and no horizontal/outer-document overflow checked. Contrast: **63 solid foreground/background token pairs ≥4.5:1** across three themes; excludes alpha, disabled, syntax and native surfaces. No screen-reader certification or novice user study.
+- Packaged `desktop-e2e.mjs --simulate-missing-providers`: **7/7 steps passed**. Fresh profile onboarding, typed project path, unavailable-provider keyboard guard, draft/attachment persistence across project navigation/reload/restart, three themes, 390px layout, visible keyboard focus, a real deliberately failing fixture check, backup/export files, shutdown/engine-lock release and relaunch.
+- Short idle sample: renderer TaskDuration **0.067621 seconds over 10 seconds**, with operations collapsed. This is not whole-process CPU or a soak result. Broad idle CPU, memory/battery and long-run qualification remain open.
+- `build-receipt.json` confirms packaged UI and engine files byte-match build outputs, and records ASAR/resource hashes. Program still reports alpha.3; no new release version/tag was created.
+
+Receipts and screenshots are in this chat's outputs: before/report.json (baseline development Electron, 7 steps), after/report.json (final packaged product, 10 steps), desktop-acceptance/report.json (final packaged fresh-profile, 7 steps), and build-receipt.json. Baseline uses the integrated pre-change source, not a fresh qualification of the original signed/installed artifact. Every new workflow fixture is explicitly labelled TEST FIXTURE and uses a scripted adapter with real engine/Git/check execution. No new paid Hydra provider workflow was run; prior real-Claude/Codex evidence retains its historical date and scope.
+
+### Review, failures and corrections
+
+Codex wrote/integrated and verified. A read-only Codex subagent challenged product direction and source risks. A fresh read-only installed Codex CLI review found multiline credential-label leakage and an independent late-helper installation risk. Parent fixed them; a bounded subagent follow-up found retry attempt-binding risk, addressed with unique journal paths plus UUID/PID checks. Tests include a real Windows helper refusing unapproved and stale attempts without executing an installer. No separate Claude or external security certification is claimed.
+
+Initial failures retained in the record: a linked dependency cache required reviewed filesystem access; first redactor/receipt fixtures had incorrect test assumptions; an export fixture timed out under broad worker contention (passed isolated, workers capped at four); a later concurrency run exposed the real commondir race (fixed with the existing branch patch); light success text measured 4.4839:1 against the new background (darkened and all 63 pairs rechecked). Test-driver issues included DOM-object readiness, obsolete screen labels, shortened CSS hex parsing and project labels containing status text; drivers were corrected before final passes. One intermediate package lacked the final dialog title; the final package passed title/focus/Escape checks.
+
+No public publishing, deployment, spending/purchases, tester invitations, main merge, license change, signing credential change or original-user-data migration occurred. Release blockers and exact approval-dependent work are in AGENSI_FULL_PRODUCT.md. This is a coherent product/trust milestone, not unrestricted commercial-release qualification.

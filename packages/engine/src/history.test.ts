@@ -31,6 +31,28 @@ async function open(dataDir = tempDir('hydra-history-'), delayMs = 0) {
 }
 
 describe('conversation history', () => {
+  it('pages summaries without gaps at equal timestamps and bounds the boot snapshot', async () => {
+    const { engine, ask, projectId } = await open()
+    const template = await ask('template question')
+    const { newId } = await import('./util/ids.js')
+    engine.store.transaction(() => {
+      for (let i = 0; i < 1000; i++) engine.store.putTask({ ...template, id: newId(), title: `History ${i}`, prompt: 'private prompt ' + i, answer: 'searchable answer ' + i })
+    })
+    expect(engine.snapshot().tasks.length).toBe(100)
+    const ids: string[] = []
+    let before: { at: string; id: string } | undefined
+    do {
+      const page = engine.store.taskHistory({ projectId, query: '', archived: false, before })
+      expect(page.tasks.length).toBeLessThanOrEqual(25)
+      expect(JSON.stringify(page)).not.toContain('private prompt')
+      ids.push(...page.tasks.map(t => t.id))
+      before = page.next ?? undefined
+    } while (before)
+    expect(ids.length).toBe(1001)
+    expect(new Set(ids).size).toBe(1001)
+    expect(engine.store.taskHistory({ projectId, query: 'searchable answer 999', archived: false }).tasks).toHaveLength(1)
+    expect(engine.store.taskHistory({ projectId, query: '', archived: true }).tasks).toHaveLength(0)
+  })
   it('archives and restores a whole conversation', async () => {
     const { engine, ask } = await open()
     const first = await ask('What does add() return?')

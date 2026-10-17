@@ -7,9 +7,9 @@ import { z } from 'zod'
 
 /**
  * Update foundation. A release is described by a manifest signed with the owner's
- * Ed25519 key; the app embeds only the public key. Nothing is checked unless the
- * person asks (no background network calls), nothing is installed without their
- * click, and every download is checked against the signed size and SHA-256.
+ * Ed25519 key; the app embeds only the public key. The desktop may schedule
+ * checks according to preferences. Installation always requires an explicit
+ * decision; every download is checked against the signed size and SHA-256.
  *
  * Blocked on the owner: a signing key pair (tools/release-sign.mjs creates one),
  * a place to host the manifest and installers, and OS code signing.
@@ -58,25 +58,32 @@ export function verifyManifest(signed: unknown, publicKeyHex: string): UpdateMan
 
 /** -1, 0 or 1. Pre-releases sort before the release with the same numbers. */
 export function compareVersions(a: string, b: string): number {
-  const [ma, pa = ''] = a.split('-', 2) as [string, string?]
-  const [mb, pb = ''] = b.split('-', 2) as [string, string?]
+  const parts = (version: string): [string, string] => {
+    const plain = version.split('+', 1)[0]!
+    const dash = plain.indexOf('-')
+    return dash < 0 ? [plain, ''] : [plain.slice(0, dash), plain.slice(dash + 1)]
+  }
+  const [ma, pa] = parts(a)
+  const [mb, pb] = parts(b)
   const na = ma.split('.').map(Number)
   const nb = mb.split('.').map(Number)
   for (let i = 0; i < 3; i++) if ((na[i] ?? 0) !== (nb[i] ?? 0)) return (na[i] ?? 0) < (nb[i] ?? 0) ? -1 : 1
   if (pa === pb) return 0
   if (!pa) return 1
   if (!pb) return -1
-  const aa = pa.split('.')
-  const bb = pb.split('.')
-  for (let i = 0; i < Math.max(aa.length, bb.length); i++) {
-    const left = aa[i], right = bb[i]
-    if (left === right) continue
-    if (left === undefined) return -1
-    if (right === undefined) return 1
-    const ln = /^\d+$/.test(left), rn = /^\d+$/.test(right)
-    if (ln && rn) return Number(left) < Number(right) ? -1 : 1
-    if (ln !== rn) return ln ? -1 : 1
-    return left < right ? -1 : 1
+  const ia = pa.split('.'), ib = pb.split('.')
+  for (let i = 0; i < Math.max(ia.length, ib.length); i++) {
+    const x = ia[i], y = ib[i]
+    if (x === y) continue
+    if (x === undefined) return -1
+    if (y === undefined) return 1
+    const xn = /^\d+$/.test(x), yn = /^\d+$/.test(y)
+    if (xn && yn) {
+      if (BigInt(x) === BigInt(y)) continue
+      return BigInt(x) < BigInt(y) ? -1 : 1
+    }
+    if (xn !== yn) return xn ? -1 : 1
+    return x < y ? -1 : 1
   }
   return 0
 }
@@ -90,12 +97,12 @@ export type UpdateCheck =
   | { state: 'available'; version: string; notes: string; file: z.infer<typeof UpdateFile> }
 
 /** Asks the release server, verifies the signature, and says whether a newer version exists for this platform. */
-export async function checkForUpdate(config: UpdateConfig, fetcher: Fetcher = fetch as unknown as Fetcher): Promise<UpdateCheck> {
+export async function checkForUpdate(config: UpdateConfig, fetcher: Fetcher = fetch as unknown as Fetcher, timeoutMs = 60_000): Promise<UpdateCheck> {
   if (!config.manifestUrl || !config.publicKeyHex) return { state: 'not_configured', reason: 'Updates are not set up in this build yet (no release key or release address).' }
   if (!/^https:\/\//.test(config.manifestUrl)) throw new Error('Updates are only fetched over HTTPS.')
-  const response = await fetcher(config.manifestUrl)
+  const response = await withDeadline(fetcher(config.manifestUrl), timeoutMs, 'The update server did not answer.')
   if (!response.ok) throw new Error(`The update server answered ${response.status}.`)
-  const manifest = verifyManifest(await response.json(), config.publicKeyHex)
+  const manifest = verifyManifest(await withDeadline(response.json(), timeoutMs, 'The update description stalled.'), config.publicKeyHex)
   if (config.channel && (manifest.version.includes('-') ? 'preview' : 'stable') !== config.channel) throw new Error('The signed update belongs to a different release channel.')
   if (compareVersions(manifest.version, config.currentVersion) <= 0) return { state: 'up_to_date', version: config.currentVersion }
   const file = manifest.files.find((f) => f.platform === config.platform)

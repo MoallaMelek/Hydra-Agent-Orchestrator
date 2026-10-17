@@ -14,7 +14,7 @@ export function providerReady(p: ProviderStatus): boolean {
   return p.installed && p.problems.length === 0
 }
 
-function ProviderStep({ p }: { p: ProviderStatus }) {
+export function ProviderStep({ p }: { p: ProviderStatus }) {
   const ready = providerReady(p)
   const setup = SETUP[p.id]
   const label = ready ? 'Ready' : !p.installed ? 'Not installed' : p.authenticated === false ? 'Not signed in' : 'Needs attention'
