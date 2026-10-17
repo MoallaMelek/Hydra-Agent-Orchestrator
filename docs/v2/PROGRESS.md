@@ -2,6 +2,16 @@
 
 Newest entry first.
 
+## 2026-10-17 · installed alpha.1 migration
+
+- Following explicit local installation authorization, backed up the closed existing application, engine and desktop profile under restricted user/SYSTEM ACLs. Preserved product identity and install/data paths; no uninstall of the owner's app.
+- Created a DPAPI-protected local Ed25519 publisher key; public preview configuration only embedded. No plaintext private key, GitHub secret change, Authenticode certificate or release publication.
+- Reproduced PowerShell detached startup exit-without-execution and fixed the handoff using hidden OS Start-Process plus journal readiness acknowledgment and closed launcher pipes. Explicit test data-directory overrides survive restart.
+- Separately registered real NSIS alpha.0 → alpha.1 upgrade/restart and corrupt-package rejection/relaunch passed. Disposable history, draft, attachment, theme and provider sign-in survived. These tests do not establish public-release download/click acceptance or partial-installer rollback.
+- Final check: 35 files, 288 passed/1 skipped, type/lint/provenance pass (133.22 s); build/package pass; seven packaged native steps and 84-file artifact scan pass.
+- Actual installed shell/engine now alpha.1. Database byte-identical immediately after installation; all eight checked persisted tables unchanged after health inspection. One project/four tasks and both authenticated providers preserved. Actual screenshots/receipts retained locally; app reopened normally.
+- Read-only follow-up review found no blocker, but startup of the OS launcher lacks its own deadline before the bounded readiness loop. Record this exceptional OS/AV-stall hardening gap before a production release. Other broad mandate gaps remain in WORKBENCH_ACCEPTANCE.md.
+
 ## 2026-10-16 · workbench trust and Windows update implementation
 
 - Owner delegated baseline selection: extend installed v2 from cc78c30 on `feat/hydra-workbench-updates`; preserve original old Desktop and newer v2 checkouts.

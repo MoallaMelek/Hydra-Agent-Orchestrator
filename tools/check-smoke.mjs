@@ -13,7 +13,7 @@ const expect = (ok, message) => { if (!ok) failures.push(message) }
 
 expect(report.page?.title === 'Hydra', 'window did not load the Hydra UI')
 expect(report.page?.live === true, 'UI is not connected to the engine')
-expect(JSON.stringify(report.page?.hostKeys) === JSON.stringify(['apiUrl', 'notify', 'pickDirectory', 'token']), 'unexpected renderer bridge surface')
+expect(JSON.stringify(report.page?.hostKeys) === JSON.stringify(['apiUrl', 'notify', 'pickDirectory', 'readPreferences', 'token', 'updates', 'writePreferences']), 'unexpected renderer bridge surface')
 expect(report.page?.nodeRequire === 'undefined' && report.page?.nodeProcess === 'undefined', 'Node APIs leaked into the renderer')
 expect(report.databaseExists === true, 'database was not initialized')
 if (flag('--packaged')) expect(report.packaged === true, 'app is not running as a packaged build')

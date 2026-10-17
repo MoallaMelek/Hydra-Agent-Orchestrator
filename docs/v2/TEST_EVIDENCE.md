@@ -533,3 +533,13 @@ Hardware: Dell Vostro 15 3530, i7-1355U, Iris Xe, 24 GB, NVMe, 1920×1080 at 120
 | Desktop end-to-end with new labels | UNVERIFIED: script updated, not re-run (owner asked not to open more windows) |
 | Real failed review / real plan approval in the new view | UNVERIFIED with real agents (fixtures and engine tests only) |
 | Flaky test seen once: concurrent  race (reliability.test.ts), passed on rerun | KNOWN, pre-existing area, not caused by this change; follow-up suggested |
+
+## 17 October 2026 — installed alpha.1 continuation
+
+This entry supersedes older statements that the installed app was unchanged. `npm run check`: 35 files passed, 288 tests passed/1 skipped, typecheck/lint/provenance passed, 133.22 s. Full build and local Windows x64 NSIS package completed without publishing; no dependency added. `tools/scan-artifacts.mjs` scanned 84 packaged files without findings. Packaged executable desktop acceptance passed all seven steps, including three themes, drafts/attachments across navigation/reload, backup/export, engine shutdown and relaunch persistence.
+
+An independent test NSIS identity installed the actual previous alpha.0 payload, then the real helper installed alpha.1 and restarted after its caller naturally exited. Version and health verified; project/history/draft/attachment/terracotta theme/provider detection survived. An intentionally corrupted package failed the helper checksum check before execution; alpha.1 relaunched and the same disposable data survived. The test restart was terminated only in the disposable environment to attach a fresh inspection process; inspection then closed normally and released its engine lock. This is not proof of rollback after a partially applied NSIS package.
+
+Owner-authorized real in-place migration completed with NSIS exit 0. Installed shell and engine verified alpha.1; one project/four task IDs persisted and both providers reported installed/authenticated. Real database SHA-256 unchanged before/after installer, before launch. Projects, tasks, runs, evidence, devices, remote commands, outcomes and key/value rows matched the closed backup after launch. Native Settings/Updates screenshots and machine reports retained with local delivery. App reopened normally without inspection arguments.
+
+No approved release was published; Authenticode signing, installed UI discovery/download/restart from a real signed release, real network interruption and partially failed installer recovery remain unverified. OS launcher startup lacks a separate deadline; journal readiness polling is bounded after launcher startup. Reviewer performed read-only source review, not independent execution of these tests.

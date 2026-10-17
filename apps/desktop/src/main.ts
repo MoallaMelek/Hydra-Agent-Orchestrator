@@ -114,7 +114,7 @@ function createWindow(url: string): void {
           hasToken: Boolean(window.hydraHost && window.hydraHost.token),
           nodeRequire: typeof require,
           nodeProcess: typeof process,
-          live: document.body.innerText.includes('Live'),
+          live: document.body.innerText.includes('Connected'),
           heading: (document.querySelector('h1') || {}).textContent || null
         })`).then(async (page: unknown) => {
           // Engine-side facts: where data lives, schema state, and provider detection.
@@ -218,7 +218,7 @@ function initializeDesktopServices(): void {
           child.stdin?.end()
         }).catch(error => { quitting = false; throw error })
       }
-      try { await launchInstallHelper(join(dir, 'update-handoff.json'), { installer, executable: process.execPath, sha256, target: state.latestVersion!, previous: app.getVersion(), backup }) }
+      try { await launchInstallHelper(join(dir, 'update-handoff.json'), { installer, executable: process.execPath, sha256, target: state.latestVersion!, previous: app.getVersion(), backup, ...(process.env.HYDRA_DATA_DIR ? { dataDirOverride: process.env.HYDRA_DATA_DIR } : {}) }) }
       catch (error) { app.relaunch(); app.exit(1); throw error }
       app.quit()
     },

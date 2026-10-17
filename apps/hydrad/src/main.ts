@@ -5,7 +5,7 @@ import { bindChildrenToThisProcess, Engine } from '@hydra/engine'
 import { startApiServer } from './server.js'
 import { RemoteHost } from './remote.js'
 
-export const VERSION = '2.0.0-alpha.0'
+export const VERSION = '2.0.0-alpha.1'
 
 export function defaultDataDir(): string {
   if (process.env.HYDRA_DATA_DIR) return process.env.HYDRA_DATA_DIR

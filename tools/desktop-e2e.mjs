@@ -23,7 +23,12 @@ const useAgents = !args.includes('--no-agents') && !missingProviders
 const PORT = 9333
 mkdirSync(outDir, { recursive: true })
 const electron = createRequire(import.meta.url)('electron')
+const executable = args.includes('--executable') ? resolve(args[args.indexOf('--executable') + 1]) : electron
 const dataDir = mkdtempSync(join(tmpdir(), 'hydra-desktop-e2e-'))
+if (executable !== electron) {
+  mkdirSync(join(dataDir, 'desktop'), { recursive: true })
+  writeFileSync(join(dataDir, 'desktop', 'updates.json'), JSON.stringify({ autoCheck: false, autoDownload: false }))
+}
 const report = { startedAt: new Date().toISOString(), dataDir, steps: [] }
 const pageErrors = []
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -51,7 +56,7 @@ function hiddenProviderEnv() {
 function launch() {
   const env = { ...process.env, HYDRA_DATA_DIR: dataDir, ...(missingProviders ? hiddenProviderEnv() : {}) }
   for (const key of Object.keys(env)) if (env[key] === undefined) delete env[key]
-  return spawn(electron, ['apps/desktop', `--remote-debugging-port=${PORT}`], { env, stdio: 'ignore' })
+  return spawn(executable, [...(executable === electron ? ['apps/desktop'] : []), `--remote-debugging-port=${PORT}`], { env, stdio: 'ignore' })
 }
 
 async function connect() {
@@ -176,10 +181,16 @@ try {
     await ui.waitText('acceptance-notes.md')
     await ui.click('Settings')
     await ui.waitText('Updates')
-    await ui.click('Check for Updates')
-    await ui.waitText('no trusted release configuration')
+    if (executable === electron) {
+      await ui.click('Check for Updates')
+      await ui.waitText('no trusted release configuration')
+    } else {
+      // Packaged migration: validate the real bridge without contacting an unpublished feed.
+      const update = await ui.evaluate('window.hydraHost.updates.state()')
+      if (!update.currentVersion || update.status !== 'idle') throw new Error('Packaged updater is not ready')
+    }
     await ui.evaluate('[...document.querySelectorAll(".hx-panel")].find(p => p.textContent.includes("Latest available"))?.scrollIntoView({block:"start"})')
-    await ui.shot('03-updates-unconfigured')
+    await ui.shot(executable === electron ? '03-updates-unconfigured' : '03-updates-desktop')
     const openProject = () => ui.evaluate("[...document.querySelectorAll('.nav-item')].find(b => b.textContent.includes(" + JSON.stringify(basename(repo)) + ")).click()")
     for (const theme of ['Midnight', 'Light', 'Terracotta']) {
       await ui.click(theme)

@@ -3,7 +3,11 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { expect, it } from 'vitest'
-import { INSTALL_SCRIPT } from './installHelper.js'
+import { INSTALL_SCRIPT, launchInstallHelper } from './installHelper.js'
+
+it('refuses a relative data override before writing a handoff or launching a process', async () => {
+  await expect(launchInstallHelper('never-written.json', { installer: 'test.exe', executable: 'test.exe', sha256: '0'.repeat(64), target: '2.0.0-alpha.1', previous: '2.0.0-alpha.0', backup: 'backup.db', dataDirOverride: 'relative' })).rejects.toThrow('absolute data directory')
+})
 
 it.skipIf(process.platform !== 'win32')('parses the Windows handoff without running an installer or changing execution policy', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hydra-helper-parse-'))
