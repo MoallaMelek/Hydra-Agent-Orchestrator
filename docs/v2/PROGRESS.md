@@ -38,6 +38,12 @@ Newest entry first.
 
 ## 2026-10-13 · session 1 · M0 + M1/M2 engine
 - Architecture and decisions; engine with worktree isolation, engine-run verification, budgets and recovery; hardening after the first Codex review (D-013); live acceptance with real Claude and Codex.
+# 2026-10-17
+
+- Corrected updater SemVer precedence; regression tests and required checks passed.
+- Bounded update manifest network waits and corrected equal numeric prerelease comparison after independent review.
+- Approval digests now include package-manager lockfiles and development requirements, preserving binary bytes.
+
 
 
 ## 2026-10-17 — greeting-prefixed bug reports

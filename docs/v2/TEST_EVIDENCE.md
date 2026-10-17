@@ -259,6 +259,24 @@ Findings from these runs:
 | Repo question | 5 ms | 5.9 s | 7.8 s | 8.5 s |
 
 No regression from job objects (previous: "hi" 2.1 s / 3.0 s warm).
+# 2026-10-17 — SemVer updater regression
+
+`npm run check`: typecheck and lint passed; 247 tests passed, 2 skipped;
+provenance passed. Numeric prerelease identifiers, identifier prefixes, embedded
+hyphens and ignored build metadata are covered by `update/versions.test.ts`.
+Executed on Linux, Node 24.19.0; desktop and Windows installation not exercised.
+
+Updater follow-up: independent Codex review identified accepted leading-zero
+identifiers comparing inconsistently; added equality regression. Header and JSON
+body waits now time out separately; two stalled-server tests pass. Underlying
+fetch cancellation is not implemented. Full `npm run check` passed with the
+definition-digest regressions also present (257 passed, 2 skipped).
+
+Check definition digest: seven regressions cover package-manager lockfiles,
+development requirements, and distinct invalid-UTF-8 binary bytes. Independent
+review found the binary decoding collision; raw-byte hashing fixes it. Required
+typecheck, lint, all 257 tests and provenance passed on Linux.
+
 
 
 ## 2026-10-17 — greeting-prefixed bug reports
@@ -279,3 +297,8 @@ Undici connect/header/body timeout codes now classify as transient network failu
 
 ## 2026-10-17 — event cursor acknowledgment
 Durable events advance the replay cursor only after the view callback succeeds, so an isolated failed update can replay. Reentrant newer updates cannot move the cursor backwards. Two regressions; npm run check passed: 252 passed, 2 skipped; typecheck, lint and provenance passed. Independent read-only Codex review found no blocking regression in this five-fix batch. Residual: a subsequent durable event can still advance beyond a failed callback before reconnect.
+
+Reconciliation with concurrent main: retained both evidence sections and all code.
+Final `npm run check` passed: 267 tests passed, 2 skipped, typecheck, lint and
+provenance passed. Codex authored and verified these fixes; a separate Codex
+session reviewed the updater and approval-digest changes.
