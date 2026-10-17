@@ -46,3 +46,7 @@ Short greetings no longer hide crash/broken symptoms. Added three routing regres
 
 ## 2026-10-17 — outcome medians
 Even observation counts now average the central pair rather than underreporting duration and cost. Regression test covers both fields. npm run check passed: 246 passed, 2 skipped; typecheck, lint and provenance passed.
+
+
+## 2026-10-17 — budget failure guidance
+Paused budget failures now show budget recovery instructions instead of generic Resume guidance. Regression test plus npm run check passed: 247 passed, 2 skipped; typecheck, lint and provenance passed.
