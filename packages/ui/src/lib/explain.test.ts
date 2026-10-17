@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { explain } from './explain'
 
 describe('plain-language failures', () => {
+  it('explains budget exhaustion before the generic paused fallback', () => {
+    const result = explain('Budget limit reached: cost limit $2.00 reached', 'paused')
+    expect(result.title).toBe('Budget limit reached')
+    expect(result.body).not.toContain('Press Resume')
+  })
   it.each([
     ['Claude Code is not accepting work right now (usage or rate limit): You have hit your usage limit', /limit/],
     ['Codex CLI needs you to sign in again: run `codex login` in a terminal, then press Resume.', /Sign in/],

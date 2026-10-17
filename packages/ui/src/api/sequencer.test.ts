@@ -6,6 +6,25 @@ const log = (seq: number): EventEnvelope => ({ seq, at: '2026-10-13T00:00:00.000
 const live = (seq: number): EventEnvelope => ({ seq, at: '2026-10-13T00:00:00.000Z', event: { type: 'run.output', runId: 'r', taskId: 't', text: `o${seq}` } })
 
 describe('event sequencing across reconnects', () => {
+  it('does not move the cursor backwards when an update receives a newer event', () => {
+    const s = new EventSequencer((e) => { if (e.seq === 1) s.receive(log(2)) })
+    s.receive(log(1))
+    expect(s.cursor).toBe(2)
+  })
+  it('keeps a failed event eligible for replay instead of acknowledging it', () => {
+    let fail = true
+    const applied: number[] = []
+    const s = new EventSequencer((e) => {
+      if (fail) throw new Error('view update failed')
+      applied.push(e.seq)
+    })
+    expect(() => s.receive(log(1))).toThrow('view update failed')
+    expect(s.cursor).toBe(0)
+    fail = false
+    s.receive(log(1))
+    expect(applied).toEqual([1])
+    expect(s.cursor).toBe(1)
+  })
   it('a live event arriving during catch-up does not hide the missed ones', () => {
     const applied: number[] = []
     const s = new EventSequencer((e) => applied.push(e.seq))

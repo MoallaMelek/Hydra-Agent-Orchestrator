@@ -71,7 +71,7 @@ export function classifyRequest(text: string): Omit<Route, 'auto'> {
   const change = { depth: 'deep' as const, risk, reason: risk === 'high' ? 'A high-risk change: you will approve the plan first.' : 'Looks like a request to change the code.' }
   if (GO_AHEAD.test(t) || CHANGE_IMPERATIVE.test(t) || CHANGE_REQUEST.test(t)) return change
   if (risk === 'high' && !question) return { depth: 'deep', risk, reason: 'A high-risk request: you will approve the plan first.' }
-  if ((GREETING.test(raw) && words <= 6) || (words <= 3 && !CODE_REFERENCE.test(t) && !SYMPTOM.test(t))) return { depth: 'fast', risk, reason: 'Conversation: a quick answer.' }
+  if ((GREETING.test(raw) && words <= 6 && !SYMPTOM.test(t)) || (words <= 3 && !CODE_REFERENCE.test(t) && !SYMPTOM.test(t))) return { depth: 'fast', risk, reason: 'Conversation: a quick answer.' }
   if (question) {
     return CODE_REFERENCE.test(t)
       ? { depth: 'standard', risk, reason: 'A question about the code: Hydra reads what it needs and answers.' }

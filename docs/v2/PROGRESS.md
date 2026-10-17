@@ -44,3 +44,23 @@ Newest entry first.
 - Bounded update manifest network waits and corrected equal numeric prerelease comparison after independent review.
 - Approval digests now include package-manager lockfiles and development requirements, preserving binary bytes.
 
+
+
+## 2026-10-17 — greeting-prefixed bug reports
+Short greetings no longer hide crash/broken symptoms. Added three routing regressions; npm run check passed (245 passed, 2 skipped), typecheck, lint and provenance passed. Codex implemented and verified.
+
+
+## 2026-10-17 — outcome medians
+Even observation counts now average the central pair rather than underreporting duration and cost. Regression test covers both fields. npm run check passed: 246 passed, 2 skipped; typecheck, lint and provenance passed.
+
+
+## 2026-10-17 — budget failure guidance
+Paused budget failures now show budget recovery instructions instead of generic Resume guidance. Regression test plus npm run check passed: 247 passed, 2 skipped; typecheck, lint and provenance passed.
+
+
+## 2026-10-17 — provider HTTP timeout recovery
+Undici connect/header/body timeout codes now classify as transient network failures for the existing retry/pause flow. Three regression cases; npm run check passed: 250 passed, 2 skipped; typecheck, lint and provenance passed.
+
+
+## 2026-10-17 — event cursor acknowledgment
+Durable events advance the replay cursor only after the view callback succeeds, so an isolated failed update can replay. Reentrant newer updates cannot move the cursor backwards. Two regressions; npm run check passed: 252 passed, 2 skipped; typecheck, lint and provenance passed. Independent read-only Codex review found no blocking regression in this five-fix batch. Residual: a subsequent durable event can still advance beyond a failed callback before reconnect.

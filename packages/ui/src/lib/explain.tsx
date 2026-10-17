@@ -33,10 +33,10 @@ export function explain(message: string, status?: string): Explanation {
   if (/uncommitted changes/i.test(m)) {
     return { tone: 'warn', title: 'Commit your own changes first', body: 'Your project has uncommitted changes. Hydra never overwrites your work: commit or stash them, then accept again.' }
   }
+  if (/budget limit/i.test(m)) return { tone: 'warn', title: 'Budget limit reached', body: 'The task stopped at the cost or time limit you set. Raise the limit in a new task if you want it to go further.' }
   if (/interrupted|engine (was )?(closed|stopped)|Hydra was closed/i.test(m) || status === 'paused') {
     return { tone: 'warn', title: 'Paused', body: `${m} Press Resume to continue from where it stopped.` }
   }
-  if (/budget limit/i.test(m)) return { tone: 'warn', title: 'Budget limit reached', body: 'The task stopped at the cost or time limit you set. Raise the limit in a new task if you want it to go further.' }
   if (/link to a location outside/i.test(m)) return { tone: 'bad', title: 'Blocked: a link pointing outside the project', body: m }
   if (status === 'canceled') return { tone: 'info', title: 'You stopped this task', body: 'Its work so far is kept for inspection.' }
   return { tone: 'bad', title: 'Something went wrong', body: m }

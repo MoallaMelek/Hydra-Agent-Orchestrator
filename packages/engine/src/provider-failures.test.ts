@@ -48,6 +48,9 @@ describe('classifying provider failures', () => {
     ['API Error: 529 Overloaded', 'limit'],
     ['request failed: fetch failed (ECONNRESET)', 'network'],
     ['API Error: 503 Service Unavailable', 'network'],
+    ['ConnectTimeoutError: UND_ERR_CONNECT_TIMEOUT', 'network'],
+    ['HeadersTimeoutError: UND_ERR_HEADERS_TIMEOUT', 'network'],
+    ['BodyTimeoutError: UND_ERR_BODY_TIMEOUT', 'network'],
     ['Could not start claude: spawn claude ENOENT', 'missing'],
     ['TypeError: cannot read properties of undefined', 'other']
   ] as const)('%s → %s', (message, kind) => {
