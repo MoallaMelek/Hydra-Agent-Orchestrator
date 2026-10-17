@@ -42,4 +42,5 @@ Newest entry first.
 
 - Corrected updater SemVer precedence; regression tests and required checks passed.
 - Bounded update manifest network waits and corrected equal numeric prerelease comparison after independent review.
+- Approval digests now include package-manager lockfiles and development requirements, preserving binary bytes.
 

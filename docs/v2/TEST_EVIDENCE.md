@@ -272,3 +272,8 @@ body waits now time out separately; two stalled-server tests pass. Underlying
 fetch cancellation is not implemented. Full `npm run check` passed with the
 definition-digest regressions also present (257 passed, 2 skipped).
 
+Check definition digest: seven regressions cover package-manager lockfiles,
+development requirements, and distinct invalid-UTF-8 binary bytes. Independent
+review found the binary decoding collision; raw-byte hashing fixes it. Required
+typecheck, lint, all 257 tests and provenance passed on Linux.
+
