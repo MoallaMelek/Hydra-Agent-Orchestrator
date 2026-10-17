@@ -259,3 +259,7 @@ Findings from these runs:
 | Repo question | 5 ms | 5.9 s | 7.8 s | 8.5 s |
 
 No regression from job objects (previous: "hi" 2.1 s / 3.0 s warm).
+
+
+## 2026-10-17 — greeting-prefixed bug reports
+Short greetings no longer hide crash/broken symptoms. Added three routing regressions; npm run check passed (245 passed, 2 skipped), typecheck, lint and provenance passed. Codex implemented and verified.
