@@ -28,7 +28,7 @@ export function TaskView({ taskId }: { taskId: string }) {
   useTaskLoaded(taskId)
   if (!task) return <div className="page"><EmptyState title="Task not found">It may have been deleted.</EmptyState></div>
   return (
-    <div className="page page--wide">
+    <div className={`page page--wide task-page ${task.intent === 'analyze' ? 'task-page--conversation' : ''}`}>
       <nav className="crumbs" aria-label="Breadcrumbs">
         <button onClick={() => go({ view: 'home' })}>Command center</button><span>/</span>
         {project && <><button onClick={() => go({ view: 'project', projectId: project.id })}>{project.name}</button><span>/</span></>}

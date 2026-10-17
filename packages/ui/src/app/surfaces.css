@@ -1,0 +1,74 @@
+/* A desktop workspace owns scrolling. Descendant overflow must never create a
+   second document scroll range below the application frame. */
+:root:has(.shell), body:has(.shell) { overflow: hidden; }
+.shell { position: fixed; inset: 0; height: auto; overflow: hidden; grid-template-rows: minmax(0, 1fr); }
+.shell .main { overscroll-behavior: contain; }
+.workspace-bar { position: sticky; top: 0; z-index: 16; }
+.focus-answer .md { max-height: 8.25em; overflow: hidden; font-size: 13.5px; }
+.task-page .crumbs { flex-wrap: wrap; row-gap: 6px; }
+.task-page--conversation { max-width: 1500px; }
+.conversation-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 0 32px; align-items: start; }
+.repository-scope { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center; padding: 14px 18px; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 24px; min-width: 0; }
+.repository-scope > svg { flex: none; color: var(--accent); }
+.repository-scope > div { flex: 1; min-width: 0; }
+.repository-scope strong { display: block; font-size: 12px; font-weight: 600; }
+.repository-scope code { display: block; color: var(--text-2); font-size: 11px; overflow-wrap: anywhere; margin-top: 3px; }
+.repository-scope > span { font-size: 11px; color: var(--text-2); white-space: nowrap; }
+.conversation-document { min-width: 0; background: none; overflow: visible; border: 0; border-radius: 0; }
+.conversation-document .chat__msg { padding: 24px 0; }
+.conversation-document .chat__msg--user { background: none; padding-top: 4px; padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+.conversation-document .chat__msg--user .prose { font-size: 21px; line-height: 1.45; font-weight: 550; letter-spacing: -.015em; max-width: 65ch; }
+.conversation-document .chat__who { flex-wrap: wrap; gap: 8px; color: var(--text); font-size: 12px; margin-bottom: 15px; }
+.conversation-document .chat__msg--user .chat__who { color: var(--text-2); font-weight: 500; margin-bottom: 9px; }
+.conversation-recorded { font-weight: 400; font-size: 11px; color: var(--text-2); }
+.conversation-document .md { font-size: 14px; line-height: 1.75; max-width: 76ch; }
+.conversation-document .md h3, .conversation-document .md h4, .conversation-document .md h5, .conversation-document .md h6 { font-size: 16px; margin-top: 25px; margin-bottom: 10px; }
+.conversation-document .md > * + * { margin-top: 13px; }
+.conversation-document .md li + li { margin-top: 7px; }
+.conversation-document .md pre { max-width: 100%; }
+.conversation-turn + .conversation-turn { border-top: 1px solid var(--border-strong); margin-top: 18px; padding-top: 22px; }
+.conversation-document .chat__foot { padding: 16px 0; border-top: 1px solid var(--border); gap: 14px; }
+.conversation-document .chat__foot > .row { flex-wrap: wrap; }
+.conversation-compose { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; margin-top: 6px; }
+.conversation-compose .chat__reply { padding: 12px 14px 6px; align-items: flex-end; }
+.conversation-compose .chat__reply .hx-textarea { background: transparent; border: 0; box-shadow: none; min-height: 70px; max-height: 240px; padding: 8px; }
+.conversation-compose .chat__reply .hx-textarea:focus-visible { box-shadow: var(--focus); }
+.conversation-compose .draft-files { margin: 0; padding: 4px 16px 12px; }
+.conversation-compose > [role="alert"] { padding: 0 16px 12px; color: var(--bad); }
+.conversation-inspector { min-width: 0; position: sticky; top: 77px; max-height: calc(100dvh - 100px); overflow-y: auto; border-left: 1px solid var(--border); padding: 2px 0 0 22px; }
+.conversation-inspector section + section { margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--border); }
+.conversation-inspector h2 { font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+.conversation-inspector h3 { font-size: 12px; margin: 16px 0 10px; }
+.conversation-inspector p { color: var(--text-2); font-size: 12px; line-height: 1.65; margin: 10px 0; }
+.conversation-inspector dl { display: grid; grid-template-columns: 1fr; gap: 4px; margin: 14px 0; font-size: 12px; }
+.conversation-inspector dt { color: var(--text-2); margin-top: 8px; }
+.conversation-inspector dd { margin: 0; overflow-wrap: anywhere; }
+.conversation-source-path { display: block; font-size: 11px; overflow-wrap: anywhere; color: var(--text-2); }
+.conversation-inspector .run { min-width: 0; }
+.conversation-inspector .run__head { flex-wrap: wrap; }
+.conversation-inspector .run__body { padding: 10px 0; }
+.conversation-inspector .log { max-height: 240px; overflow: auto; }
+/* Settings and system pages share a ledger instead of repeated floating cards. */
+.settings-workspace > .hx-panel, .providers-workspace .hx-panel, .devices-workspace > .hx-panel { display: grid; grid-template-columns: 170px minmax(0, 1fr); background: none; border-radius: 0; border-bottom: 1px solid var(--border); padding: 8px 0 24px; }
+.settings-workspace > .hx-panel > .hx-panel__head, .providers-workspace .hx-panel > .hx-panel__head, .devices-workspace > .hx-panel > .hx-panel__head { align-items: flex-start; padding: 14px 16px 14px 0; flex-wrap: wrap; gap: 12px; }
+.settings-workspace > .hx-panel > .hx-panel__body, .providers-workspace .hx-panel > .hx-panel__body, .devices-workspace > .hx-panel > .hx-panel__body { min-width: 0; padding: 14px 0 0 12px; }
+.settings-workspace .hx-panel__body > p { max-width: 75ch; }
+.providers-workspace > .grid-2 { grid-template-columns: 1fr; }
+.providers-workspace .provider-card .hx-kv dd { overflow-wrap: anywhere; }
+.project-workspace > .hx-panel { border: 1px solid var(--border); border-radius: 8px; }
+.project-workspace > .hx-panel > .hx-panel__head { background: var(--bg-sunken); padding: 16px 20px; }
+.project-workspace > .hx-panel > .hx-panel__body { padding: 20px; }
+.task-page .task-head { padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+.task-page .workfloor__stations { grid-template-columns: 1fr; gap: 0; }
+.task-page .station { border-radius: 0; border-top: 1px solid var(--border); background: none; }
+.task-page .station__select { min-height: 130px; border-radius: 0; display: grid; grid-template-columns: 150px minmax(0, 1fr); align-content: start; gap: 7px 18px; padding: 20px 12px; }
+.task-page .station__actor { grid-row: 1 / 4; margin: 0; align-self: start; }
+.task-page .station__select > strong { font-size: 17px; }
+.task-page .station__duty { margin: 0; max-width: none; }
+.task-page .station__state, .task-page .station__operation { grid-column: 2; margin-top: 4px; }
+.task-page .station__artifact { border-radius: 0; padding: 12px; }
+.task-page .station--running { background: var(--accent-soft); box-shadow: none; }
+.task-page .station--failed { background: var(--bad-soft); box-shadow: none; }
+@media (max-width: 1100px) { .conversation-workspace { grid-template-columns: minmax(0, 1fr) 215px; gap: 0 24px; } }
+@media (max-width: 900px) { .workspace-bar { display: none; } .conversation-workspace { grid-template-columns: 1fr; } .conversation-inspector { position: static; max-height: none; border-left: 0; border-top: 1px solid var(--border); padding: 22px 0 0; margin-top: 26px; } .conversation-inspector dl { grid-template-columns: minmax(100px, .4fr) minmax(0, 1fr); align-items: baseline; } .conversation-inspector dt { margin-top: 0; } .repository-scope { flex-wrap: wrap; } .repository-scope > span { width: 100%; margin-left: 29px; } }
+@media (max-width: 600px) { .settings-workspace > .hx-panel, .providers-workspace .hx-panel, .devices-workspace > .hx-panel { grid-template-columns: 1fr; } .settings-workspace > .hx-panel > .hx-panel__body, .providers-workspace .hx-panel > .hx-panel__body, .devices-workspace > .hx-panel > .hx-panel__body { padding-left: 0; } .conversation-document .chat__msg--user .prose { font-size: 18px; } .conversation-document .chat__foot { align-items: flex-start; flex-direction: column; } .conversation-compose .chat__reply { padding: 10px; gap: 8px; } .task-page .station__select { grid-template-columns: 1fr; } .task-page .station__actor, .task-page .station__state, .task-page .station__operation { grid-column: 1; grid-row: auto; } }

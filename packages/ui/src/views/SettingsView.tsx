@@ -26,7 +26,7 @@ export function SettingsView() {
   }
 
   return (
-    <div className="page">
+    <div className="page settings-workspace">
       <div className="page__head"><div className="page__title"><h1>Settings</h1><p className="muted">Engine v{engineVersion}</p></div></div>
       <DisplayPanel />
       <SavedDraftsPanel />

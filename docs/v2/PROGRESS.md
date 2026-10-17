@@ -2,6 +2,13 @@
 
 Newest entry first.
 
+## 2026-10-17 · alpha.3 conversation and system surfaces
+
+- Reproduced and removed 1,191px outer-document scrolling in addition to main scrolling. Fixed shell containment; long conversation still scrolls fully inside workspace. New reading/source/execution/composer layout, with matching Settings/Providers/Remote/Project/change-task treatment.
+- Confirmed selected project remains old 0.2.61 Desktop checkout; kept it unchanged. Host runtime and selected-root context now distinct in analysis prompts and optional persisted task metadata. Old answers remain historical/unknown; successful answers replace provenance atomically, failed retries preserve old provenance.
+- Full check 289 passed/1 skipped, final types/lint/build/package, seven native checks and 84-file scan passed. Real recorded task/replay and three-theme/390px/detail/top/bottom inspections passed. Owner-approved real Claude context test correctly distinguished alpha.3 and 0.2.61 for $0.0390898.
+- Installed alpha.3 in place after owner closed app/saved work. One project/five tasks/providers/eight persisted tables retained; exact UI/engine build hashes checked. Broad redesign and production-release gates remain open; see CONVERSATION_POLISH.md.
+
 ## 2026-10-17 · visible opening workspace correction, alpha.2
 
 - Owner correctly reported that alpha.1 still resembled the installed design. Replaced the opening composition with selected real work/answer, recorded team operations and adjacent project launch controls; revised the shared frame/navigation while preserving Hydra's mark and three themes.

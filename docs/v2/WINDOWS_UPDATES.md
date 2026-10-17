@@ -1,5 +1,7 @@
 # Windows updates: implementation and release gate
 
+Latest local build: alpha.3 is installed following alpha.1/alpha.2 design iterations. These are owner-authorized local replacements, not published update releases. The production release/signing gates below remain open.
+
 The previous installed executable inspected on 16 October 2026 reported **2.0.0-alpha.0**, was unsigned, and lacked the desktop install bridge. Its engine had a signed-manifest foundation but no complete installer/restart experience. On 17 October, following explicit owner authorization and closed-app confirmation, the tested **2.0.0-alpha.1** NSIS build replaced that installation in place. Shell and engine versions were verified after launch. No public release was published.
 
 The migration is update-capable but **not a live production update service**. A local Ed25519 publisher key is protected with Windows DPAPI CurrentUser and user/SYSTEM directory ACLs; only its public key and the fixed preview-release URL are embedded. The private key was never committed, uploaded or placed in plaintext on disk. An Authenticode certificate and approved signed release publication remain outstanding. This local migration installer is unsigned, like the previous installation.

@@ -10,7 +10,7 @@ export function DevicesView() {
   const { run } = useApp()
   const devices = [...useAppState((s) => s.devices)].sort((a, b) => b.pairedAt.localeCompare(a.pairedAt))
   return (
-    <div className="page">
+    <div className="page devices-workspace">
       <div className="page__head"><div className="page__title"><h1>Remote devices</h1><p className="muted">Phones that can follow tasks and, if you allow it, approve them.</p></div></div>
       <Callout tone="info">Remote control is end-to-end encrypted between your phone and this computer. No cloud database or third-party service is involved.</Callout>
       <PhoneAccessPanel />

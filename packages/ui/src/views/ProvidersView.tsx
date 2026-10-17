@@ -18,7 +18,7 @@ export function ProvidersView() {
   const [busy, setBusy] = useState(false)
   const refresh = async () => { setBusy(true); await run({ type: 'providers.refresh' }); setBusy(false) }
   return (
-    <div className="page">
+    <div className="page providers-workspace">
       <div className="page__head">
         <div className="page__title"><h1>Agents &amp; providers</h1><p className="muted">Hydra drives the Claude Code and Codex CLIs installed on this computer, signed in with your own accounts.</p></div>
         <Button icon={<RefreshCw size={14} />} busy={busy} onClick={() => void refresh()}>Re-check</Button>

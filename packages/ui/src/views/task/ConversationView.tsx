@@ -1,13 +1,13 @@
 import { useDraft, composeRequest } from '../../app/preferences'
 import { DraftAttachments } from '../DraftAttachments'
 import { useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, Send, Wrench } from 'lucide-react'
+import { ChevronDown, ChevronRight, FolderGit2, Send, Wrench } from 'lucide-react'
 import { routeRequest, type AgentRunInfo, type Task } from '@hydra/protocol'
 import { Button } from '../../design/components'
 import { useApp, useAppState } from '../../app/context'
 import { Markdown } from '../../lib/markdown'
 import { FriendlyError } from '../../lib/explain'
-import { ago, duration, money, tokens } from '../../lib/format'
+import { ago, duration, money, tokens, statusLabel } from '../../lib/format'
 import { DecisionBar } from './DecisionBar'
 import { AgentsTab } from './AgentsTab'
 import { ActivityTab } from './ActivityTab'
@@ -25,6 +25,7 @@ export function ConversationView({ task }: { task: Task }) {
   const runs = useTaskRuns(task.id)
   const draft = useAppState((s) => s.drafts[task.id])
   const project = useAppState((s) => s.projects.find((p) => p.id === task.projectId))
+  const engineVersion = useAppState(s => s.engineVersion)
   const tasks = useAppState((s) => s.tasks)
   const [details, setDetails] = useState(false)
   const unsent = useDraft(`follow:${task.id}`)
@@ -71,7 +72,7 @@ export function ConversationView({ task }: { task: Task }) {
   }
 
   const turn = (t: Task, live: boolean) => (
-    <div key={t.id}>
+    <article key={t.id} className="conversation-turn">
       <div className="chat__msg chat__msg--user">
         <div className="chat__who">You · {ago(t.createdAt)}</div>
         <div className="prose">{t.prompt}</div>
@@ -79,6 +80,7 @@ export function ConversationView({ task }: { task: Task }) {
       <div className="chat__msg">
         <div className="chat__who">
           {providerName(t.assignment.planner)}
+          {t.answer && <span className="conversation-recorded">Recorded answer</span>}
           {t.route && <span className="chat__route" title={t.route.reason}>{DEPTH_LABEL[t.route.depth]}{t.route.auto ? ' · chosen by Hydra' : ''}</span>}
         </div>
         {live && thinking && <AnswerStatus task={t} runs={runs} />}
@@ -88,11 +90,13 @@ export function ConversationView({ task }: { task: Task }) {
         {live && t.status === 'canceled' && <p className="muted">Stopped before answering.</p>}
         {live && !thinking && <LookedAt runs={runs} />}
       </div>
-    </div>
+    </article>
   )
 
   return (
-    <section className="hx-panel chat">
+    <div className="conversation-workspace">
+    <div className="repository-scope"><FolderGit2 size={17} aria-hidden /><div><strong>Selected project · {project?.name ?? 'Unavailable'}</strong><code>{project?.root ?? 'The selected project is unavailable.'}</code></div><span>Hydra runtime {engineVersion}</span></div>
+    <section className="chat conversation-document" aria-label="Conversation">
       {earlier.map((t) => turn(t, false))}
       {turn(task, true)}
       <div className="chat__foot">
@@ -110,6 +114,7 @@ export function ConversationView({ task }: { task: Task }) {
           <DecisionBar task={task} blockingWarnings={0} />
         </div>
       </div>
+      <div className="conversation-compose">
       {!thinking && (
         <div className="chat__reply">
           <textarea className="hx-textarea" rows={2} maxLength={50000} disabled={busy !== null} aria-label="Ask a follow-up" placeholder="Ask a follow-up…" value={followUp}
@@ -119,15 +124,14 @@ export function ConversationView({ task }: { task: Task }) {
       )}
       {!thinking && <DraftAttachments files={unsent.attachments} onChange={attachments => unsent.set({ attachments })} disabled={busy !== null} />}
       {(unsent.error || submitError) && <p role="alert">{unsent.error || submitError}</p>}
-      {details && (
-        <div className="hx-panel__body stack">
-          <h4>Agent runs</h4>
-          <AgentsTab runs={runs} />
-          <h4>Log</h4>
-          <ActivityTab task={task} />
-        </div>
-      )}
+      </div>
     </section>
+    <aside className="conversation-inspector" aria-label="Execution and source context">
+      <section><h2>This answer</h2><p className={`tone-${statusLabel(task).tone}`}>{statusLabel(task).label}</p><dl><dt>Agent</dt><dd>{providerName(task.assignment.planner)}</dd><dt>Recorded runs</dt><dd>{runs.length}</dd><dt>Access</dt><dd>Read-only question</dd></dl></section>
+      <section><h2>Source context</h2><p>The agent inspects the selected project folder. That folder can differ from the source of the installed Hydra application.</p><dl><dt>Runtime at request</dt><dd>{task.sourceContext?.runtimeVersion ?? 'Not captured for this answer'}</dd></dl>{task.sourceContext && <code className="conversation-source-path">{task.sourceContext.projectRoot}</code>}{!task.sourceContext && <p className="faint">This saved answer predates source-context recording. Its original runtime identity is unknown.</p>}</section>
+      {details && <section className="conversation-execution"><h2>Execution details</h2><AgentsTab runs={runs} /><h3>Recorded log</h3><ActivityTab task={task} /></section>}
+    </aside>
+    </div>
   )
 }
 

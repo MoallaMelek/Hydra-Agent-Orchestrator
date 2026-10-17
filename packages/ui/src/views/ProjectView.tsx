@@ -48,7 +48,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
   const archivedCount = all.filter((th) => th.root.archivedAt).length
 
   return (
-    <div className="page">
+    <div className="page project-workspace">
       <div className="page__head">
         <div className="page__title">
           <h1>{project.name}</h1>

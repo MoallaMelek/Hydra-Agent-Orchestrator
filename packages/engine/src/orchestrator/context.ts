@@ -58,6 +58,7 @@ export class Semaphore {
 }
 
 export interface EngineContext {
+  runtimeVersion?: string
   store: Store
   registry: AdapterRegistry
   workspaces: WorkspaceManager

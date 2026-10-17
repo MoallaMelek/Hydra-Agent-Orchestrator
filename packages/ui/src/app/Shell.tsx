@@ -14,6 +14,7 @@ import { ProvidersView } from '../views/ProvidersView'
 import { DevicesView } from '../views/DevicesView'
 import { SettingsView } from '../views/SettingsView'
 import './workbench.css'
+import './surfaces.css'
 
 const CONNECTION = {
   connecting: { tone: 'neutral', label: 'Connecting' },

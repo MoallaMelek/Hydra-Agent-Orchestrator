@@ -72,6 +72,7 @@ export class Engine {
       registry: options.registry ?? AdapterRegistry.production(options.env),
       workspaces: new WorkspaceManager(paths.worktrees, paths.checkouts),
       paths,
+      runtimeVersion: this.version,
       agentSlots: new Semaphore(options.maxConcurrentAgents ?? 3),
       env: options.env ?? process.env
     }
@@ -377,6 +378,7 @@ export class Engine {
     const now = isoNow()
     const task: Task = {
       id: newId(), projectId: project.id, title: (command.title || firstLine).trim().slice(0, 120), prompt: command.prompt,
+      sourceContext: { projectRoot: project.root, runtimeVersion: this.version },
       intent, route, followUpOf, archivedAt: null, mode, assignment: command.assignment, selection, budget,
       status: 'queued', stage: 'plan', waitReason: null, outcome: null, fixRound: 0,
       plan: null, review: null, checks: [], checksApproved: !policyFor(mode).requireCheckApproval, checkDigest: null, applyIntent: null, demo: null, answer: null,

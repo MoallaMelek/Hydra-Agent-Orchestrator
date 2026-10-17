@@ -63,12 +63,15 @@ function conversation(ctx: EngineContext, t: Task): Turn[] {
 export async function planStage({ ctx, taskId, signal }: StageInput): Promise<StageResult> {
   let t = task(ctx, taskId)
   if (t.intent === 'analyze') {
+    const sourceContext = { projectRoot: projectRoot(ctx, t), runtimeVersion: ctx.runtimeVersion ?? 'unknown' }
     // One streamed, read-only reply: no plan, no worktree, no review.
     const { text } = await callAgentText(ctx, {
       taskId, stage: 'plan', role: 'planner', provider: t.assignment.planner, access: 'read', cwd: projectRoot(ctx, t),
-      prompt: answerPrompt(t, conversation(ctx, t)), stream: true, signal
+      prompt: answerPrompt(t, conversation(ctx, t), sourceContext), stream: true, signal
     })
-    updateTask(ctx, taskId, (draft) => { draft.answer = text })
+    // Replace the answer and its provenance atomically. A failed retry must not
+    // relabel a retained historical answer as having come from this attempt.
+    updateTask(ctx, taskId, (draft) => { draft.answer = text; draft.sourceContext = sourceContext })
     return { stage: 'plan', ok: true }
   }
   if (!t.workspace) {

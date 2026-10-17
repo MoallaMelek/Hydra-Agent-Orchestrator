@@ -10,6 +10,7 @@ import { ago, duration, statusLabel } from '../lib/format'
 import { RelayTrace } from '../ops/RelayTrace'
 import { useNow, useProviderName, useSlots, useTrace, useTaskLoaded, useTaskRuns } from '../ops/hooks'
 import { DID, shortTarget } from '../ops/model'
+import { Markdown } from '../lib/markdown'
 
 const ROLE = { planner: 'Planning', implementer: 'Implementing', reviewer: 'Reviewing' } as const
 const AGENT_STAGES = new Set(['plan', 'implement', 'fix', 'review'])
@@ -153,7 +154,7 @@ function FocusOperation({ task, project }: { task: Task; project: string }) {
     {task.prompt !== task.title && <p className="focus-operation__request">{task.prompt.slice(0, 500)}{task.prompt.length > 500 ? '…' : ''}</p>}
     {task.intent === 'analyze' ? <>
       <div className="focus-operation__actors">{runs.map(run => <span key={run.id}><span className={`actor-dot actor-dot--${run.status}`} aria-hidden /><b>{name(run.provider)}</b><span>{run.status === 'running' ? 'Running' : run.status === 'succeeded' ? 'Execution finished' : run.status}</span></span>)}{!loaded && <span>Loading recorded agents…</span>}</div>
-      <div className="focus-answer"><h4>{task.answer ? 'Recorded answer · preview' : live ? 'Answer in progress' : 'No answer recorded'}</h4><p>{task.answer ? task.answer.slice(0, 1500) + (task.answer.length > 1500 ? '…' : '') : live ? 'Open the task to inspect reported activity. No final answer has been recorded yet.' : 'Open the task to inspect its status and available evidence.'}</p></div>
+      <div className="focus-answer"><h4>{task.answer ? 'Recorded answer · preview' : live ? 'Answer in progress' : 'No answer recorded'}</h4>{task.answer ? <Markdown text={task.answer.slice(0, 1500) + (task.answer.length > 1500 ? '…' : '')} /> : <p>{live ? 'Open the task to inspect reported activity. No final answer has been recorded yet.' : 'Open the task to inspect its status and available evidence.'}</p>}</div>
     </> : loaded && trace ? <div className="focus-team" aria-label="Team operations">{trace.lanes.filter(lane => lane.id !== 'you').map(lane => {
       const operations = trace.segments.filter(segment => segment.lane === lane.id)
       const latest = operations.at(-1)

@@ -237,6 +237,8 @@ export type Project = z.infer<typeof Project>
 export const Task = z.object({
   id: Id,
   projectId: Id,
+  /** Host facts captured for this task; absent on historical records. */
+  sourceContext: z.object({ projectRoot: z.string().max(32768), runtimeVersion: z.string().max(80) }).optional(),
   title: z.string().max(200),
   prompt: z.string().min(1).max(50_000),
   intent: TaskIntent,
