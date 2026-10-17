@@ -78,7 +78,10 @@ export function compareVersions(a: string, b: string): number {
     if (x === undefined) return -1
     if (y === undefined) return 1
     const xn = /^\d+$/.test(x), yn = /^\d+$/.test(y)
-    if (xn && yn) return BigInt(x) < BigInt(y) ? -1 : 1
+    if (xn && yn) {
+      if (BigInt(x) === BigInt(y)) continue
+      return BigInt(x) < BigInt(y) ? -1 : 1
+    }
     if (xn !== yn) return xn ? -1 : 1
     return x < y ? -1 : 1
   }
@@ -94,12 +97,12 @@ export type UpdateCheck =
   | { state: 'available'; version: string; notes: string; file: z.infer<typeof UpdateFile> }
 
 /** Asks the release server, verifies the signature, and says whether a newer version exists for this platform. */
-export async function checkForUpdate(config: UpdateConfig, fetcher: Fetcher = fetch as unknown as Fetcher): Promise<UpdateCheck> {
+export async function checkForUpdate(config: UpdateConfig, fetcher: Fetcher = fetch as unknown as Fetcher, timeoutMs = 60_000): Promise<UpdateCheck> {
   if (!config.manifestUrl || !config.publicKeyHex) return { state: 'not_configured', reason: 'Updates are not set up in this build yet (no release key or release address).' }
   if (!/^https:\/\//.test(config.manifestUrl)) throw new Error('Updates are only fetched over HTTPS.')
-  const response = await fetcher(config.manifestUrl)
+  const response = await withDeadline(fetcher(config.manifestUrl), timeoutMs, 'The update server did not answer.')
   if (!response.ok) throw new Error(`The update server answered ${response.status}.`)
-  const manifest = verifyManifest(await response.json(), config.publicKeyHex)
+  const manifest = verifyManifest(await withDeadline(response.json(), timeoutMs, 'The update description stalled.'), config.publicKeyHex)
   if (compareVersions(manifest.version, config.currentVersion) <= 0) return { state: 'up_to_date', version: config.currentVersion }
   const file = manifest.files.find((f) => f.platform === config.platform)
   if (!file) return { state: 'up_to_date', version: config.currentVersion }

@@ -266,3 +266,9 @@ provenance passed. Numeric prerelease identifiers, identifier prefixes, embedded
 hyphens and ignored build metadata are covered by `update/versions.test.ts`.
 Executed on Linux, Node 24.19.0; desktop and Windows installation not exercised.
 
+Updater follow-up: independent Codex review identified accepted leading-zero
+identifiers comparing inconsistently; added equality regression. Header and JSON
+body waits now time out separately; two stalled-server tests pass. Underlying
+fetch cancellation is not implemented. Full `npm run check` passed with the
+definition-digest regressions also present (257 passed, 2 skipped).
+

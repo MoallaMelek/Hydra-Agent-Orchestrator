@@ -41,4 +41,5 @@ Newest entry first.
 # 2026-10-17
 
 - Corrected updater SemVer precedence; regression tests and required checks passed.
+- Bounded update manifest network waits and corrected equal numeric prerelease comparison after independent review.
 
