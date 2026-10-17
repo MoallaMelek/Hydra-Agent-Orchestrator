@@ -40,7 +40,12 @@ export interface Recommendation {
   evidence: StrategyStats[]
 }
 
-const median = (xs: number[]) => (xs.length ? xs.sort((a, b) => a - b)[Math.floor((xs.length - 1) / 2)]! : null)
+const median = (xs: number[]): number | null => {
+  if (!xs.length) return null
+  xs.sort((a, b) => a - b)
+  const mid = Math.floor(xs.length / 2)
+  return xs.length % 2 ? xs[mid]! : (xs[mid - 1]! + xs[mid]!) / 2
+}
 /** A change succeeded if you accepted it and Hydra's checks did not fail; an answer if it was given. */
 const succeeded = (o: Outcome) => (o.category.startsWith('answer') ? o.decision === 'answered' : o.decision === 'accepted' && o.verified !== false)
 /** Canceled tasks and branches kept for later say nothing about how well a setup works. */

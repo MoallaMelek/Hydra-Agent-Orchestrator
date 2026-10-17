@@ -263,3 +263,7 @@ No regression from job objects (previous: "hi" 2.1 s / 3.0 s warm).
 
 ## 2026-10-17 — greeting-prefixed bug reports
 Short greetings no longer hide crash/broken symptoms. Added three routing regressions; npm run check passed (245 passed, 2 skipped), typecheck, lint and provenance passed. Codex implemented and verified.
+
+
+## 2026-10-17 — outcome medians
+Even observation counts now average the central pair rather than underreporting duration and cost. Regression test covers both fields. npm run check passed: 246 passed, 2 skipped; typecheck, lint and provenance passed.
