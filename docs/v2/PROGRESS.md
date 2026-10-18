@@ -4,6 +4,8 @@ Newest entry first.
 
 ## 2026-10-19 — final alpha.5 local qualification
 
+Final owner-approved run39177167557 at448db2a succeeded in all6platform/check/installer jobs. Windows x64, macOS26ARM64 and Ubuntu24.04x64 actual package workflows passed;6smokes and disposable DB retention/reuse. No published artifacts or personal installation changes. Exact scope/remaining signing, failure-recovery, architecture and commercial gates in RELEASE_QUALIFICATION.md. Earlier two failures are historical, not current run status. Source remains frozen; this follow-up records evidence only.
+
 Final368pass/1skip,45files; types/lint/provenance/build/scan pass; final engine/UI packaged13product+7onboarding steps, default-profile smoke and4restart assertions pass. Added bounded SQLite BUSY/LOCKED retry,20cold races, actual owner-process death, real project.root assertion, cached-token guard/unpriced accounting, default-disabled live harness and non-synced embedded preview profile. Correct full Codex trial total227,721 including170,624cached versus approved50k; original receipt retained, owner informed, no additional calls. Two CI runs failed and installers skipped; a further run needs explicit approval. Source/UI frozen; signing/containment/trusted-phone/commercial/legal/recovery gates remain. No original installation/data/project folders modified or relocated.
 
 ## 2026-10-18 — alpha.5 production preparation
