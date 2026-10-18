@@ -2,6 +2,10 @@
 
 Newest entry first.
 
+## 2026-10-18 — alpha.4 strict engine approval and separate preview
+
+Closed the UI-only approval gap across authorized clients: ordinary acceptance now requires current trustworthy checks, exact revision and reviewer approval, with structured snapshot/UUID, atomic durable actor/source/evidence receipt, historic duplicate refusal and lock-held apply revalidation. No exception-to-apply supported. Historical unsafe applications retain their state and get an explicit legacy/unresolved receipt; Telekinesis unchanged. Updated clients and moved-branch review workflow. All 332 tests passed (1 skipped), typecheck/lint/provenance/build passed; 11 packaged steps and restart/history checks passed. Separate visible alpha.4 preview launched using the owner's selected fresh profile, with a distinct Desktop shortcut; installed Hydra/data/auth preserved. See APPROVAL_POLICY.md and TEST_EVIDENCE.md. No main merge, public release, paid provider workflow or license change.
+
 ## 2026-10-17 · Mission Desk product milestone
 
 - Compared three interaction concepts and selected conversation + mission receipt. Workspace/project, onboarding, accounts, task approvals, history, settings and phone-access hierarchy now follow progressive disclosure. Existing operations/replay, orchestration, drafts, CLI accounts and Git delivery remain.

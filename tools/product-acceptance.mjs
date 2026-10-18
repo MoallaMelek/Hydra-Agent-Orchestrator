@@ -1,3 +1,4 @@
+import { approvalContext } from '@hydra/protocol'
 /** Packaged Electron acceptance. Only operates on disposable seed-product-evidence profiles. */
 import { spawn, execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -68,10 +69,9 @@ try {
       await click('Settings');await click('Light');await openTask(name);await shot('receipt-light-'+name.toLowerCase().replaceAll(' ','-'));await click('Settings');await click('Midnight')
     }
   })
-  await step('unresolved-evidence acknowledgement and request-changes dialog are keyboard accessible',async()=>{
+  await step('blocked acceptance and request-changes dialog are keyboard accessible',async()=>{
     await openTask('Failing check')
-    await evaluate("document.querySelector('.receipt-ack input').click()")
-    assert(await evaluate("![...document.querySelectorAll('.decision button')].find(e=>e.textContent.includes('Accept')).disabled"),'Acknowledgement did not enable decision')
+    assert(await evaluate("[...document.querySelectorAll('.decision button')].find(e=>e.textContent.includes('Acceptance blocked')).disabled"),'Failed evidence was not blocked')
     await click('Request changes');await wait('document.querySelector("dialog[open]")')
     const dialog=await evaluate("({label:document.querySelector('dialog[open]').getAttribute('aria-labelledby'),focus:document.activeElement?.id})")
     assert(dialog.label && dialog.focus==='feedback','Dialog has no accessible title/focus')
@@ -91,15 +91,36 @@ try {
     await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});await shot('receipt-390');assert(!(await geometry()).overflow,'Receipt overflow')
     await send('Emulation.clearDeviceMetricsOverride');await send('Emulation.setEmulatedMedia',{features:[]})
   })
+  await step('engine refuses failed, missing, stale, untrusted and rejected-review decisions through HTTP',async()=>{
+    const results=[]
+    for(const name of ['Failing check','No checks','Reviewer objections','Stale evidence','Missing result','Untrusted evidence']) {
+      await openTask(name)
+      assert(await evaluate("[...document.querySelectorAll('.decision button')].find(e=>e.textContent.includes('Acceptance blocked'))?.disabled"),name+' was not blocked in UI')
+      const taskId=seed.fixtures.find(f=>f.name===name).taskId
+      const detail=await api('/api/tasks/'+taskId)
+      const command={type:'task.decide',taskId,decision:'accept',headSha:detail.task.workspace.headSha,acceptance:{decisionId:crypto.randomUUID(),snapshot:approvalContext(detail.task,detail.evidence).snapshot}}
+      const denied=await api('/api/commands',command)
+      assert(!denied.ok && denied.error.code==='conflict',name+' accepted by engine')
+      const exception=await api('/api/commands',{...command,decision:'accept_exception',reason:'test exception'})
+      assert(!exception.ok,'Unsupported exception accepted')
+      assert((await api('/api/tasks/'+taskId)).task.outcome===null,'Blocked task changed outcome')
+      await shot('blocked-'+name.toLowerCase().replaceAll(' ','-'));results.push({name,denied:denied.error.code,exception:exception.error.code})
+    }
+    return results
+  })
   await step('real fixture apply and revert preserve Git history',async()=>{
     await openTask('Passing check');await click('Accept')
     const taskId=seed.fixtures.find(f=>f.name==='Passing check').taskId
     for(let i=0;i<200;i++){const d=await api('/api/tasks/'+taskId);if(d.task.outcome==='applied')break;await sleep(100)}
-    assert((await api('/api/tasks/'+taskId)).task.outcome==='applied','Fixture was not applied')
+    const applied=(await api('/api/tasks/'+taskId)).task
+    assert(applied.outcome==='applied' && applied.acceptance?.unresolved.length===0,'Fixture was not applied with a receipt')
+    await wait("document.body.innerText.includes('Accepted with passing checks and reviewer approval')");await shot('accepted-receipt')
+    const duplicate=await api('/api/commands',{type:'task.decide',taskId,decision:'accept',headSha:applied.acceptance.revision,acceptance:{decisionId:applied.acceptance.decisionId,snapshot:applied.acceptance.snapshot}})
+    assert(!duplicate.ok,'Duplicate acceptance was allowed')
     await click('Roll back');await wait("document.body.innerText.includes('Rolled back')");await shot('rolled-back')
     const task=(await api('/api/tasks/'+taskId)).task
     assert(task.outcome==='rolled_back' && task.applied.rolledBackSha,'No revert record')
-    return {outcome:task.outcome,appliedSha:task.applied.commitSha,revertSha:task.applied.rolledBackSha}
+    return {outcome:task.outcome,appliedSha:task.applied.afterSha,revertSha:task.applied.rolledBackSha}
   })
   await step('plan rejection and deletion semantics are visible without running a provider',async()=>{
     await openTask('Plan approval');await shot('plan-approval');await click('Reject');await wait("document.body.innerText.includes('Discarded')")

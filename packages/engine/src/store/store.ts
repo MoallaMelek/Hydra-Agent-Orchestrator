@@ -284,6 +284,10 @@ export class Store {
     this.db.prepare('INSERT INTO audit (at, actor, action, detail) VALUES (?, ?, ?, ?)').run(isoNow(), actor, action, JSON.stringify(detail))
   }
 
+  hasAcceptanceDecision(decisionId: string): boolean {
+    return Boolean(this.db.prepare("SELECT 1 FROM audit WHERE action = 'task.acceptance' AND json_extract(detail, '$.decisionId') = ? LIMIT 1").get(decisionId))
+  }
+
   listAudit(limit = 200): Array<{ seq: number; at: string; actor: string; action: string; detail: unknown }> {
     const rows = this.db.prepare('SELECT seq, at, actor, action, detail FROM audit ORDER BY seq DESC LIMIT ?').all(limit) as Row[]
     return rows.map((row) => ({ seq: Number(row.seq), at: String(row.at), actor: String(row.actor), action: String(row.action), detail: JSON.parse(String(row.detail)) }))

@@ -59,7 +59,7 @@ export async function runChecksAt(ctx: EngineContext, task: Task, sha: string, p
       })
       if (!item) break
       mutated = mutated || await trackedChanges(dir)
-      const final = mutated ? { ...item, treeMutated: true } : item
+      const final = { ...item, treeMutated: mutated || item.treeMutated, definitionsChanged: changed }
       if (mutated) logTask(ctx, task.id, 'warn', `${spec.label} modified tracked files in its checkout; its result (and later ones) are flagged as untrustworthy.`)
       ctx.store.putEvidence(final)
       evidence.push(final)

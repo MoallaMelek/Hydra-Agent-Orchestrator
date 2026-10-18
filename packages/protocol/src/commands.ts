@@ -51,7 +51,9 @@ export const Command = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('task.decide'), taskId: Id, decision: z.enum(['accept', 'request_changes', 'reject', 'keep_branch']), feedback: Feedback.optional(),
     /** The exact commit the person reviewed. Required to accept: stale decisions are refused. */
-    headSha: z.string().regex(/^[0-9a-f]{40}$/).optional()
+    headSha: z.string().regex(/^[0-9a-f]{40}$/).optional(),
+    /** Required by the engine for acceptance. No exception-to-apply command exists. */
+    acceptance: z.object({ decisionId: z.string().uuid(), snapshot: z.string().max(1_000_000) }).strict().optional()
   }),
   z.object({ type: z.literal('task.rollback'), taskId: Id }),
   z.object({ type: z.literal('task.delete'), taskId: Id }),

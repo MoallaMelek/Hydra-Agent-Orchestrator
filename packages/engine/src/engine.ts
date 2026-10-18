@@ -275,7 +275,7 @@ export class Engine {
       case 'task.cancel': this.requireTask(command.taskId); this.store.audit(actorLabel, 'task.cancel', { taskId: command.taskId }); return this.orchestrator.cancel(command.taskId)
       case 'task.resume': this.requireTask(command.taskId); this.orchestrator.resume(command.taskId); return null
       case 'task.approve_plan': this.requireTask(command.taskId); this.orchestrator.approvePlan(command.taskId, command.approve, command.note, source); return null
-      case 'task.decide': this.requireTask(command.taskId); this.orchestrator.decide(command.taskId, command.decision, command.feedback, command.headSha, source); return null
+      case 'task.decide': this.requireTask(command.taskId); this.orchestrator.decide(command.taskId, command.decision, command.feedback, command.headSha, source, command.acceptance, actorLabel); return null
       case 'task.rollback': this.requireTask(command.taskId); return this.orchestrator.rollback(command.taskId, source)
       case 'task.delete': return this.deleteTask(command.taskId, actorLabel)
       case 'task.archive': {

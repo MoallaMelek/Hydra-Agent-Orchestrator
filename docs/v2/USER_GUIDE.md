@@ -54,7 +54,7 @@ When a change says **Review result**:
 
 Then choose:
 - **Accept** fast-forwards your branch to exactly the commit you reviewed. If your branch moved meanwhile, Hydra merges your changes into the task, re-runs the checks and asks you again.
-- **Accept with unresolved evidence** requires an explicit acknowledgement in the UI. Review the named failed/missing checks and warnings first. The engine records the evidence state and retains exact-SHA enforcement; existing API acceptance policy is unchanged.
+- **Accept** is enforced by the engine: current passing checks and revision-bound reviewer approval are required in every mode. Failed, missing, stale or untrusted evidence and blocking reviewer objections refuse acceptance. No exception-to-apply action is supported. Request changes for another reviewed repair, keep the isolated branch for manual work, or reject. Older clients without structured decisions must be upgraded. See APPROVAL_POLICY.md.
 - **Request changes** sends your note to the implementer; the change is reviewed and verified again.
 - **Reject** discards the isolated copy. **Keep branch** leaves a `hydra/…` branch for you to merge yourself.
 

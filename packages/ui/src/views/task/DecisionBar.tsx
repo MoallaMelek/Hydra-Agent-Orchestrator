@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Archive, ArchiveRestore, Check, GitBranch, MessageSquareText, Play, RotateCcw, Square, Trash2, X } from 'lucide-react'
 import type { Task } from '@hydra/protocol'
-import { verificationReceipt } from '@hydra/protocol'
+import { approvalContext, newAcceptanceId, verificationReceipt } from '@hydra/protocol'
 import { useAppState } from '../../app/context'
 import { Button, Dialog, Field } from '../../design/components'
 import { useApp } from '../../app/context'
@@ -20,8 +20,7 @@ export function DecisionBar({ task, blockingWarnings }: { task: Task; blockingWa
   const evidence = useAppState(s => s.evidence[task.id])
   const loaded = useAppState(s => Boolean(s.loaded[task.id]))
   const receipt = verificationReceipt(task, evidence ?? [])
-  const [ackRevision, setAckRevision] = useState<string | null>(null)
-  const needsOverride = receipt.state !== 'passed' || blockingWarnings > 0
+  const approval = approvalContext(task, evidence ?? [])
   const act = async (key: string, command: Record<string, unknown>, success?: string) => {
     setBusy(key)
     const ack = await run({ taskId: task.id, ...command }, success)
@@ -46,20 +45,21 @@ export function DecisionBar({ task, blockingWarnings }: { task: Task; blockingWa
         <div className="decision">
           <div className="decision__text">
             <b>{!loaded ? 'Loading check evidence…' : receipt.state === 'passed' ? 'Checks passed · your decision' : receipt.state === 'failed' ? 'Checks failed · review before applying' : 'Unverified change · review before applying'}</b>
-            <span className="muted">{task.error ?? 'Accept applies this exact revision to your project. Passing checks do not prove the change meets your requirements.'}</span>
+            <span className="muted">{task.error ?? 'Accept applies only this exact revision with current passing checks and reviewer approval. Passing checks do not prove correctness.'}</span>
             {receipt.failed.length > 0 && <span role="alert">Failed: {receipt.failed.map(c => c.spec.label).join(', ')}</span>}
             {receipt.missing.length > 0 && <span role="alert">No current result: {receipt.missing.map(c => c.spec.label).join(', ')}</span>}
             {!task.checks.length && <span role="alert">No checks configured. Behaviour has not been verified.</span>}
             <small className="faint">Reviewed revision <code>{shortSha(head)}</code> · applies by fast-forward only</small>
-            {needsOverride && <label className="receipt-ack"><input type="checkbox" checked={ackRevision === head} onChange={e => setAckRevision(e.target.checked ? head ?? null : null)} /> I reviewed the missing or failed evidence and accept the risk at this revision.</label>}
+            {loaded && !approval.allowed && <div role="alert"><b>Acceptance blocked</b><ul>{approval.unresolved.map((reason, i) => <li key={i}>{reason}</li>)}</ul><span>Request changes, keep the isolated branch, or reject. Applying by exception is not supported.</span></div>}
+            {blockingWarnings > 0 && <small>Review the additional warnings below before deciding.</small>}
           </div>
           <Button variant="ghost" icon={<GitBranch size={15} />} busy={busy === 'keep'} onClick={() => void act('keep', { type: 'task.decide', decision: 'keep_branch' }, 'Branch kept for manual merge')}>Keep branch</Button>
           <Button variant="danger" icon={<Trash2 size={15} />} busy={busy === 'reject'} onClick={() => void act('reject', { type: 'task.decide', decision: 'reject' }, 'Discarded')}>Reject</Button>
           <Button icon={<MessageSquareText size={15} />} onClick={() => setChanges(true)}>Request changes</Button>
-          <Button variant={needsOverride ? 'danger' : 'primary'} icon={<Check size={15} />} busy={busy === 'accept'} disabled={!head || !loaded || (needsOverride && ackRevision !== head)}
+          <Button variant="primary" icon={<Check size={15} />} busy={busy === 'accept'} disabled={!head || !loaded || !approval.allowed}
             title={blockingWarnings ? 'There are unresolved warnings; read them before accepting.' : undefined}
-            onClick={() => void act('accept', { type: 'task.decide', decision: 'accept', headSha: head, ...(needsOverride ? { feedback: `I acknowledged unresolved evidence at revision ${head}: ${receipt.state}.` } : {}) }, 'Applying to your branch…')}>
-            {needsOverride ? 'Accept with unresolved evidence' : 'Accept'}
+            onClick={() => void act('accept', { type: 'task.decide', decision: 'accept', headSha: head, acceptance: { decisionId: newAcceptanceId(), snapshot: approval.snapshot } }, 'Applying to your branch…')}>
+            {loaded && !approval.allowed ? 'Acceptance blocked' : 'Accept'}
           </Button>
         </div>
         <Dialog open={changes} onClose={() => setChanges(false)} title="Request changes"

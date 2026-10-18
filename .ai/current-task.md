@@ -1,5 +1,9 @@
 # Hydra workbench and safe desktop updates — 16 October 2026
 
+## Active — 18 October 2026 approval safety and separate launch
+
+Writer/tester: current Codex chat. Read-only consultant: bounded Codex subagent; no reviewer edit ownership. Branch feat/engine-enforced-approval-20261018 from fc1dccb; fetched main d18a690. Implement strict structured engine approval across clients, durable revision/evidence/review-bound receipts, duplicate refusal and historical exception visibility. No exception-to-apply supported. Package alpha.4 separately and launch with a fresh preview profile; preserve existing installation, Telekinesis and personal data. No main merge/publication. Verification results recorded in TEST_EVIDENCE.md when observed.
+
 ## Active continuation — 17 October 2026
 
 Writer/integrator/verifier: current Codex chat. Branch feat/hydra-product-milestone-20261017 integrates assessed 4d2a48b and remote main d18a690 in this existing worktree. Desktop checkout untouched. Scope, concept comparison and measurable exits: docs/v2/PRODUCT_MILESTONE.md. Full-app/Agensi drafts: docs/v2/AGENSI_FULL_PRODUCT.md. All earlier notes below are historical receipts, not current qualification.

@@ -1,3 +1,7 @@
+import { approvalContext } from '@hydra/protocol'
+import { randomUUID } from 'node:crypto'
+import { DatabaseSync } from 'node:sqlite'
+import type { KeyedMutex } from './orchestrator/orchestrator.js'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
@@ -81,25 +85,117 @@ async function until(engine: Engine, taskId: string, predicate: (t: Task) => boo
 
 const waiting = (t: Task) => t.status === 'waiting_input'
 
+describe('engine enforced acceptance policy', () => {
+  it.each(['evidence changed', 'receipt missing'])('revalidates under the repository lock when %s before apply', async fault => {
+    const { engine, projectId, dataDir, repo } = await setup(script())
+    const task = await create(engine, projectId)
+    const ready = await until(engine, task.id, waiting)
+    const before = gitIn(repo, 'rev-parse', 'HEAD')
+    const mutex = (engine.orchestrator as unknown as { repoLock: KeyedMutex }).repoLock
+    let release!: () => void
+    const blocker = mutex.run(repo, () => new Promise<void>(resolve => { release = resolve }))
+    await new Promise(resolve => setImmediate(resolve))
+    try {
+      expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: ready.workspace!.headSha!, acceptance: acceptance(engine, task.id) })).toMatchObject({ ok: true })
+      if (fault === 'receipt missing') engine.store.putTask({ ...engine.store.getTask(task.id)!, acceptance: undefined })
+      else {
+        const result = engine.store.listEvidence(task.id).find(e => e.phase === 'verify')!
+        const db = new DatabaseSync(join(dataDir, 'hydra.db'))
+        try { db.prepare('UPDATE evidence SET doc=? WHERE id=?').run(JSON.stringify({ ...result, exitCode: 1 }), result.id) } finally { db.close() }
+      }
+    } finally { release(); await blocker }
+    await engine.orchestrator.settled(task.id)
+    expect(engine.store.getTask(task.id)).toMatchObject({ status: 'waiting_input', outcome: null, applied: null })
+    expect(gitIn(repo, 'rev-parse', 'HEAD')).toBe(before)
+  })
+  it('refuses unresolved evidence/reviews in every mode and every client; persists a single structured acceptance', async () => {
+    const { engine, projectId, dataDir } = await setup(script())
+    const task = await create(engine, projectId)
+    const ready = await until(engine, task.id, waiting)
+    const original = structuredClone(ready)
+    const finalEvidence = engine.store.listEvidence(task.id).find(e => e.phase === 'verify')!
+    // Fault injection only in this disposable test database. Production evidence is immutable.
+    const replaceEvidence = (e: typeof finalEvidence) => {
+      const db = new DatabaseSync(join(dataDir, 'hydra.db'))
+      try { db.prepare('UPDATE evidence SET task_id=?, doc=? WHERE id=?').run(e.taskId, JSON.stringify(e), e.id) } finally { db.close() }
+    }
+    const remote = { kind: 'remote' as const, deviceId: 'approval-test-device', scopes: ['approve'] as const }
+    const decide = (actor = { kind: 'desktop' } as Parameters<Engine['execute']>[1], extra: Record<string, unknown> = {}) => engine.execute({
+      type: 'task.decide', taskId: task.id, decision: 'accept', headSha: ready.workspace!.headSha,
+      acceptance: acceptance(engine, task.id), ...extra
+    }, actor)
+    const cases: Array<(t: Task) => void> = [
+      t => { t.checks = [] },
+      t => { t.review = null },
+      t => { t.reviewedSha = null },
+      t => { t.review = { ...t.review!, verdict: 'changes_requested' } },
+      t => { t.review!.findings = [{ severity: 'major', file: 'math.js', issue: 'Blocking', suggestion: 'Fix it' }] },
+      t => { t.review!.acceptanceCriteriaMet[0]!.met = false },
+      t => { t.stages.filter(s => s.stage === 'verify').at(-1)!.status = 'interrupted' },
+      t => { t.checks[0]!.argv = ['node', 'different.js'] }
+    ]
+    for (const mode of ['safe', 'developer', 'autonomous'] as const) {
+      for (const change of cases) {
+        const candidate = structuredClone(original); candidate.mode = mode; candidate.checksApproved = true; change(candidate); engine.store.putTask(candidate)
+        for (const actor of [{ kind: 'desktop' as const }, remote]) expect(await decide(actor)).toMatchObject({ ok: false, error: { code: 'conflict' } })
+      }
+    }
+    engine.store.putTask(original)
+    expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept_exception', headSha: ready.workspace!.headSha, reason: 'test override' })).toMatchObject({ ok: false, error: { code: 'invalid' } })
+    for (const change of [
+      { exitCode: 1 }, { timedOut: true }, { treeMutated: true }, { spawnError: 'failed' }, { definitionsChanged: true },
+      { commitSha: 'b'.repeat(40) }, { checkSpec: 'stale definition' }, { phase: 'pre_review' as const },
+      { taskId: '0'.repeat(26) }, { startedAt: '2000-01-01T00:00:00.000Z' }
+    ]) {
+      replaceEvidence({ ...finalEvidence, ...change })
+      expect(await decide()).toMatchObject({ ok: false })
+      expect(await decide(remote)).toMatchObject({ ok: false })
+      replaceEvidence(finalEvidence)
+    }
+    expect(await decide(undefined, { acceptance: undefined, feedback: 'I accept all risks' })).toMatchObject({ ok: false, error: { code: 'invalid' } })
+    const stale = acceptance(engine, task.id)
+    replaceEvidence({ ...finalEvidence, durationMs: finalEvidence.durationMs + 1 })
+    expect(await decide(undefined, { acceptance: stale })).toMatchObject({ ok: false, error: { code: 'conflict' } })
+    replaceEvidence(finalEvidence)
+    const command = { type: 'task.decide', taskId: task.id, decision: 'accept', headSha: ready.workspace!.headSha, acceptance: acceptance(engine, task.id) }
+    const results = await Promise.all([engine.execute(command, remote), engine.execute(command, remote)])
+    expect(results.map(r => r.ok)).toEqual([true, false])
+    const applied = await until(engine, task.id, t => t.outcome === 'applied')
+    expect(applied.acceptance).toMatchObject({ actor: 'device:approval-test-device', source: 'remote', revision: ready.workspace!.headSha, unresolved: [], exceptionReason: null })
+    expect(engine.store.hasAcceptanceDecision(command.acceptance.decisionId)).toBe(true)
+    expect(await engine.execute(command)).toMatchObject({ ok: false })
+    await engine.close(); engines.splice(engines.indexOf(engine), 1)
+    const reopened = await Engine.open({ dataDir, registry: new AdapterRegistry([script()]), skipProbe: true })
+    engines.push(reopened)
+    expect(reopened.store.getTask(task.id)!.acceptance).toEqual(applied.acceptance)
+    // Even if another approval round exists, an old recorded decision ID is consumed.
+    reopened.store.putTask({ ...original, acceptance: undefined })
+    expect(await reopened.execute(command)).toMatchObject({ ok: false, error: { code: 'conflict' } })
+  })
+})
+
 describe('engine lifecycle', () => {
   it('refuses a stale accept and re-asks after integrating a moved branch', async () => {
     const { engine, repo, projectId } = await setup(script())
     const task = await create(engine, projectId)
     const ready = await until(engine, task.id, waiting)
     const reviewed = ready.workspace!.headSha!
-    expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: 'b'.repeat(40) })).toMatchObject({ ok: false, error: { code: 'conflict' } })
+    expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', acceptance: acceptance(engine, task.id), headSha: 'b'.repeat(40) })).toMatchObject({ ok: false, error: { code: 'conflict' } })
 
     // The user commits something unrelated before accepting.
     writeFileSync(join(repo, 'NOTES.md'), 'user notes\n')
     gitIn(repo, 'add', 'NOTES.md')
     gitIn(repo, 'commit', '-qm', 'user notes')
-    await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: reviewed })
+    await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', acceptance: acceptance(engine, task.id), headSha: reviewed })
     const again = await until(engine, task.id, (t) => waiting(t) && t.workspace!.headSha !== reviewed)
     expect(again.error).toMatch(/integrated them and all checks pass/)
     expect(readFileSync(join(repo, 'math.js'), 'utf8')).toContain('a - b') // still nothing applied
     expect(engine.store.listEvidence(task.id).filter((e) => e.phase === 'verify' && e.commitSha === again.workspace!.headSha).at(-1)!.exitCode).toBe(0)
 
-    await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: again.workspace!.headSha! })
+    expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', acceptance: acceptance(engine, task.id), headSha: again.workspace!.headSha! })).toMatchObject({ ok: false })
+    await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'request_changes', feedback: 'Review the integrated revision before acceptance.' })
+    const rereviewed = await until(engine, task.id, t => waiting(t) && t.reviewedSha === t.workspace?.headSha)
+    expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', acceptance: acceptance(engine, task.id), headSha: rereviewed.workspace!.headSha! })).toMatchObject({ ok: true })
     const done = await until(engine, task.id, (t) => t.status === 'completed')
     expect(done.applied!.method).toBe('fast_forward')
     expect(readFileSync(join(repo, 'math.js'), 'utf8')).toContain('a + b')
@@ -152,7 +248,7 @@ describe('engine lifecycle', () => {
     expect(diff.files.map((f) => f.path)).toEqual(['math.js'])
 
     expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept' })).toMatchObject({ ok: false, error: { code: 'invalid' } })
-    expect((await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: ready.workspace!.headSha! })).ok).toBe(true)
+    expect((await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', acceptance: acceptance(engine, task.id), headSha: ready.workspace!.headSha! })).ok).toBe(true)
     const applied = await until(engine, task.id, (t) => t.status === 'completed')
     expect(applied.outcome).toBe('applied')
     expect(readFileSync(join(repo, 'math.js'), 'utf8')).toContain('a + b')
@@ -289,7 +385,7 @@ describe('engine lifecycle', () => {
     expect(created.ok).toBe(true)
     const id = (created as { result: Task }).result.id
     await until(engine, id, waiting)
-    expect(await engine.execute({ type: 'task.decide', taskId: id, decision: 'accept', headSha: 'a'.repeat(40) }, control)).toMatchObject({ ok: false, error: { code: 'forbidden' } })
+    expect(await engine.execute({ type: 'task.decide', taskId: id, decision: 'accept', acceptance: acceptance(engine, id), headSha: 'a'.repeat(40) }, control)).toMatchObject({ ok: false, error: { code: 'forbidden' } })
   })
 
   it('rejects invalid commands and analysis-only tasks never create a workspace', async () => {
@@ -330,3 +426,5 @@ describe('stage outcome notes (operations view)', () => {
     expect(notes.find((n) => n.startsWith('demo#1'))).toMatch(/Before → after: \d+\/\d+ pass/)
   })
 })
+
+function acceptance(engine: Engine, taskId: string) { return { decisionId: randomUUID(), snapshot: approvalContext(engine.store.getTask(taskId)!, engine.store.listEvidence(taskId)).snapshot } }

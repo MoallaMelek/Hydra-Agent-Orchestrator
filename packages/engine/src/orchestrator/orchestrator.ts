@@ -1,5 +1,5 @@
-import type { Task, TaskStage } from '@hydra/protocol'
-import { verificationReceipt } from '@hydra/protocol'
+import type { Command, Task, TaskStage } from '@hydra/protocol'
+import { approvalContext, verificationReceipt } from '@hydra/protocol'
 import { currentBranch, headSha, isAncestor } from '../isolation/git.js'
 import { killOrphanAgent } from '../process/instance.js'
 import { afterFinalDecision, afterPlanDecision, nextStep, type FinalDecision, type StageResult, type Step } from '../workflow/machine.js'
@@ -120,18 +120,29 @@ export class Orchestrator {
     this.continueWith(taskId, afterPlanDecision(approve))
   }
 
-  decide(taskId: string, decision: FinalDecision, feedback: string | undefined, headShaSeen: string | undefined, source: 'desktop' | 'remote'): void {
+  decide(taskId: string, decision: FinalDecision, feedback: string | undefined, headShaSeen: string | undefined, source: 'desktop' | 'remote', acceptance: Extract<Command, { type: 'task.decide' }>['acceptance'], actor: string): void {
     const task = this.ctx.store.getTask(taskId)!
     if (this.running.has(taskId) || task.status !== 'waiting_input' || task.waitReason !== 'final_approval') throw conflict('This task is not waiting for a final decision')
     const current = task.workspace?.headSha ?? null
     if (decision === 'accept') {
       if (!headShaSeen) throw invalid('Accept must name the commit you reviewed (headSha)')
       if (headShaSeen !== current) throw conflict('The result changed since you reviewed it. Review the latest version and accept again.')
+      const context = approvalContext(task, this.ctx.store.listEvidence(taskId))
+      if (!context.allowed) throw conflict(`Acceptance blocked: ${context.unresolved.join(' ')} Request changes, keep the branch, or reject. Exceptions are not supported.`)
+      if (!acceptance) throw invalid('Accept requires a structured decision bound to current evidence and review.')
+      if (acceptance.snapshot !== context.snapshot) throw conflict('Evidence or review changed. Reload and review the current result before accepting.')
+      if (this.ctx.store.hasAcceptanceDecision(acceptance.decisionId)) throw conflict('This decision was already submitted. Review the current task state.')
+      this.ctx.store.transaction(() => {
+        const record = { decisionId: acceptance.decisionId, at: isoNow(), actor, source, decision: 'accept' as const,
+          revision: current!, snapshot: context.snapshot, evidenceIds: context.evidenceIds, unresolved: context.unresolved, exceptionReason: null }
+        updateTask(this.ctx, taskId, t => { t.acceptance = record })
+        this.ctx.store.audit(actor, 'task.acceptance', { taskId, ...record })
+      })
     }
     if (decision === 'request_changes' && !feedback) throw invalid('Describe the changes you want')
     if (feedback) updateTask(this.ctx, taskId, (t) => { t.feedback.push({ at: isoNow(), text: feedback, source }); t.error = null })
     const receipt = verificationReceipt(task, this.ctx.store.listEvidence(taskId))
-    this.ctx.store.audit(source, `task.${decision}`, { taskId, headSha: current, evidenceState: receipt.state, failedChecks: receipt.failed.map(c => c.spec.id), missingChecks: receipt.missing.map(c => c.spec.id) })
+    this.ctx.store.audit(actor, `task.${decision}`, { taskId, source, headSha: current, evidenceState: receipt.state, failedChecks: receipt.failed.map(c => c.spec.id), missingChecks: receipt.missing.map(c => c.spec.id) })
     this.continueWith(taskId, afterFinalDecision(decision))
   }
 

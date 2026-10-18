@@ -81,8 +81,8 @@ The transition function `nextStep(task, outcome)` is **pure**. It takes the pers
 | FIX (≤ N rounds) | open findings, failing checks, human feedback | new commits | Implementer | Bounded by `maxFixRounds` and budget; exhausted → `waiting_input` with reasons (never a silent pass) |
 | VERIFY | final commit SHA | Evidence[] against that SHA | **Engine** | Any required check failing → back to FIX if rounds remain, else `waiting_input` |
 | DEMO | base SHA and final SHA | `Demo` {checkDelta (base vs final), customDemo outputs} | **Engine** | Best-effort; failure is recorded, not fatal |
-| APPROVAL | everything above | decision: accept · request_changes · reject · keep_branch | Human (desktop, or phone with `approve` scope) | — |
-| APPLY | final SHA | merge commit or fast-forward in the user's repository plus a rollback record | Engine (git) | Conflict → nothing applied, branch kept, user informed |
+| APPROVAL | everything above | structured revision/evidence-bound accept · request_changes · reject · keep_branch | Human (desktop, or phone with `approve` scope) | Engine refuses unresolved checks/review in every mode; no exception apply; see APPROVAL_POLICY.md |
+| APPLY | accepted SHA and durable decision receipt | fast-forward in the user's repository plus a rollback record | Engine (git) | Revalidates receipt under repository lock; integration needs fresh review and acceptance; conflict leaves target untouched |
 
 ### 4.2 Why verification is engine-run
 

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { createWriteStream, mkdirSync, realpathSync } from 'node:fs'
 import { isAbsolute, join, resolve } from 'node:path'
 import type { CheckSpec, Evidence } from '@hydra/protocol'
+import { checkSpecBinding } from '@hydra/protocol'
 import { verificationEnv } from '../process/env.js'
 import { findOnPath, killTree, reapGroup, spawnArgv } from '../process/spawn.js'
 import { isInside } from '../isolation/roots.js'
@@ -54,6 +55,7 @@ async function runOne(spec: CheckSpec, options: RunChecksOptions): Promise<Evide
   const cwd = resolve(options.workspacePath, spec.cwd)
   const argv = spec.argv.map((part) => part.split(SCRATCH).join(options.scratchDir))
   const base = {
+    checkSpec: checkSpecBinding(spec),
     id, taskId: options.taskId, checkId: spec.id, label: spec.label, phase: options.phase, commitSha: options.commitSha,
     argv, cwd: spec.cwd, startedAt, required: spec.required, treeMutated: false, outputTruncated: false
   }

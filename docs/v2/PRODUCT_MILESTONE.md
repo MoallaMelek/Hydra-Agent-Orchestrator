@@ -1,5 +1,7 @@
 # Hydra Mission Desk — product milestone, 2026-10-17
 
+Historical alpha.3 milestone record. Alpha.4 supersedes its UI-only override policy: acceptance is now enforced by the engine, unresolved checks/review refuse application in all modes, and no exception-to-apply workflow is supported. See APPROVAL_POLICY.md and TEST_EVIDENCE.md for current evidence.
+
 ## Source and scope
 
 Assessment baseline: alpha.3, `4d2a48b`. The Desktop checkout was `3699b25` / 0.2.61 and was deliberately left in place. Work continues in the existing v2 worktree. This milestone integrates remote main `d18a690` into a dedicated feature branch, preserving alpha.3 features and the newer hardening fixes. It does not merge into main or qualify a public release.

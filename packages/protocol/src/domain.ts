@@ -122,6 +122,9 @@ export const CheckDraft = z.object({
 export type CheckDraft = z.infer<typeof CheckDraft>
 
 export const Evidence = z.object({
+  /** Original command definition before runtime scratch-path substitution. */
+  checkSpec: z.string().optional(),
+  definitionsChanged: z.boolean().optional(),
   id: Id,
   taskId: Id,
   checkId: z.string(),
@@ -269,6 +272,13 @@ export const Task = z.object({
   fixRound: z.number().int().nonnegative(),
   plan: Plan.nullable(),
   review: Review.nullable(),
+  /** Absent on historical tasks: a new review is required before accepting. */
+  reviewedSha: z.string().nullable().optional(),
+  acceptance: z.object({
+    decisionId: z.string().uuid(), at: IsoTime, actor: z.string(), source: z.enum(['desktop', 'remote']),
+    decision: z.literal('accept'), revision: z.string(), snapshot: z.string(), evidenceIds: z.array(z.string()),
+    unresolved: z.array(z.string()), exceptionReason: z.string().nullable()
+  }).optional(),
   checks: z.array(CheckSpec),
   checksApproved: z.boolean(),
   /**

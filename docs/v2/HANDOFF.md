@@ -1,5 +1,9 @@
 # Handoff — Hydra v2 (read this first)
 
+## Active safety continuation — 18 October 2026
+
+Branch `feat/engine-enforced-approval-20261018` starts at verified Mission Desk `fc1dccb`; fetched remote main remains `d18a690`. Alpha.4 enforces structured acceptance in the engine across clients. No exception-to-apply workflow exists. See APPROVAL_POLICY.md. Historical notes below describe earlier policy. Existing installed Hydra and personal project data must remain untouched; package/launch a separate preview. No main merge or public release authorized.
+
 ## Current milestone — 2026-10-17
 
 See PRODUCT_MILESTONE.md and AGENSI_FULL_PRODUCT.md before the historical notes below. Active branch: feat/hydra-product-milestone-20261017, integrating assessed alpha.3 / 4d2a48b with remote main d18a690. No main merge or public release in this milestone. Final results are recorded in TEST_EVIDENCE.md. The following session-5 table and next-action list are retained historical context and are not current qualification claims. Job objects and desktop signed-manifest update foundations exist; container containment, trusted phone bootstrap, production signing/feed and failure recovery remain open. Current UI uses Workspace, AI accounts and Phone access.
