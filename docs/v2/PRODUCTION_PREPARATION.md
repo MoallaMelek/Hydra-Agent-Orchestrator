@@ -26,7 +26,7 @@ Safe passive skill selection: accessible Impeccable 4.6.0 (Operate/new-work/craf
 - Measure identical generated 1k/10k/50k task workloads before/after query tuning; keep startup/paging bounded and search correct after edits/purge/reopen.
 - Inspect real packaged UI in all themes/1360/900/390px sizes, proof navigation, approval/recovery/purge states and restart.
 - One owner-approved cross-platform Actions qualification; actual artifacts/installers in disposable CI runners, never the personal installation.
-- Owner-approved real-agent evaluation capped at $1 Claude and 50,000 reported Codex tokens; retain failures. No Grand Prix spend or benchmark ranking claims.
+- Owner-approved real-agent evaluation target:$1Claude/50,000reported Codex tokens. Trial exceeded the Codex target:227,721including cached input; raw failures retained and owner informed. No further provider calls or Grand Prix spend/ranking claims. Final engine/harness accounting includes cache but turn-end reports still prevent hard billing caps.
 - Recheck official Agensi mechanisms; full app remains the objective. Prepare unsent partnership/commercial drafts, never an installer disguised as a skill.
 
 ## Boundaries

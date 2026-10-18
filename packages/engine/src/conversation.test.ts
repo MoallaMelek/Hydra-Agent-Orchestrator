@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Task } from '@hydra/protocol'
-import { realpathSync } from 'node:fs'
 import { Engine } from './engine.js'
 import { AdapterRegistry } from './agents/registry.js'
 import { ScriptedAdapter } from './agents/scripted.js'
@@ -27,19 +26,20 @@ describe('conversational messages', () => {
   it('keeps selected repository scope distinct from trusted runtime facts and persists that provenance', async () => {
     const adapter = new ScriptedAdapter((_request, call) => call === 1 ? { text: 'This answer concerns the selected repository, not the installed application.' } : { fail: 'Deliberate failed retry' })
     const dataDir = tempDir('hydra-context-')
-    const repo = realpathSync(makeRepo(BUGGY_NODE_PROJECT))
+    const repo = makeRepo(BUGGY_NODE_PROJECT)
     dirs.push(dataDir, repo)
     const engine = await Engine.open({ dataDir, version: '2.0.0-test.7', registry: new AdapterRegistry([adapter]), skipProbe: true })
     engines.push(engine)
     const project = await engine.execute({ type: 'project.add', root: repo }) as { ok: true; result: { id: string } }
+    const selectedRoot = engine.store.getProject(project.result.id)!.root
     const ack = await engine.execute({ type: 'task.create', projectId: project.result.id, prompt: 'analyze yourself', depth: 'standard', mode: 'safe', assignment: { planner: 'scripted', implementer: 'scripted', reviewer: 'scripted' } }) as { ok: true; result: Task }
     expect(ack.ok).toBe(true)
     const done = await until(engine, ack.result.id, t => t.status === 'completed')
-    expect(done.sourceContext).toEqual({ projectRoot: repo, runtimeVersion: '2.0.0-test.7' })
+    expect(done.sourceContext).toEqual({ projectRoot: selectedRoot, runtimeVersion: '2.0.0-test.7' })
     expect(adapter.calls).toHaveLength(1)
-    expect(adapter.calls[0]!.cwd).toBe(repo)
+    expect(adapter.calls[0]!.cwd).toBe(selectedRoot)
     expect(adapter.calls[0]!.access).toBe('read')
-    expect(adapter.calls[0]!.prompt).toContain(JSON.stringify({ projectRoot: repo }))
+    expect(adapter.calls[0]!.prompt).toContain(JSON.stringify({ projectRoot: selectedRoot }))
     expect(adapter.calls[0]!.prompt).toContain('"2.0.0-test.7"')
     expect(adapter.calls[0]!.prompt).toContain('Do not switch checkouts or claim to have inspected the installed application')
     expect(done.workspace).toBeNull()

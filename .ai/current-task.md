@@ -2,6 +2,8 @@
 
 ## Current — alpha.5 production preparation
 
+Final19October local candidate:368pass/1skip, types/lint/provenance/build/scan passed; packaged13product/7onboarding/default-local-profile startup/4restart assertions pass. New lease contention retry +20cold races/actual owner death; full cached-token accounting; default-disabled live harness. Codex trial actual227,721reported including170,624cached; approved50k exceeded; owner informed, no further calls. Two CI runs failed, installers skipped; another run needs explicit owner approval. Preview direct exe defaults to non-synced Local AppData/HydraPreviews/Hydra-Production-Preparation-Data; no original folder/data moved. Source frozen pending qualification/report. Older paragraphs below retain historical figures.
+
 Sole writer/integrator/verifier: this chat. Read-only consultants: security, product direction, distribution. Branch feat/production-preparation-20261018 from verified alpha.4 0ed37a1. Full check348passed/1skip; packaged13product,7onboarding,4restart assertions passed. Preserve original installed app/data/projects/auth; distinct fresh preview. No main merge/release/license/outreach. Docker stopped; no more live providers after disclosed57,097Codex reported-token overrun versus50k target. Existing Actions installer qualification approved; outcome recorded separately. Current audit and gates in docs/v2/PRODUCTION_AUDIT.md and COMMERCIAL_PREPARATION.md.
 
 ## Active — 18 October 2026 approval safety and separate launch

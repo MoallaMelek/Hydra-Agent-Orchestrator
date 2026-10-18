@@ -8,6 +8,14 @@ import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+declare const __HYDRA_PREVIEW_PROFILE__: string | null
+// A separately built preview must stay separate even when its .exe is opened directly.
+// Explicit disposable test/user overrides continue to take precedence.
+if (__HYDRA_PREVIEW_PROFILE__ && !process.env.HYDRA_DATA_DIR) {
+  const localData = process.platform === 'win32' && process.env.LOCALAPPDATA ? process.env.LOCALAPPDATA : app.getPath('appData')
+  process.env.HYDRA_DATA_DIR = join(localData, 'HydraPreviews', __HYDRA_PREVIEW_PROFILE__)
+}
+
 // Keep the renderer profile disposable too when the engine uses a test/dev data root.
 if (process.env.HYDRA_DATA_DIR) {
   const profile = join(process.env.HYDRA_DATA_DIR, 'desktop-profile')

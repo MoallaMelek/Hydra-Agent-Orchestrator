@@ -29,6 +29,8 @@
 
 ## Product and commercial gates
 
+Live-budget reconciliation: Codex used227,721total reported tokens (57,097uncached input/output+170,624cached input), exceeding50,000approval; the earlier uncached-only summary was incomplete. Raw receipt retained and owner informed; no further calls. Final alpha.5 corrects the trial engine's exclusion of cached tokens, including cached input in maxTokens and future unpriced accounting. Turn-end reporting still prevents a hard billing cap. The harness includes cache and is disabled without fresh explicit approval.
+
 | Requirement | Status | Required next evidence/decision |
 |---|---|---|
 | Three concepts and selected signature interaction | VERIFIED | Workroom chosen; actual clickable artifact Proofline implemented; comparisons are expert judgments, not a user study |
@@ -54,3 +56,5 @@
 ## First cross-platform run retained
 
 [Run39174528132](https://github.com/MoallaMelek/Hydra-Agent-Orchestrator/actions/runs/39174528132), source9783f9f: Linux success; macOS341passed/3failed/5skipped; Windows345passed/3failed/1skipped. On macOS temporary `/var` paths resolve to `/private/var`; hosted Windows short8.3paths resolve to long names. A conversation provenance assertion compared the uncanonical spelling, and two lock fault-injection tests held the wrong key, allowing their intentionally altered state to arrive after actual apply. Production projects already use canonical roots. Tests now use that actual canonical root; they retain the same refusal assertions. No production approval gate was relaxed. Corrected-source qualification is not inferred from local success.
+
+Second owner-approved [run39175341190](https://github.com/MoallaMelek/Hydra-Agent-Orchestrator/actions/runs/39175341190), source249cdc8: Linux passed; Windows347passed/1failed/1skipped (realpathSync did not expand8.3; assertion now uses actual project.root); macOS343passed/1failed/5skipped (both contenders sometimes refused a new SQLite lease). Installers skipped. The lease now retries only BUSY/LOCKED connection initialization for a bounded interval, never releasing a winner or stealing a live marker;20cold races and actual owner-process death are covered locally. A further corrected-source platform run needs explicit owner approval. No installer result is inferred.

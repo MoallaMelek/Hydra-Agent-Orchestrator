@@ -2,6 +2,8 @@
 
 ## Current production preparation — alpha.5
 
+19October final local candidate:368tests passed/1skip; final13product/7onboarding/default-profile smoke/4restart assertions pass. Engine now counts cached tokens in maxTokens/unpriced totals and retries only SQLite BUSY/LOCKED on cold lease initialization;20cold races and owner-process death covered. Actual Codex trial total227,721 including cached input exceeded50k; earlier57,097-only summary was incomplete. No further provider calls. Embedded preview default is Local AppData/HydraPreviews/Hydra-Production-Preparation-Data (not redirected OneDrive Documents); explicit data overrides preserved. Two CI attempts failed; next corrected-source run requires explicit approval. See current TEST_EVIDENCE.md/RELEASE_QUALIFICATION.md; historical paragraphs below retain earlier figures/scope.
+
 Branch `feat/production-preparation-20261018` from alpha.4 `0ed37a1`. Main chat is sole writer/integrator/tester; bounded read-only security/product/distribution consultants. Source and packaged local checks passed (348tests/1skip,13product/7onboarding/4restart assertions). Existing installed alpha.3 and personal projects/data remain untouched; separate fresh preview only. Docker remains stopped. Live provider trial exceeded Codex50k reported-token target by7,097; disclosed, stopped, no further provider calls. Cross-platform existing Actions run authorized, record actual result. Current capability/release gates: PRODUCTION_AUDIT.md, PRODUCTION_PREPARATION.md, COMMERCIAL_PREPARATION.md and TEST_EVIDENCE.md. No main merge, release/publication, license choice, paid signing/account changes or outreach authorized.
 
 ## Active safety continuation — 18 October 2026

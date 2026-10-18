@@ -139,7 +139,7 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
         </p>
       )}
       {advanced && <div className="composer__row">
-        <Field label="Reported cost budget (USD)" htmlFor="budget-cost" hint={`Default $${DEFAULT_BUDGET[effectiveMode].cost}. Codex reports tokens, not a price. Usage may arrive at turn completion and exceed a budget before Hydra can stop further work; this is not a hard billing cap.`}>
+        <Field label="Reported cost budget (USD)" htmlFor="budget-cost" hint={`Default $${DEFAULT_BUDGET[effectiveMode].cost}. Codex reports tokens, not a price. Token guardrails include cached input. Usage may arrive at turn completion and exceed a budget before Hydra can stop further work; this is not a hard billing cap.`}>
           <input id="budget-cost" className="hx-input" type="number" min={0.1} step={0.5} placeholder={String(DEFAULT_BUDGET[effectiveMode].cost)} value={cost} onChange={(e) => setCost(e.target.value === '' ? '' : Number(e.target.value))} />
         </Field>
         <Field label="Active time limit (min)" htmlFor="budget-min" hint={`Default ${DEFAULT_BUDGET[effectiveMode].minutes}. Waiting for you does not count.`}>

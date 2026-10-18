@@ -27,6 +27,8 @@
 
 ## Qualification vocabulary
 
+Usage correction: the live trial's57,097Codex uncached input/output tokens plus170,624cached input tokens total227,721reported tokens, not57,097total. The trial build excluded cached input from its token guard. Final alpha.5 corrects both engine maxTokens/unpriced accounting and the harness to include cached input; turn-end reporting still prevents a hard billing cap. The harness requires a fresh explicit live-run flag and was not rerun. Original raw failures remain. This supersedes the incomplete uncached-only figure in area16 and earlier summaries.
+
 PASS means the stated test was executed successfully, not the entire area certified. PARTIAL means scoped evidence exists with material gaps. BLOCKED means missing owner/platform infrastructure or authorization. NOT VERIFIED means not exercised. Host compromise, malicious repositories/providers, physical disk erasure and active HTTP-client replacement remain outside this supervised preview's safety claim.
 
 ## Reproduction paths

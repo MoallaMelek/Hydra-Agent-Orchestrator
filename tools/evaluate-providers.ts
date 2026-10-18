@@ -6,6 +6,9 @@ import { Engine } from '../packages/engine/src/engine.js'
 import { makeRepo, BUGGY_NODE_PROJECT, gitIn } from '../packages/engine/src/testing/fixtures.js'
 import { approvalContext, newAcceptanceId, type Task } from '@hydra/protocol'
 
+if (!process.argv.includes('--approved-live-evaluation')) throw Error('Live evaluation is disabled by default. Obtain fresh owner approval for the total provider allowance before supplying --approved-live-evaluation. Never rerun the exhausted production trial.')
+const outputFile=process.argv.slice(2).find(arg=>arg!=='--approved-live-evaluation')
+if (!outputFile) throw Error('Supply an output receipt path')
 const dataDir=mkdtempSync(join(tmpdir(),'hydra-live-evaluation-'))
 const engine=await Engine.open({dataDir,version:'production-preparation'})
 const results:unknown[]=[]
@@ -33,11 +36,13 @@ try {
    if(context.allowed){decision=await engine.execute({type:'task.decide',taskId:id,decision:'accept',headSha:t.workspace!.headSha,acceptance:{decisionId:newAcceptanceId(),snapshot:context.snapshot}});await engine.orchestrator.settled(id);t=engine.store.getTask(id)!}
    else decision={blocked:context.unresolved}
   }
-  remainingReportedTokens -= t.usage.inputTokens + t.usage.outputTokens
+  const codexRuns=engine.store.listRuns(id).filter(r=>r.provider==='codex')
+  const reportedCodexTokens=codexRuns.reduce((sum,r)=>sum+r.usage.inputTokens+r.usage.outputTokens+r.usage.cachedTokens,0)
+  remainingReportedTokens -= reportedCodexTokens
   remainingClaudeUsd -= t.usage.costUsd
-  largestObservedCodexTurn = Math.max(largestObservedCodexTurn,...engine.store.listRuns(id).filter(r=>r.provider==='codex').map(r=>r.usage.inputTokens+r.usage.outputTokens))
+  largestObservedCodexTurn = Math.max(largestObservedCodexTurn,...codexRuns.map(r=>r.usage.inputTokens+r.usage.outputTokens+r.usage.cachedTokens))
   results.push({name:c.name,root,taskId:id,status:t.status,outcome:t.outcome,elapsedMs:Date.now()-started,error:t.error,usage:t.usage,answer:t.answer,evidence:engine.store.listEvidence(id).map(e=>({phase:e.phase,commitSha:e.commitSha,exitCode:e.exitCode,treeMutated:e.treeMutated,spawnError:e.spawnError})),decision,userBranch:gitIn(root,'rev-parse','HEAD')})
-  writeFileSync(process.argv[2]!,JSON.stringify({dataDir,results,remainingReportedTokens,remainingClaudeUsd,budgetScope:'Allocated total: Claude $1; reported noncached token target 50,000. Provider usage arrives at turn completion and can overshoot; this is not a hard billing cap. Reserve observed usage before another call; no extra tasks or repair rounds.'},null,2))
+  writeFileSync(outputFile,JSON.stringify({dataDir,results,remainingReportedTokens,remainingClaudeUsd,budgetScope:'Allocated total: Claude $1; Codex total reported token target 50,000 INCLUDING cached input. Engine and harness count cached input as reported usage. Turn-end reporting can still overshoot and cannot guarantee a hard billing cap. No further calls after allowance exhaustion; fresh owner approval required.'},null,2))
  }
 } finally {await engine.close()}
 console.log(JSON.stringify({cases:results.length,results},null,2))

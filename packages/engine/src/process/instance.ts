@@ -24,9 +24,23 @@ export class InstanceLock {
   acquire(): void {
     // OS-held SQLite file locks serialize even corrupt/stale JSON-marker takeover.
     // The connection remains open and the transaction is held for this engine's life.
-    const guard = new DatabaseSync(`${this.file}.lease`)
-    try { guard.exec('PRAGMA busy_timeout=0; BEGIN EXCLUSIVE') }
-    catch { guard.close(); throw unavailable('Another Hydra engine is already using this data directory (or acquiring it).') }
+    let guard: DatabaseSync | undefined
+    for (let attempt = 0; attempt < 6; attempt++) {
+      try {
+        guard = new DatabaseSync(`${this.file}.lease`)
+        guard.exec('PRAGMA busy_timeout=100; BEGIN EXCLUSIVE')
+        break
+      } catch (error) {
+        try { guard?.close() } catch { /* failed connection, never a held owner */ }
+        guard = undefined
+        const code = (error as { errcode?: number }).errcode
+        if (code === undefined || ![5, 6].includes(code & 255)) throw error
+        if (attempt === 5) throw unavailable('Another Hydra engine is already using this data directory (or acquiring it).')
+        // Close/reopen only failed contenders. Never release an acquired lifetime lease.
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 15 + process.pid % 17)
+      }
+    }
+    if (!guard) throw unavailable('Engine ownership could not be established.')
     this.guard = guard
     let owner: { pid?: number; host?: string } = {}
     try { owner = JSON.parse(readFileSync(this.file, 'utf8')) as typeof owner } catch { /* corrupt lock = stale */ }

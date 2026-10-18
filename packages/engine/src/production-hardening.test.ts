@@ -60,13 +60,22 @@ describe('engine ownership',()=>{
   try{first.acquire();expect(()=>second.acquire()).toThrow(/Another Hydra/)}finally{first.release();second.release()}
   second.acquire();second.release()
  })
- it('serializes simultaneous stale-lock takeover by two real processes',async()=>{
+ it.each(Array.from({length:20},(_,i)=>i))('serializes simultaneous cold stale-lock takeover by two real processes (round %i)',async round=>{
   const dir=tempDir('hydra-lease-race-');dirs.push(dir);writeFileSync(join(dir,'engine.lock'),'broken')
   const script=join(dir,'race.mjs'),module=pathToFileURL(join(__dirname,'../dist/process/instance.js')).href
-  writeFileSync(script,`import {InstanceLock} from ${JSON.stringify(module)};const lock=new InstanceLock(process.argv[2]);process.on('message',m=>{if(m==='go'){try{lock.acquire();process.send('acquired')}catch{process.send('denied')}}else{lock.release();process.exit(0)}});process.send('ready')`)
+  writeFileSync(script,`import {InstanceLock} from ${JSON.stringify(module)};const lock=new InstanceLock(process.argv[2]);process.on('message',m=>{if(m==='go'){try{lock.acquire();process.send({status:'acquired'})}catch(e){process.send({status:'denied',code:e.code,errcode:e.errcode,message:e.message})}}else{lock.release();process.exit(0)}});process.send('ready')`)
   const children:ChildProcess[]=[0,1].map(()=>spawn(process.execPath,[script,dir],{stdio:['ignore','ignore','ignore','ipc'],windowsHide:true}))
-  const receive=(c:ChildProcess)=>new Promise<string>((resolve,reject)=>{c.once('message',v=>resolve(String(v)));c.once('error',reject);c.once('exit',code=>{if(code)reject(Error('child failed'))})})
-  try{await Promise.all(children.map(receive));const results=children.map(receive);children.forEach(c=>c.send('go'));expect((await Promise.all(results)).sort()).toEqual(['acquired','denied'])}finally{for(const c of children){c.send('stop');await new Promise<void>(resolve=>c.once('exit',()=>resolve()))}}
+  const receive=(c:ChildProcess)=>new Promise<unknown>((resolve,reject)=>{c.once('message',resolve);c.once('error',reject);c.once('exit',code=>{if(code)reject(Error('child failed'))})})
+  try{await Promise.all(children.map(receive));const results=children.map(receive);children.forEach(c=>c.send('go'));const outcomes=await Promise.all(results) as Array<{status:string}>;expect(outcomes.map(r=>r.status).sort(),JSON.stringify(outcomes)).toEqual(['acquired','denied']);if(round===0)expect(()=>new InstanceLock(dir).acquire()).toThrow(/Another Hydra/)}finally{for(const c of children){c.send('stop');await new Promise<void>(resolve=>c.once('exit',()=>resolve()))}}
+  const next=new InstanceLock(dir);try{next.acquire()}finally{next.release()}
+ })
+ it('releases the OS lease after an actual owner process dies without cleanup',async()=>{
+  const dir=tempDir('hydra-owner-crash-');dirs.push(dir)
+  const script=join(dir,'owner.mjs'),module=pathToFileURL(join(__dirname,'../dist/process/instance.js')).href
+  writeFileSync(script,`import {InstanceLock} from ${JSON.stringify(module)};const lock=new InstanceLock(process.argv[2]);lock.acquire();process.on('message',()=>lock.release());process.send('owned');setInterval(()=>{},1000)`)
+  const child=spawn(process.execPath,[script,dir],{stdio:['ignore','ignore','ignore','ipc'],windowsHide:true})
+  try{await new Promise<void>((resolve,reject)=>{child.once('message',()=>resolve());child.once('error',reject);child.once('exit',()=>reject(Error('owner exited early'))) });expect(()=>new InstanceLock(dir).acquire()).toThrow(/Another Hydra/)}finally{const exited=new Promise<void>(resolve=>child.once('exit',()=>resolve()));child.kill();await exited}
+  const next=new InstanceLock(dir);try{next.acquire()}finally{next.release()}
  })
  it('does not terminate historical PIDs whose ownership cannot be proven',async()=>{expect(await killOrphanAgent(process.pid)).toBe(false);expect(()=>process.kill(process.pid,0)).not.toThrow()})
 })

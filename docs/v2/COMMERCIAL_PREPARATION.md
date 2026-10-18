@@ -55,4 +55,6 @@ Melek Moalla
 
 ## Versioned release checklist
 
+Actual local demo delivered19October:an edited69.233-second1360×1080WebM and self-contained HTML walkthrough assembled from real packaged captures. Video duration/dimensions/midpoint decoding verified. Every frame labels scripted demo agents and real engine/Git/checks; this is not a continuous live-provider recording. Files remain local chat artifacts; no publication approved.
+
 For each candidate record source commit/branch, immutable package/resource hashes, exact dependency lock and notices, platform/architecture, full/focused checks, installed artifact launch, migration/backup/restart, upgrade/uninstall/reinstall, failed install recovery, signature/notarization verification, metadata expiry/signature and trusted feed, offline behavior, real provider workflows/costs, accessible onboarding/approval/recovery, performance/soak, privacy/support/license/refund/name clearance, platform delivery agreement, owner release approval and rollback instructions. Any BLOCKED gate prevents an unrestricted paid-release claim. No tag/main merge/upload/publication without explicit approval.
