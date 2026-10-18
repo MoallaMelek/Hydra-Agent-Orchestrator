@@ -1,7 +1,7 @@
 {
   "name": "hydra-v2",
   "private": true,
-  "version": "2.0.0-alpha.4",
+  "version": "2.0.0-alpha.5",
   "description": "Hydra v2 — engine-first orchestration of AI coding agents with isolated workspaces, engine-run verification and human approval.",
   "author": "Melek Moalla",
   "type": "module",

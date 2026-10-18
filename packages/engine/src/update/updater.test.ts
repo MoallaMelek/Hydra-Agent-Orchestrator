@@ -17,6 +17,7 @@ const sha = createHash('sha256').update(installer).digest('hex')
 
 const manifest = (version = '2.1.0', over: Partial<UpdateManifest['files'][number]> = {}): UpdateManifest => ({
   schema: 1, version, releasedAt: '2026-10-14T00:00:00Z', notes: 'Faster answers',
+  issuedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString(),
   files: [{ platform: 'win32-x64', name: 'Hydra-Setup-2.1.0-x64.exe', url: 'https://releases.example.com/Hydra-Setup-2.1.0-x64.exe', sha256: sha, size: installer.length, ...over }]
 })
 const stream = (bytes: Buffer) => new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new Uint8Array(bytes.subarray(0, 700))); c.enqueue(new Uint8Array(bytes.subarray(700))); c.close() } })
@@ -26,6 +27,15 @@ const server = (body: unknown, file = installer): Fetcher => async (url) => url.
 const config = { manifestUrl: 'https://releases.example.com/manifest.json', publicKeyHex, currentVersion: '2.0.0-alpha.0', platform: 'win32-x64' }
 
 describe('update checks', () => {
+  it('rejects correctly signed expired and future metadata', async () => {
+    for (const fields of [
+      { issuedAt: new Date(Date.now()-2*86400000).toISOString(), expiresAt: new Date(Date.now()-86400000).toISOString() },
+      { issuedAt: new Date(Date.now()+86400000).toISOString(), expiresAt: new Date(Date.now()+2*86400000).toISOString() }
+    ]) {
+      const m = { ...manifest(), ...fields }
+      await expect(checkForUpdate(config, server({ manifest:m, signature:signManifest(m,secretHex) }))).rejects.toThrow(/freshness window/)
+    }
+  })
   it('cancels a partial download, removes partial bytes and can retry successfully', async () => {
     const dir = tempDir('hydra-update-'); dirs.push(dir)
     const file = manifest().files[0]!

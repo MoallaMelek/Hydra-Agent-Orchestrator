@@ -17,6 +17,7 @@ export function DecisionBar({ task, blockingWarnings }: { task: Task; blockingWa
   const feedback = feedbackDraft.text
   const setFeedback = (text: string) => feedbackDraft.set({ text })
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [purgeText, setPurgeText] = useState('')
   const evidence = useAppState(s => s.evidence[task.id])
   const loaded = useAppState(s => Boolean(s.loaded[task.id]))
   const receipt = verificationReceipt(task, evidence ?? [])
@@ -44,13 +45,10 @@ export function DecisionBar({ task, blockingWarnings }: { task: Task; blockingWa
       <>
         <div className="decision">
           <div className="decision__text">
-            <b>{!loaded ? 'Loading check evidence…' : receipt.state === 'passed' ? 'Checks passed · your decision' : receipt.state === 'failed' ? 'Checks failed · review before applying' : 'Unverified change · review before applying'}</b>
-            <span className="muted">{task.error ?? 'Accept applies only this exact revision with current passing checks and reviewer approval. Passing checks do not prove correctness.'}</span>
-            {receipt.failed.length > 0 && <span role="alert">Failed: {receipt.failed.map(c => c.spec.label).join(', ')}</span>}
-            {receipt.missing.length > 0 && <span role="alert">No current result: {receipt.missing.map(c => c.spec.label).join(', ')}</span>}
-            {!task.checks.length && <span role="alert">No checks configured. Behaviour has not been verified.</span>}
+            <b>{!loaded ? 'Loading check evidence…' : approval.allowed ? 'Checks and review ready · your decision' : receipt.state === 'failed' ? 'Checks failed · acceptance blocked' : 'Unresolved work · acceptance blocked'}</b>
+            <span className="muted">{task.error ?? (approval.allowed ? 'Accept delivers this revision. Passing checks do not prove correctness.' : 'Send this back for repair, preserve its isolated branch, or reject it.')}</span>
             <small className="faint">Reviewed revision <code>{shortSha(head)}</code> · applies by fast-forward only</small>
-            {loaded && !approval.allowed && <div role="alert"><b>Acceptance blocked</b><ul>{approval.unresolved.map((reason, i) => <li key={i}>{reason}</li>)}</ul><span>Request changes, keep the isolated branch, or reject. Applying by exception is not supported.</span></div>}
+            {loaded && !approval.allowed && <div className="decision-reasons"><p role="alert">{approval.unresolved[0]}</p><details><summary>Inspect {approval.unresolved.length} unresolved condition{approval.unresolved.length === 1 ? '' : 's'} and policy</summary><ul>{approval.unresolved.map((reason, i) => <li key={i}>{reason}</li>)}</ul><p>Applying by exception is not supported. Every client follows the engine policy.</p></details></div>}
             {blockingWarnings > 0 && <small>Review the additional warnings below before deciding.</small>}
           </div>
           <Button variant="ghost" icon={<GitBranch size={15} />} busy={busy === 'keep'} onClick={() => void act('keep', { type: 'task.decide', decision: 'keep_branch' }, 'Branch kept for manual merge')}>Keep branch</Button>
@@ -88,6 +86,7 @@ export function DecisionBar({ task, blockingWarnings }: { task: Task; blockingWa
         footer={<><Button onClick={() => setConfirmDelete(false)}>Cancel</Button><Button variant="danger" busy={busy === 'delete'}
           onClick={() => void act('delete', { type: 'task.delete' }, 'Task removed from history').then((ack) => { setConfirmDelete(false); if (ack.ok) go({ view: 'project', projectId: task.projectId }) })}>Remove from history</Button></>}>
         <p>This removes the task from visible history and deletes its current task records and logs. Historical journal entries, backups and exports can retain its content. This is not secure erasure. Accepted changes stay in your repository. Use Archive to hide the task without removing its current records.</p>
+        <details className="purge-controls"><summary>Also remove this task’s stored journal content</summary><p>Purge removes this task’s live records, journal content and logs, retaining content-free decision IDs. Backups, exports, provider records, Git commits and other copies remain. Disk media may retain bytes; this is not permanent erasure.</p><Field label="Type PURGE to confirm" htmlFor="purge-task"><input className="hx-input" id="purge-task" value={purgeText} onChange={e => setPurgeText(e.target.value)} autoComplete="off" /></Field><Button variant="danger" disabled={purgeText !== 'PURGE'} busy={busy === 'purge'} onClick={() => void act('purge', { type: 'task.purge', confirm: 'PURGE' }, 'Task content purged from live records').then(ack => { if (ack.ok) { setConfirmDelete(false); go({ view: 'project', projectId: task.projectId }) } })}>Purge stored task content</Button></details>
       </Dialog>
     </div>
   )

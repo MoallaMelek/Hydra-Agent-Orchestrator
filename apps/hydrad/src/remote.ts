@@ -248,8 +248,11 @@ export class RemoteHost {
 
     const sendFrame = (message: unknown) => {
       if (!channel || ws.readyState !== ws.OPEN) return
-      if (ws.bufferedAmount > MAX_BUFFERED_BYTES) { ws.terminate(); return } // slow consumer
-      ws.send(JSON.stringify(channel.seal(message)))
+      const plainBytes = Buffer.byteLength(JSON.stringify(message))
+      if (plainBytes > 4 * 1024 * 1024) { ws.close(4413, 'response too large; inspect on desktop'); return }
+      const frame = JSON.stringify(channel.seal(message))
+      if (ws.bufferedAmount + Buffer.byteLength(frame) > MAX_BUFFERED_BYTES) { ws.close(4413, 'slow consumer; reconnect'); return }
+      ws.send(frame)
     }
 
     ws.on('message', (raw) => {
@@ -367,10 +370,11 @@ export class RemoteHost {
         if (message.query === 'history') return { ack: id, ok: true, result: engine.store.taskHistory(TaskHistoryQuery.parse(message.options)) }
         if (message.query === 'events') {
           // Catch-up after a disconnect: journal events after the phone's cursor, oldest first.
-          const after = typeof message.after === 'number' && message.after >= 0 ? Math.floor(message.after) : engine.store.lastSeq
-          const batch = engine.store.eventsAfter(after, REPLAY_LIMIT)
+          if (!Number.isSafeInteger(message.after) || Number(message.after) < 0 || Number(message.after) > engine.store.lastSeq) return { ack: id, ok: false, error: { code: 'invalid', message: 'Invalid replay cursor' } }
+          const after = Number(message.after)
+          const batch = engine.store.eventsAfter(after, REPLAY_LIMIT, 2 * 1024 * 1024)
           const lastSeq = batch.at(-1)?.seq ?? after
-          return { ack: id, ok: true, result: { events: batch.filter((e) => FORWARDED.has(e.event.type)), lastSeq, complete: batch.length < REPLAY_LIMIT } }
+          return { ack: id, ok: true, result: { events: batch.filter((e) => FORWARDED.has(e.event.type)), lastSeq, complete: lastSeq >= engine.store.lastSeq } }
         }
         if (message.query === 'task') return { ack: id, ok: true, result: engine.taskDetail(taskId) }
         if (message.query === 'diff') return { ack: id, ok: true, result: await engine.taskDiff(taskId) }

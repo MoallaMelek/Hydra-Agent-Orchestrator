@@ -26,3 +26,12 @@ export function redact(text: string): string {
   for (const [pattern, replacement] of PATTERNS) out = out.replace(pattern, replacement)
   return out
 }
+
+/** Provider-owned semantic output only. Never apply this to executable check definitions. */
+export function redactValue(value: unknown, depth = 0): unknown {
+  if (depth > 32) throw new Error('Provider output nesting exceeds the supported limit')
+  if (typeof value === 'string') return redact(value)
+  if (Array.isArray(value)) return value.map(item => redactValue(item, depth + 1))
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, redactValue(item, depth + 1)]))
+  return value
+}

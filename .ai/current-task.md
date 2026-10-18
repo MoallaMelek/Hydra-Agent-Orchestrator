@@ -1,5 +1,9 @@
 # Hydra workbench and safe desktop updates — 16 October 2026
 
+## Current — alpha.5 production preparation
+
+Sole writer/integrator/verifier: this chat. Read-only consultants: security, product direction, distribution. Branch feat/production-preparation-20261018 from verified alpha.4 0ed37a1. Full check348passed/1skip; packaged13product,7onboarding,4restart assertions passed. Preserve original installed app/data/projects/auth; distinct fresh preview. No main merge/release/license/outreach. Docker stopped; no more live providers after disclosed57,097Codex reported-token overrun versus50k target. Existing Actions installer qualification approved; outcome recorded separately. Current audit and gates in docs/v2/PRODUCTION_AUDIT.md and COMMERCIAL_PREPARATION.md.
+
 ## Active — 18 October 2026 approval safety and separate launch
 
 Writer/tester: current Codex chat. Read-only consultant: bounded Codex subagent; no reviewer edit ownership. Branch feat/engine-enforced-approval-20261018 from fc1dccb; fetched main d18a690. Implement strict structured engine approval across clients, durable revision/evidence/review-bound receipts, duplicate refusal and historical exception visibility. No exception-to-apply supported. Package alpha.4 separately and launch with a fresh preview profile; preserve existing installation, Telekinesis and personal data. No main merge/publication. Verification results recorded in TEST_EVIDENCE.md when observed.

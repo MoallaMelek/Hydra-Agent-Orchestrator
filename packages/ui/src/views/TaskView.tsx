@@ -19,6 +19,7 @@ import { useNow, useTaskEvidence, useTaskLoaded, useTaskRuns, useTrace } from '.
 import type { Trace } from '../ops/model'
 import { Workflow, ArtifactPath } from '../ops/Workflow'
 import { MissionReceipt } from './task/MissionReceipt'
+import { Proofline } from './task/Proofline'
 
 type TabId = 'summary' | 'changes' | 'checks' | 'log'
 
@@ -41,6 +42,7 @@ export function TaskView({ taskId }: { taskId: string }) {
 }
 
 function ChangeView({ task }: { task: Task }) {
+  const connected = useAppState(s => s.connection === 'live')
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [visual, setVisual] = useState<'workflow' | 'timeline' | 'artifacts'>('workflow')
   const runs = useTaskRuns(task.id)
@@ -104,6 +106,7 @@ function ChangeView({ task }: { task: Task }) {
           <div><dt>Agent runs</dt><dd>{task.usage.agentRuns}<span className="faint"> / {task.budget.maxAgentRuns}</span></dd></div>
         </dl>
       </header>
+      <Proofline task={task} evidence={evidence} connected={connected} onInspect={target => { setTab(target); requestAnimationFrame(() => { const panel = document.getElementById('task-inspector'); panel?.scrollIntoView({ block: 'start', behavior: 'instant' }); panel?.focus() }) }} />
       {task.status === 'waiting_input' && <DecisionBar task={task} blockingWarnings={warnings.filter((w) => w.tone === 'bad').length} />}
       <MissionReceipt task={task} evidence={evidence} />
 
@@ -150,7 +153,7 @@ function ChangeView({ task }: { task: Task }) {
       </details>
 
       <div className="task-grid">
-        <section className="hx-panel task-grid__main">
+        <section className="hx-panel task-grid__main" id="task-inspector" tabIndex={-1} aria-label="Inspect recorded work">
           <Tabs<TabId> value={tab} onChange={setTab} tabs={[
             { id: 'summary', label: 'Summary', icon: <ScrollText size={14} /> },
             { id: 'changes', label: 'Changes', icon: <FileDiff size={14} />, count: diff?.files.length },

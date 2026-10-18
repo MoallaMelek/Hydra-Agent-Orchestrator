@@ -1,5 +1,9 @@
 # Handoff — Hydra v2 (read this first)
 
+## Current production preparation — alpha.5
+
+Branch `feat/production-preparation-20261018` from alpha.4 `0ed37a1`. Main chat is sole writer/integrator/tester; bounded read-only security/product/distribution consultants. Source and packaged local checks passed (348tests/1skip,13product/7onboarding/4restart assertions). Existing installed alpha.3 and personal projects/data remain untouched; separate fresh preview only. Docker remains stopped. Live provider trial exceeded Codex50k reported-token target by7,097; disclosed, stopped, no further provider calls. Cross-platform existing Actions run authorized, record actual result. Current capability/release gates: PRODUCTION_AUDIT.md, PRODUCTION_PREPARATION.md, COMMERCIAL_PREPARATION.md and TEST_EVIDENCE.md. No main merge, release/publication, license choice, paid signing/account changes or outreach authorized.
+
 ## Active safety continuation — 18 October 2026
 
 Branch `feat/engine-enforced-approval-20261018` starts at verified Mission Desk `fc1dccb`; fetched remote main remains `d18a690`. Alpha.4 enforces structured acceptance in the engine across clients. No exception-to-apply workflow exists. See APPROVAL_POLICY.md. Historical notes below describe earlier policy. Existing installed Hydra and personal project data must remain untouched; package/launch a separate preview. No main merge or public release authorized.

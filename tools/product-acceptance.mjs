@@ -25,7 +25,7 @@ async function shot(name) { await sleep(180); const r=await send('Page.captureSc
 async function step(name, fn) { const result=await fn(); report.steps.push({name,result:'PASS',detail:result}); console.log('PASS '+name) }
 const api = (path, body) => evaluate(`fetch(window.hydraHost.apiUrl+${JSON.stringify(path)}, {method:${body ? '"POST"' : '"GET"'},headers:{Authorization:'Bearer '+window.hydraHost.token,'Content-Type':'application/json'},${body ? 'body:'+JSON.stringify(JSON.stringify(body)) : ''}}).then(r=>r.json())`)
 async function home() { await evaluate("[...document.querySelectorAll('.nav-item')].find(e=>e.textContent.trim()==='Workspace').click()"); await wait("document.querySelector('#workspace-project')") }
-async function openTask(name) { await home(); await evaluate(`[...document.querySelectorAll('.needs-you__row')].find(e=>e.textContent.includes(${JSON.stringify(name)})).click()`); await wait("document.querySelector('.mission-receipt')"); await sleep(350) }
+async function openTask(name) { await home(); if (!await evaluate(`[...document.querySelectorAll('.needs-you__row')].some(e=>e.textContent.includes(${JSON.stringify(name)}))`)) await evaluate("[...document.querySelectorAll('button')].find(e=>e.textContent.includes('Show all') && e.textContent.includes('decisions'))?.click()"); await evaluate(`[...document.querySelectorAll('.needs-you__row')].find(e=>e.textContent.includes(${JSON.stringify(name)})).click()`); await wait("document.querySelector('.mission-receipt')"); await sleep(350) }
 async function geometry() { return evaluate(`({overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth, outerScroll:document.documentElement.scrollHeight>document.documentElement.clientHeight+1, width:innerWidth, height:innerHeight})`) }
 try {
   assert(existsSync(executable), 'Package missing')
@@ -79,6 +79,12 @@ try {
     assert(!await evaluate("document.querySelector('dialog[open]')"),'Escape did not close dialog')
     return dialog
   })
+  await step('recorded proof opens its actual evidence inspector',async()=>{
+    await openTask('Passing check');await evaluate("[...document.querySelectorAll('.proofline button')].find(e=>e.textContent.includes('Checks recorded')).click()");await sleep(200)
+    assert(await evaluate("document.activeElement?.id==='task-inspector'"),'Proof inspector focus missing')
+    assert(await evaluate("document.querySelector('[role=tab][aria-selected=true]').textContent.includes('Checks')"),'Proof selected wrong inspector')
+    await shot('proof-inspector')
+  })
   await step('operations are opt-in; tabs support arrow navigation; reduced motion and narrow receipts work',async()=>{
     await openTask('Passing check');assert(!await evaluate("document.querySelector('.ops-grid')"),'Operations mounted while collapsed')
     await evaluate("document.querySelector('.work-details').open=true");await wait("document.querySelector('.ops-grid')");await shot('operations-disclosed')
@@ -93,7 +99,7 @@ try {
   })
   await step('engine refuses failed, missing, stale, untrusted and rejected-review decisions through HTTP',async()=>{
     const results=[]
-    for(const name of ['Failing check','No checks','Reviewer objections','Stale evidence','Missing result','Untrusted evidence']) {
+    for(const name of ['Failing check','No checks','Reviewer objections','Stale evidence','Missing result','Untrusted evidence','Changed command','Changed definitions','Stale review']) {
       await openTask(name)
       assert(await evaluate("[...document.querySelectorAll('.decision button')].find(e=>e.textContent.includes('Acceptance blocked'))?.disabled"),name+' was not blocked in UI')
       const taskId=seed.fixtures.find(f=>f.name===name).taskId
@@ -104,6 +110,8 @@ try {
       const exception=await api('/api/commands',{...command,decision:'accept_exception',reason:'test exception'})
       assert(!exception.ok,'Unsupported exception accepted')
       assert((await api('/api/tasks/'+taskId)).task.outcome===null,'Blocked task changed outcome')
+      if (['Changed command','Changed definitions'].includes(name)) assert(await evaluate("[...document.querySelectorAll('.proofline button')].find(e=>e.textContent.includes('Checks recorded')).textContent.includes('untrusted')"),'Stale check proof appears trusted')
+      if (name==='Stale review') assert(await evaluate("[...document.querySelectorAll('.proofline button')].find(e=>e.textContent.includes('Review recorded')).textContent.includes('Stale')"),'Stale review appears approved')
       await shot('blocked-'+name.toLowerCase().replaceAll(' ','-'));results.push({name,denied:denied.error.code,exception:exception.error.code})
     }
     return results
@@ -126,6 +134,14 @@ try {
     await openTask('Plan approval');await shot('plan-approval');await click('Reject');await wait("document.body.innerText.includes('Discarded')")
     await click('Delete');await wait("document.querySelector('dialog[open]')")
     assert((await evaluate('document.body.innerText')).includes('not secure erasure'),'Deletion retention warning absent');await shot('deletion-contract');await click('Cancel')
+    await click('Delete');await evaluate("document.querySelector('.purge-controls').open=true")
+    assert(await evaluate("[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Purge stored task content').disabled"),'Purge confirmation guard absent')
+    await evaluate("(()=>{const input=document.querySelector('#purge-task');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'PURGE');input.dispatchEvent(new Event('input',{bubbles:true}))})()")
+    await sleep(200);await shot('purge-confirmation');await click('Purge stored task content');await wait("document.querySelector('.history-search')")
+    const state=await api('/api/state');assert(!state.tasks.some(t=>t.id===seed.fixtures.find(f=>f.name==='Plan approval').taskId),'Purged fixture still in state')
+  })
+  await step('local retention and backup read-back are explicit',async()=>{
+    await click('Settings');await click('Inspect local retention');await wait("document.body.innerText.includes('journal records')");await click('Create and verify backup');await wait("document.body.innerText.includes('integrity')");await shot('verified-backup')
   })
   await step('project history uses server summaries and the check editor still opens',async()=>{
     await evaluate("[...document.querySelectorAll('.nav-item')].find(e=>e.textContent.trim().startsWith('Failing check')).click()")

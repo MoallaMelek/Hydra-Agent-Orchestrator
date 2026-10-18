@@ -1,0 +1,34 @@
+# Fresh production audit — alpha.5 preparation
+
+18 October 2026. Source baseline alpha.4 `0ed37a1`; current feature branch `feat/production-preparation-20261018`. Severity is engineering judgment. No claim of independent certification. Historical assessments remain dated evidence, not current qualification.
+
+| Area | Fresh finding / root cause | Change or disposition | Evidence / remaining limit |
+|---|---|---|---|
+| 1 Approval policy | P1 historical client-side-only acceptance was repaired in alpha.4 | Preserve engine-enforced structured revision/evidence/review binding, duplicate refusal, lock-held recheck; no exception apply | Approval regressions and packaged HTTP refusals; historical Telekinesis untouched |
+| 2 Verification truth | P2 new proof labels could show current-looking success for stale artifacts | Proofline now checks revision, command, policy and stage identity | Packaged stale-review/changed-command/definition cases; checks only prove recorded commands |
+| 3 Provider data | P1 structured plan/review/error strings bypassed output redaction | Recursive semantic redaction; terminal/error sanitization in agent-runner/context | Adversarial fake-key journal/export tests; pattern redaction is not universal |
+| 4 Streaming limits | P1 JSON event queue / answer accumulation unbounded | Pause/resume thresholds; event/byte caps; 1M-character reply cap and truthful failure | Burst and oversized-answer regressions; provider may have already incurred usage |
+| 5 Instance ownership | P1 stale JSON marker takeover race | OS-held SQLite exclusive lease plus backward-compatible marker | Two real child-process contenders, one winner; corrupt-marker/live-owner test |
+| 6 Recovery processes | P2 persisted PID alone cannot prove ownership after restart | Refuse historical PID termination without process identity | Self-PID survival regression; historical descendants may need manual cleanup; live cancellation unchanged |
+| 7 Repository execution | P1 configured Git filters/merge drivers could run without check approval | Suppress filter executables and require conversion; refuse external merge drivers for merge/revert/cherry-pick | Real sentinel clean/smudge/process/driver tests; LFS conversion can refuse intentionally |
+| 8 Containment | P1 project checks run with host privileges; worktrees are not sandboxes | Keep Safe plan/check approval, scrubbed environment, timeouts and honest trusted-repository scope | Docker not required or started; hostile-code containment BLOCKED |
+| 9 Journal retention | P2 normal deletion retained event payloads | Separate typed PURGE action removes live task/journal/outcome content and cached acknowledgments; preserves content-free decision IDs | Purge + search + export regressions; already-deleted projections cannot currently be purged via UI |
+| 10 Client retention | P2 delayed detail could restore deleted cache | Tombstone check on detail/snapshot/events, regression for delayed response and late output | Does not restore database content; browser/device drafts and external copies remain separate |
+| 11 Backups | P2 backup existence was not restore evidence | Consistent snapshot integrity/read-back and disposable fresh-profile restore tests | Sensitive SQLite/device keys protected locally; no power-loss/failed-installer rollback guarantee |
+| 12 Remote integrity | P1 active network can replace HTTP-delivered client despite encrypted session | Off by default; trusted LAN preview warning retained; desktop-only purge/backup | Trusted HTTPS/native client not implemented; public/hostile-network use BLOCKED |
+| 13 Remote bounds | P2 count-only event replies could exceed memory/backpressure limits | Lazy byte-bounded replay, exact serialized frame bound, cursor validation, explicit oversized-event refusal | Byte paging/no-skip regression; oversized single event requires desktop inspection |
+| 14 History scale | P2 priority expression sorting/full substring scans cost seconds at scale | Indexed boot/history, trigram candidate search with literal verification and update/delete triggers | 1k/10k/50k before/after JSON; non-ASCII/short queries retain scan fallback; ~18% larger synthetic DB |
+| 15 UI usability | Dense pending list and machinery competed with conversation | Selected Workroom; bounded inbox, visible current work, contextual Proofline, compact blocked decision, disclosed retention tools | Actual packaged multi-theme/window/focus/keyboard captures; no novice study or screen-reader certification |
+| 16 Provider budgets | P1 turn-end reporting can overshoot a token target | Correct budget wording and evaluation reservation accounting; stop further provider work | Live trial used 57,097 unpriced Codex tokens versus approved 50,000 target; acknowledged, no further calls. Claude ~$0.1042 versus $1 |
+| 17 Updates | P2 valid old metadata had no expiry | Signed issuedAt/expiresAt window ≤31 days, future/stale refusal; generator/tests updated | Depends on local clock; no highest-seen release monotonic counter/rotation ceremony qualified |
+| 18 Packaging/platforms | Unsigned local Windows artifact; other OS not locally proven | Separate alpha.5 package; owner-approved existing Actions installer qualification | CI results must be read before assigning PASS. Signing/notarization and physical machines remain gates |
+| 19 Supply chain/docs | Stale ADR/recovery/prewarm and deletion claims; no root product license selected | Correct current architecture/ADR, preserve historical receipts, generate runtime notices and audit dependencies | License/report is not legal review or full Electron/OS SBOM; no license changed |
+| 20 Commercial eligibility | Agensi publicly documents skills, not full desktop-binary distribution | Full-app partnership request and truthful listing/demo drafts; no disguised binary skill | Owner/legal/platform agreement, identity/payout/tax/signing/name clearance/pricing/support required; nothing submitted |
+
+## Qualification vocabulary
+
+PASS means the stated test was executed successfully, not the entire area certified. PARTIAL means scoped evidence exists with material gaps. BLOCKED means missing owner/platform infrastructure or authorization. NOT VERIFIED means not exercised. Host compromise, malicious repositories/providers, physical disk erasure and active HTTP-client replacement remain outside this supervised preview's safety claim.
+
+## Reproduction paths
+
+Engine adversarial suite: `packages/engine/src/production-hardening.test.ts`; approval cases: `packages/engine/src/engine.test.ts`; output sanitization: `orchestrator/agent-runner.ts`, `agents/jsonl-process.ts`; lease: `process/instance.ts`; Git policy: `isolation/git.ts`; replay: `store/store.ts`, `apps/hydrad/src/remote.ts`; cache race: `packages/ui/src/api/store.test.ts`; metadata freshness: `update/updater.test.ts`. All destructive fixtures use disposable temporary directories, never personal projects.

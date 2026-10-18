@@ -4,6 +4,7 @@ import type { AdapterRegistry } from '../agents/registry.js'
 import type { WorkspaceManager } from '../isolation/workspace.js'
 import type { Store } from '../store/store.js'
 import { notFound } from '../util/errors.js'
+import { redact } from '../util/redact.js'
 
 export interface EnginePaths {
   dataDir: string
@@ -77,5 +78,5 @@ export function updateTask(ctx: EngineContext, taskId: string, mutate: (task: Ta
 }
 
 export function logTask(ctx: EngineContext, taskId: string, level: 'info' | 'warn' | 'error', message: string): void {
-  ctx.store.publish({ type: 'task.log', taskId, level, message: message.slice(0, 4000) })
+  ctx.store.publish({ type: 'task.log', taskId, level, message: redact(message).slice(0, 4000) })
 }

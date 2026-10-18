@@ -28,6 +28,8 @@ export const UpdateManifest = z.object({
   schema: z.literal(1),
   version: z.string().regex(/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/),
   releasedAt: z.string(),
+  issuedAt: z.string().datetime(),
+  expiresAt: z.string().datetime(),
   notes: z.string().max(10_000),
   files: z.array(UpdateFile).min(1).max(20)
 })
@@ -53,6 +55,8 @@ export function verifyManifest(signed: unknown, publicKeyHex: string): UpdateMan
   if (!parsed.success) throw new Error('The update description is malformed.')
   const ok = ed25519.verify(unhex(parsed.data.signature), new TextEncoder().encode(canonical(parsed.data.manifest)), unhex(publicKeyHex))
   if (!ok) throw new Error('The update is not signed by the Hydra publisher. It was ignored.')
+  const issued = Date.parse(parsed.data.manifest.issuedAt), expires = Date.parse(parsed.data.manifest.expiresAt), now = Date.now()
+  if (issued > now + 5 * 60_000 || expires <= issued || expires - issued > 31 * 24 * 60 * 60_000 || expires <= now) throw new Error('The signed update description is expired or has an invalid freshness window. Ask the publisher for current metadata.')
   return parsed.data.manifest
 }
 

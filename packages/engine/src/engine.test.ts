@@ -361,7 +361,10 @@ describe('engine lifecycle', () => {
     const first = await setup(hang, dataDir)
     const task = await create(first.engine, first.projectId)
     await until(first.engine, task.id, (t) => t.stage === 'implement' && t.status === 'running')
-    // Simulate a crash: a second process opens the same database while the first never finishes.
+    // Simulate OS resource loss at crash, retaining the running task projection.
+    // A live owner must never be bypassed, even by the same process in a test.
+    first.engine.store.close()
+    ;(first.engine as unknown as { lock: { release(): void } }).lock.release()
     engines.splice(engines.indexOf(first.engine), 1)
     const second = await Engine.open({ dataDir, registry: new AdapterRegistry([script()]), skipProbe: true })
     engines.push(second)

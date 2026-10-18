@@ -85,6 +85,33 @@
 .hx-btn { min-height: 38px; }
 .hx-btn--sm { min-height: 34px; }
 .hx-input, .hx-select { min-height: 40px; }
+.shell .rail { background: #112b27; --text: #edf4f0; --text-2: #c2d5cc; --text-3: #adc5b9; --accent: #bbd8c4; --accent-dim: #28463b; --surface-hover: #1c3930; --border: #345147; }
+.proofline { margin-block: 10px 22px; padding: 18px 0 10px; border-block: 1px solid var(--border); }
+.proofline__intro { display: flex; gap: 18px; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+.proofline__intro h2 { font-size: 16px; font-weight: 600; margin: 0; }
+.proofline__intro span { font-size: 12px; }
+.proofline ol { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0,1fr); list-style: none; padding: 0; margin: 0; }
+.proofline li { min-width: 0; }
+.proofline button { appearance: none; background: transparent; color: var(--text-2); width: 100%; text-align: left; border: 0; padding: 8px 12px 8px 0; position: relative; cursor: pointer; min-height: 72px; }
+.proofline button::before { content: ''; position: absolute; top: 15px; left: 8px; right: 0; height: 1px; background: var(--border-strong); }
+.proofline li:last-child button::before { display: none; }
+.proofline__joint { display: block; width: 12px; height: 12px; border: 1px solid currentColor; background: var(--bg); border-radius: 3px; position: relative; margin-bottom: 9px; }
+.proofline strong,.proofline small { display: block; font-size: 12px; overflow-wrap: anywhere; }
+.proofline small { margin-top: 4px; color: var(--text-2); }
+.proofline button:hover strong { text-decoration: underline; text-underline-offset: 3px; }
+.proofline button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.decision { padding: 16px 20px; gap: 10px; }
+.decision-reasons p { margin: 6px 0; }
+.decision-reasons details { margin-top: 8px; color: var(--text-2); }
+.decision-reasons summary { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.decision-reasons li { margin-block: 6px; }
+.workroom-active { border-top: 1px solid var(--border); padding-top: 18px; }
+.workroom-active > button { display: flex; width: 100%; gap: 20px; align-items: center; justify-content: space-between; color: var(--text); background: transparent; border: 0; border-bottom: 1px solid var(--border); padding: 14px 0; text-align: left; cursor: pointer; }
+.workroom-active small { display: block; color: var(--text-2); margin-top: 4px; }
+.workroom-active > button > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.purge-controls { border-top: 1px solid var(--border); margin-top: 22px; padding-top: 16px; }
+@media (max-width: 900px) { .proofline ol { grid-auto-flow: row; grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media (max-width: 520px) { .proofline__intro { display: block; } .proofline__intro span { display: block; margin-top: 5px; } .proofline ol { grid-template-columns: repeat(2,minmax(0,1fr)); } .workroom-active > button { flex-wrap: wrap; gap: 8px; } .proofline button { min-height: 82px; } }
 @media (max-width: 900px) { .shell .rail { width: 180px; } .shell { grid-template-columns: 180px minmax(0, 1fr); } .task-head { flex-direction: column; } }
 @media (max-width: 700px) {
   .shell { display: block; } .shell .rail { width: 240px; }

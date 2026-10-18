@@ -31,6 +31,7 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [composeProject, setComposeProject] = useState('')
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [allDecisions, setAllDecisions] = useState(false)
   const writingIn = projectName.find(p => p.id === composeProject) ?? onlyProject ?? projectName[0]
 
   const sorted = useMemo(() => [...tasks].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [tasks])
@@ -90,7 +91,7 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
       {needsYou.length > 0 && (
         <section className="needs-you" aria-label="Waiting for your decision">
           <h2 className="section-title">Waiting for you</h2>
-          {needsYou.map((t) => (
+          {(allDecisions ? needsYou : needsYou.slice(0, 3)).map((t) => (
             <button key={t.id} className="needs-you__row" onClick={() => go({ view: 'task', taskId: t.id })}>
               <span className="needs-you__what">{t.waitReason === 'plan_approval' ? 'Approve the plan' : t.waitReason === 'final_approval' ? 'Review the result' : 'Decide'}</span>
               <span className="grow truncate"><b>{t.title}</b> <span className="faint">· {nameOf(t.projectId)}</span></span>
@@ -98,6 +99,7 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
               <ArrowRight size={15} aria-hidden />
             </button>
           ))}
+          {needsYou.length > 3 && <Button size="sm" variant="ghost" onClick={() => setAllDecisions(!allDecisions)}>{allDecisions ? 'Show fewer decisions' : `Show all ${needsYou.length} loaded decisions`}</Button>}
         </section>
       )}
 
@@ -105,6 +107,7 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
         <div className="request-sheet__project"><label htmlFor="workspace-project">Working in</label><select id="workspace-project" className="hx-select" value={writingIn.id} onChange={e => setComposeProject(e.target.value)}>{projectName.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><span className="faint truncate" title={writingIn.root}>{writingIn.root}</span></div>
         <NewTaskForm key={writingIn.id} projectId={writingIn.id} isGit={writingIn.isGit} />
       </section>}
+      {active.length > 0 && <section className="workroom-active" aria-label="Current work"><h2 className="section-title">Work underway</h2>{active.slice(0, 3).map(t => <button key={t.id} onClick={() => go({ view: 'task', taskId: t.id })}><span><b>{t.title}</b><small>{nameOf(t.projectId)}</small></span><span>{statusLabel(t).label} · {t.stage === 'verify' ? 'Running project checks' : t.stage === 'apply' ? 'Applying accepted revision' : runningTaskIds.has(t.id) ? 'Agent process running' : 'Waiting on engine'}</span><ArrowRight size={16} aria-hidden /></button>)}</section>}
 
       <details className="disclosure" onToggle={e => setDetailsOpen(e.currentTarget.open)}><summary>Work details <span>Recorded operations, agents and project workspaces</span></summary>{detailsOpen && <><div className="operations-desk">
         <section className="focus-desk" aria-label="Work in focus">

@@ -2,6 +2,10 @@
 
 Newest entry first.
 
+## 2026-10-18 — alpha.5 production preparation
+
+Workroom concept selected from3 alternatives; artifact-derived Proofline, bounded inbox/current work, compact recovery, explicit purge/backup tools. Fresh security findings repaired: provider semantic/error redaction and queue bounds, OS-held SQLite ownership, configured Git execution, conservative historical PID handling, remote byte bounds; indexed history/FTS; signed metadata expiry. Review also corrected stale proof labels and delayed-detail cache resurrection. Full check348pass/1skip, typecheck/lint/provenance/build/scan/licenses/audit pass; packaged13product+7onboarding steps and4restart assertions pass. Live trial's Codex target overrun disclosed; no further provider calls. Cross-platform qualification owner-approved; no publication/installation replacement. See TEST_EVIDENCE.md and PRODUCTION_AUDIT.md. Commercial full-app draft preserves Agensi eligibility and owner legal/signing gates.
+
 ## 2026-10-18 — alpha.4 strict engine approval and separate preview
 
 Closed the UI-only approval gap across authorized clients: ordinary acceptance now requires current trustworthy checks, exact revision and reviewer approval, with structured snapshot/UUID, atomic durable actor/source/evidence receipt, historic duplicate refusal and lock-held apply revalidation. No exception-to-apply supported. Historical unsafe applications retain their state and get an explicit legacy/unresolved receipt; Telekinesis unchanged. Updated clients and moved-branch review workflow. All 332 tests passed (1 skipped), typecheck/lint/provenance/build passed; 11 packaged steps and restart/history checks passed. Separate visible alpha.4 preview launched using the owner's selected fresh profile, with a distinct Desktop shortcut; installed Hydra/data/auth preserved. See APPROVAL_POLICY.md and TEST_EVIDENCE.md. No main merge, public release, paid provider workflow or license change.

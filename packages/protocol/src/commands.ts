@@ -57,6 +57,9 @@ export const Command = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('task.rollback'), taskId: Id }),
   z.object({ type: z.literal('task.delete'), taskId: Id }),
+  z.object({ type: z.literal('task.purge'), taskId: Id, confirm: z.literal('PURGE') }),
+  z.object({ type: z.literal('data.status') }),
+  z.object({ type: z.literal('data.verify_backup') }),
   /** Archives (or restores) a task and the rest of its conversation. */
   z.object({ type: z.literal('task.archive'), taskId: Id, archived: z.boolean() }),
   z.object({ type: z.literal('device.pair_start'), name: z.string().trim().min(1).max(80), scopes: z.array(DeviceScope).min(1), host: z.string().regex(/^\d{1,3}(\.\d{1,3}){3}$/).optional() }),

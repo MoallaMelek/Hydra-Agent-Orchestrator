@@ -27,7 +27,7 @@ export class Store {
   constructor(path: string) {
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true })
     this.db = new DatabaseSync(path)
-    this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;')
+    this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA secure_delete=ON;')
     this.migrate()
     const row = this.db.prepare('SELECT COALESCE(MAX(seq), 0) AS seq FROM events').get() as Row
     this.lastSeqValue = Number(row.seq)
@@ -94,9 +94,19 @@ export class Store {
     })
   }
 
-  eventsAfter(seq: number, limit = 1000): EventEnvelope[] {
-    const rows = this.db.prepare('SELECT seq, at, doc FROM events WHERE seq > ? ORDER BY seq LIMIT ?').all(seq, limit) as Row[]
-    return rows.map((row) => ({ seq: Number(row.seq), at: String(row.at), event: JSON.parse(String(row.doc)) as EngineEvent }))
+  eventsAfter(seq: number, limit = 1000, maxBytes = Number.POSITIVE_INFINITY): EventEnvelope[] {
+    const rows = this.db.prepare('SELECT seq, at, doc FROM events WHERE seq > ? ORDER BY seq LIMIT ?').iterate(seq, limit)
+    const result: EventEnvelope[] = []; let bytes = 0
+    for (const row of rows as Iterable<Row>) {
+      const size = Buffer.byteLength(String(row.doc)) + 128
+      if (bytes + size > maxBytes) {
+        if (!result.length) throw new Error('A saved event exceeds the remote replay limit. Inspect this task on the desktop.')
+        break
+      }
+      bytes += size
+      result.push({ seq: Number(row.seq), at: String(row.at), event: JSON.parse(String(row.doc)) as EngineEvent })
+    }
+    return result
   }
 
   // ── projects ──────────────────────────────────────────────
@@ -156,6 +166,11 @@ export class Store {
     const args: Array<string | number> = [query.projectId, Number(query.archived)]
     if (query.before) { conditions.push('(updated_at < ? OR (updated_at = ? AND id < ?))'); args.push(query.before.at, query.before.at, query.before.id) }
     if (query.query.trim()) {
+      const needle = query.query.trim()
+      if (/^[\x20-\x7e]{3,}$/.test(needle)) {
+        conditions.push('rowid IN (SELECT rowid FROM task_search WHERE task_search MATCH ?)')
+        args.push(`"${needle.replaceAll('"', '""')}"`)
+      }
       conditions.push("instr(lower(json_extract(doc, '$.title') || char(10) || json_extract(doc, '$.prompt') || char(10) || coalesce(json_extract(doc, '$.answer'), '')), lower(?)) > 0")
       args.push(query.query.trim())
     }
@@ -179,6 +194,22 @@ export class Store {
       this.db.prepare('DELETE FROM evidence WHERE task_id = ?').run(id)
       this.publish({ type: 'task.deleted', taskId: id })
     })
+  }
+
+  /** Remove task content from live projections/journal; retain content-free decision IDs. */
+  purgeTask(id: string): void {
+    this.transaction(() => {
+      this.db.prepare('DELETE FROM events WHERE task_id = ?').run(id)
+      this.db.prepare('DELETE FROM outcomes WHERE task_id = ?').run(id)
+      this.db.prepare("UPDATE audit SET detail = json_object('taskId', ?, 'decisionId', json_extract(detail, '$.decisionId'), 'contentPurged', 1) WHERE json_extract(detail, '$.taskId') = ?").run(id, id)
+      // Keep successful command deduplication, but remove cached task payloads.
+      this.db.prepare(`UPDATE remote_commands SET ack = '{"ok":true,"result":null}' WHERE instr(ack, ?) > 0`).run(id)
+      this.deleteTask(id)
+    })
+  }
+
+  dataCounts(): Record<string, number> {
+    return Object.fromEntries(['tasks', 'events', 'agent_runs', 'evidence', 'audit', 'devices'].map(table => [table, Number((this.db.prepare(`SELECT count(*) AS n FROM ${table}`).get() as Row).n)]))
   }
 
   // ── agent runs and evidence ───────────────────────────────

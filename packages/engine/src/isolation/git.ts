@@ -31,10 +31,21 @@ function gitEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return env
 }
 
-export function git(cwd: string, args: string[], options: { allowFail?: boolean; maxBuffer?: number; pin?: GitPin } = {}): Promise<GitResult> {
+export async function git(cwd: string, args: string[], options: { allowFail?: boolean; maxBuffer?: number; pin?: GitPin } = {}): Promise<GitResult> {
   const pinned = options.pin ? ['--git-dir', options.pin.gitDir, '--work-tree', options.pin.workTree] : []
+  // Read configuration only (Git config does not execute filters). Disable every
+  // executable filter with required=true: using one then fails, never silently
+  // transforms files or launches repository-configured programs (including LFS).
+  const names = await new Promise<string[]>((ok, fail) => execFile('git', [...SAFE_CONFIG, ...pinned, 'config', '--null', '--name-only', '--get-regexp', String.raw`^(filter\..*\.(clean|smudge|process)|merge\..*\.driver)$`],
+    { cwd, windowsHide: true, timeout: 10_000, maxBuffer: 1024 * 1024, env: gitEnv(process.env) }, (error, stdout) => {
+      if (error && (error as { code?: unknown }).code !== 1) { fail(new Error('Could not inspect Git execution configuration safely')); return }
+      ok(String(stdout).split('\0').filter(Boolean))
+    }))
+  if (args.some(arg => ['merge', 'revert', 'cherry-pick'].includes(arg)) && names.some(name => /^merge\./i.test(name))) throw new Error('Hydra refuses configured external Git merge drivers. Use a repository without executable merge drivers; no driver was run.')
+  const filters = [...new Set(names.map(name => /^(filter\..*)\.(?:clean|smudge|process)$/i.exec(name)?.[1]).filter((v): v is string => Boolean(v)))]
+  const filterPolicy = filters.flatMap(name => ['-c', `${name}.clean=`, '-c', `${name}.smudge=`, '-c', `${name}.process=`, '-c', `${name}.required=true`])
   return new Promise((resolvePromise, reject) => {
-    execFile('git', [...SAFE_CONFIG, ...pinned, ...args], {
+    execFile('git', [...SAFE_CONFIG, ...filterPolicy, ...pinned, ...args], {
       cwd, windowsHide: true, maxBuffer: options.maxBuffer ?? 32 * 1024 * 1024, timeout: 120_000, env: gitEnv(process.env)
     }, (error, stdout, stderr) => {
       const raw = (error as { code?: unknown } | null)?.code

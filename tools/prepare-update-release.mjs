@@ -20,6 +20,7 @@ if (!key || !/^[0-9a-f]{64}$/.test(key) || !publicKey || !/^[0-9a-f]{64}$/.test(
 if (Buffer.from(ed25519.getPublicKey(Buffer.from(key, 'hex'))).toString('hex') !== publicKey) throw new Error('Signing key does not match the public key embedded in this build')
 const manifest = {
   schema: 1, version, releasedAt: new Date().toISOString(), notes: readFileSync(notesPath, 'utf8'),
+  issuedAt: new Date().toISOString(), expiresAt: new Date(Date.now()+30*86400000).toISOString(),
   files: [{ platform: `win32-${match[2]}`, name, url: `https://github.com/MoallaMelek/Hydra-Agent-Orchestrator/releases/download/v${version}/${name}`, size: statSync(installerPath).size, sha256: createHash('sha256').update(readFileSync(installerPath)).digest('hex') }]
 }
 const signed = { manifest, signature: signManifest(manifest, key) }

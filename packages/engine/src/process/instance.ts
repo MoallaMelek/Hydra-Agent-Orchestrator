@@ -1,8 +1,8 @@
-import { execFile } from 'node:child_process'
 import { hostname } from 'node:os'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { unavailable } from '../util/errors.js'
+import { DatabaseSync } from 'node:sqlite'
 
 const alive = (pid: number): boolean => {
   try { process.kill(pid, 0); return true } catch (error) { return (error as NodeJS.ErrnoException).code === 'EPERM' }
@@ -15,26 +15,28 @@ const alive = (pid: number): boolean => {
 export class InstanceLock {
   private readonly file: string
   private held = false
+  private guard: DatabaseSync | null = null
 
   constructor(dataDir: string) {
     this.file = join(dataDir, 'engine.lock')
   }
 
   acquire(): void {
-    try {
-      writeFileSync(this.file, JSON.stringify({ pid: process.pid, host: hostname(), startedAt: new Date().toISOString() }), { flag: 'wx' })
-      this.held = true
-      return
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-    }
+    // OS-held SQLite file locks serialize even corrupt/stale JSON-marker takeover.
+    // The connection remains open and the transaction is held for this engine's life.
+    const guard = new DatabaseSync(`${this.file}.lease`)
+    try { guard.exec('PRAGMA busy_timeout=0; BEGIN EXCLUSIVE') }
+    catch { guard.close(); throw unavailable('Another Hydra engine is already using this data directory (or acquiring it).') }
+    this.guard = guard
     let owner: { pid?: number; host?: string } = {}
     try { owner = JSON.parse(readFileSync(this.file, 'utf8')) as typeof owner } catch { /* corrupt lock = stale */ }
     const sameHost = !owner.host || owner.host === hostname()
     if (owner.pid && owner.pid !== process.pid && sameHost && alive(owner.pid)) {
+      guard.exec('ROLLBACK'); guard.close(); this.guard = null
       throw unavailable(`Another Hydra engine (pid ${owner.pid}) is already using this data directory.`)
     }
-    writeFileSync(this.file, JSON.stringify({ pid: process.pid, host: hostname(), startedAt: new Date().toISOString() }))
+    try { writeFileSync(this.file, JSON.stringify({ pid: process.pid, host: hostname(), startedAt: new Date().toISOString() })) }
+    catch (error) { guard.exec('ROLLBACK'); guard.close(); this.guard = null; throw error }
     this.held = true
   }
 
@@ -45,34 +47,15 @@ export class InstanceLock {
       if (owner.pid === process.pid) rmSync(this.file, { force: true })
     } catch { /* already gone */ }
     this.held = false
+    this.guard?.exec('ROLLBACK'); this.guard?.close(); this.guard = null
   }
-}
-
-function imageName(pid: number): Promise<string | null> {
-  return new Promise((resolve) => {
-    if (process.platform === 'win32') {
-      execFile('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { windowsHide: true, timeout: 10_000 }, (error, stdout) => {
-        const match = /^"([^"]+)"/m.exec(String(stdout))
-        resolve(error || !match ? null : match[1]!)
-      })
-    } else {
-      execFile('ps', ['-p', String(pid), '-o', 'comm='], { timeout: 10_000 }, (error, stdout) => resolve(error ? null : String(stdout).trim() || null))
-    }
-  })
 }
 
 /**
- * Terminates an agent process left over from a crashed engine, but only if the PID
- * still belongs to a provider CLI (PIDs are reused by the OS).
+ * Historical PIDs have no OS creation identity. Decline automatic termination:
+ * PID/name checks alone can kill a different customer CLI session after PID reuse.
+ * Live cancellation and Windows kill-on-close jobs still use owned process handles.
  */
-export async function killOrphanAgent(pid: number): Promise<boolean> {
-  if (!alive(pid)) return false
-  const name = await imageName(pid)
-  if (!name || !/(^|[\\/])(claude|codex)(\.exe)?$/i.test(name)) return false
-  if (process.platform === 'win32') {
-    await new Promise<void>((resolve) => execFile('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true }, () => resolve()))
-  } else {
-    try { process.kill(-pid, 'SIGKILL') } catch { try { process.kill(pid, 'SIGKILL') } catch { /* gone */ } }
-  }
-  return true
+export function killOrphanAgent(_pid: number): Promise<boolean> {
+  return Promise.resolve(false)
 }

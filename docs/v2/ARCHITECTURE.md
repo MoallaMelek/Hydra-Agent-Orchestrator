@@ -2,6 +2,8 @@
 
 > Engine-first. One durable orchestration engine; every surface (desktop, phone, CLI, tests) is a client of the same typed API.
 
+Current alpha.5 clarification (18 October 2026): engine ownership uses an OS-held SQLite lease, not only a PID marker. Recovery pauses interrupted tasks and does not kill historical PIDs whose creation identity cannot be proved. Live cancellation still uses owned handles/process groups/Windows jobs. Task purge deliberately removes selected journal content; the journal is append-oriented, not immutable under explicit retention operations. Boot/history/replay and provider queues are bounded; see PRODUCTION_AUDIT.md for limits and evidence. No public relay or hostile-code containment is qualified.
+
 ## 1. Goals that shape the design
 
 1. **Nothing reaches the user's working tree without explicit approval.** All agent work happens in a dedicated git worktree on a task branch.
@@ -91,7 +93,7 @@ Agents can lie, misreport, or run a different command than claimed. In v2 the en
 ### 4.3 Checkpointing and recovery
 
 - Each stage completion appends `stage.completed` with its outputs **in the same SQLite transaction** that updates the task projection.
-- On engine start, `Recovery.reconcile()` finds tasks that were running. The interrupted `AgentRun` is marked `interrupted`, its process tree is killed if still alive (PID plus start-time check), and the task becomes `paused` at the stage that was running. **Resume** re-runs only that stage; completed stages are not repeated. The worktree persists across restarts.
+- On engine start, recovery finds tasks that were running, marks interrupted runs and pauses work for explicit resume. Historical PIDs are not terminated because ownership/creation identity is not durably proved; an unrelated reused PID must survive. Live engine-owned cancellation remains separate. Resume re-runs the interrupted stage; the worktree persists. Historical descendants may require manual cleanup.
 - Idempotency: stage runners key their outputs by `(taskId, stage, attempt)`.
 
 ### 4.4 Concurrency
@@ -116,7 +118,7 @@ Not every message needs the pipeline. `routeRequest()` in `packages/protocol/src
 
 **Streaming.** Answers are plain text (`--include-partial-messages` for Claude), published as `run.output` events with `stream: 'answer'`. Text is redacted before it is published; an unfinished run of token-like characters is held back until it ends, so a secret split across chunks is never shown. The stored answer is redacted as a whole. Codex replies arrive at the end (its CLI does not stream text).
 
-**Pre-started agents.** Starting the Claude CLI takes seconds. The Claude adapter can start an answering process ahead of time (`--input-format stream-json`, same restricted read-only flags as any answer, spend cap $2). It is used only for plain-text read-only answers in the same directory whose own budget is at least that cap. At most two exist; each expires after 5 minutes idle; all are stopped when the engine closes. The composer pre-starts one when you focus it, and each answer pre-starts the next.
+**Pre-started agents.** The adapter retains a bounded warm-process capability for eligible answering requests. Composer focus no longer starts a provider process; typing/focusing edits a local draft. An explicit authorized API prewarm remains possible. Provider flags are defense in depth, not proof of hostile-code confinement; usage budgets are reported-cost/token guardrails and may overshoot at turn completion.
 
 Measured (TEST_EVIDENCE, real Claude): "hi" went from 5.1 s to 3.4 s total (median), with the first words after 2.5 s once warm. Hydra's own overhead is about 10 ms; the rest is the provider.
 

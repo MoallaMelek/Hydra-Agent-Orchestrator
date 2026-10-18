@@ -13,7 +13,7 @@ function fixture(over: Partial<UpdateHost> = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'hydra-desktop-update-')); dirs.push(dir)
   const bytes = Buffer.from('TEST BYTES — never executed')
   const secret = ed25519.utils.randomSecretKey()
-  const manifest: UpdateManifest = { schema: 1, version: '2.1.0', releasedAt: '2026-10-16', notes: 'Test release', files: [{ name: `Hydra-Setup-2.1.0-${process.arch}.exe`, platform: `win32-${process.arch}`, url: 'https://example.invalid/test.exe', sha256: createHash('sha256').update(bytes).digest('hex'), size: bytes.length }] }
+  const manifest: UpdateManifest = { schema: 1, version: '2.1.0', releasedAt: '2026-10-16', issuedAt: new Date().toISOString(), expiresAt: new Date(Date.now()+30*86400000).toISOString(), notes: 'Test release', files: [{ name: `Hydra-Setup-2.1.0-${process.arch}.exe`, platform: `win32-${process.arch}`, url: 'https://example.invalid/test.exe', sha256: createHash('sha256').update(bytes).digest('hex'), size: bytes.length }] }
   const host: UpdateHost = {
     config: { manifestUrl: 'https://example.invalid/manifest.json', publicKeyHex: Buffer.from(ed25519.getPublicKey(secret)).toString('hex'), currentVersion: '2.0.0', platform: `win32-${process.arch}`, channel: 'stable' },
     cache: join(dir, 'cache'), preferencesPath: join(dir, 'prefs.json'), journalPath: join(dir, 'handoff.json'), packaged: true,

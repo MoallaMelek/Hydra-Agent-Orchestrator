@@ -1,4 +1,6 @@
-# Hydra Mission Desk
+# Hydra Workroom
+
+Alpha.5 extends the Mission Desk with a deep pine navigation rail, conversation canvas, bounded pending decisions, compact current work and an artifact-derived Proofline. Clickable proof nodes select and focus existing inspectors. Stale/untrusted artifacts are labeled explicitly; native buttons/lists/disclosures preserve keyboard semantics. Three concept comparisons and safe skill choices are recorded in docs/v2/PRODUCTION_PREPARATION.md. No continuous idle animation or new dependency was introduced.
 
 Operate mode. The signature interaction is the transition from a request to a revision-bound mission receipt and a human decision. It is a readable record, not a progress spectacle. Conversation, request, result, evidence, decision is the reading order. Technical inspection is disclosed.
 

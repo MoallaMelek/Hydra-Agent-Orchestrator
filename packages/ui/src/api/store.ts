@@ -126,7 +126,7 @@ export class EngineStore {
     this.lastSeq = Math.max(this.lastSeq, snapshot.lastSeq)
     const tasks: Record<string, Task> = {}
     for (const t of snapshot.tasks) {
-      if ((this.deleted.get(t.id) ?? -1) > snapshot.lastSeq) continue
+      if (this.deleted.has(t.id)) continue
       const mine = this.state.tasks[t.id]
       // Newer wins; on a tie the state from events is kept when the snapshot is the older of the two.
       tasks[t.id] = mine && (mine.updatedAt > t.updatedAt || (stale && mine.updatedAt === t.updatedAt)) ? mine : t
@@ -182,10 +182,12 @@ export class EngineStore {
 
   /** Loads a task's runs and evidence once; later changes arrive as events. */
   loadTask(taskId: string, force = false): Promise<void> {
+    if (this.deleted.has(taskId)) return Promise.resolve()
     if (!force && this.state.loaded[taskId]) return Promise.resolve()
     const existing = this.loading.get(taskId)
     if (existing) return existing
     const promise = this.transport.taskDetail(taskId).then((detail) => {
+      if (this.deleted.has(taskId)) return
       const runs = { ...this.state.runs }
       for (const run of detail.runs) runs[run.id] = mergeRun(runs[run.id], run)
       const known = new Map((this.state.evidence[taskId] ?? []).map((e) => [e.id, e]))
@@ -198,7 +200,7 @@ export class EngineStore {
         loaded: pruned.loaded,
         tasks: this.state.tasks[taskId] && detail.task.updatedAt < this.state.tasks[taskId].updatedAt ? this.state.tasks : { ...this.state.tasks, [taskId]: detail.task }
       })
-    }).catch(error => { this.set({ error: `Could not load task evidence: ${(error as Error).message}. Reopen the task to retry.` }) }).finally(() => this.loading.delete(taskId))
+    }).catch(error => { if (!this.deleted.has(taskId)) this.set({ error: `Could not load task evidence: ${(error as Error).message}. Reopen the task to retry.` }) }).finally(() => this.loading.delete(taskId))
     this.loading.set(taskId, promise)
     return promise
   }
@@ -209,6 +211,9 @@ export class EngineStore {
       if (seq > 0 && seq <= this.lastSeq) return
       this.lastSeq = Math.max(this.lastSeq, seq)
     }
+    if ('taskId' in event && this.deleted.has(event.taskId)) return
+    if (event.type === 'task.updated' && this.deleted.has(event.task.id)) return
+    if (event.type === 'run.updated' && this.deleted.has(event.run.taskId)) return
     switch (event.type) {
       case 'task.updated': {
         const current = this.state.tasks[event.task.id]

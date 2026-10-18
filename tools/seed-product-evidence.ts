@@ -47,14 +47,17 @@ try {
   rejectReview = true
   await create('Reviewer objections', makeRepo(BUGGY_NODE_PROJECT))
   rejectReview = false
-  for (const name of ['Stale evidence', 'Missing result', 'Untrusted evidence']) {
+  for (const name of ['Stale evidence', 'Missing result', 'Untrusted evidence', 'Changed command', 'Changed definitions', 'Stale review']) {
     await create(name, makeRepo(BUGGY_NODE_PROJECT))
     const id = fixtures.at(-1)!.taskId
     const result = engine.store.listEvidence(id).find(e => e.phase === 'verify')!
     // Explicit fault injection into disposable fixtures, never production records.
-    const altered = { ...result, ...(name === 'Stale evidence' ? { commitSha: engine.store.getTask(id)!.workspace!.baseSha } : name === 'Missing result' ? { phase: 'pre_review' as const } : { treeMutated: true }) }
+    const altered = { ...result, ...(name === 'Stale evidence' ? { commitSha: engine.store.getTask(id)!.workspace!.baseSha } : name === 'Missing result' ? { phase: 'pre_review' as const } : name === 'Changed command' ? {checkSpec:'different command'} : name === 'Changed definitions' ? {definitionsChanged:true} : name === 'Untrusted evidence' ? { treeMutated: true } : {}) }
     const db = new DatabaseSync(join(dataDir, 'hydra.db'))
-    try { db.prepare('UPDATE evidence SET doc=? WHERE id=?').run(JSON.stringify(altered), result.id) } finally { db.close() }
+    try {
+      db.prepare('UPDATE evidence SET doc=? WHERE id=?').run(JSON.stringify(altered), result.id)
+      if (name === 'Stale review') { const task=engine.store.getTask(id)!; db.prepare('UPDATE tasks SET doc=? WHERE id=?').run(JSON.stringify({...task,reviewedSha:task.workspace!.baseSha}),id) }
+    } finally { db.close() }
   }
   await create('Plan approval', makeRepo(BUGGY_NODE_PROJECT), 'safe')
   const report = { dataDir, fixtures, agentSource: 'Scripted test adapter; real engine, Git and check processes; no provider activity' }

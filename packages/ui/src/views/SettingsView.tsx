@@ -17,6 +17,8 @@ export function SettingsView() {
   const [busy, setBusy] = useState<'backup' | 'export' | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [dataStatus, setDataStatus] = useState<Record<string, unknown> | null>(null)
+  const [backupProof, setBackupProof] = useState('')
   const transport = store.transport
 
   const save = async (kind: 'backup' | 'export') => {
@@ -44,8 +46,12 @@ export function SettingsView() {
             <div className="row" style={{ marginTop: 12 }}>
               <Button busy={busy === 'backup'} onClick={() => void save('backup')}>Back up now</Button>
               <Button busy={busy === 'export'} onClick={() => void save('export')}>Export as JSON</Button>
+              <Button onClick={() => void run({ type: 'data.status' }).then(ack => { if (ack.ok) setDataStatus(ack.result as Record<string, unknown>) })}>Inspect local retention</Button>
+              <Button onClick={() => void run({ type: 'data.verify_backup' }).then(ack => { if (ack.ok) setBackupProof((ack.result as { scope: string }).scope) })}>Create and verify backup</Button>
             </div>
-            <p className="faint" style={{ marginTop: 8, fontSize: 12 }}>Backups are standard SQLite files. The JSON export contains your projects, tasks, runs, evidence and audit trail, and leaves out keys. Both are saved in Hydra's backups folder, readable only by your user account.</p>
+            {dataStatus && <p role="status" className="muted">{String(dataStatus.tasks)} tasks · {String(dataStatus.events)} journal records · {String(dataStatus.backups)} SQLite backups. {String(dataStatus.retention)}</p>}
+            {backupProof && <p role="status" className="muted">{backupProof}</p>}
+            <p className="faint" style={{ marginTop: 8, fontSize: 12 }}>SQLite backups include sensitive task data and phone-pairing credentials. JSON exports omit cryptographic keys but can contain private project content. Both are saved locally with owner-only permissions where supported. Protect copies you move elsewhere.</p>
             {saved && <p className="muted" role="status" style={{ marginTop: 8, wordBreak: 'break-all' }}>Saved to <code>{saved}</code></p>}
             {error && <p role="alert" style={{ marginTop: 8, color: 'var(--bad)' }}>{error}</p>}
           </>

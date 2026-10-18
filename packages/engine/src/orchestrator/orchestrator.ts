@@ -167,6 +167,7 @@ export class Orchestrator {
     let count = 0
     for (const run of this.ctx.store.runsWithStatus('running')) {
       if (run.pid && await killOrphanAgent(run.pid)) logTask(this.ctx, run.taskId, 'warn', `Stopped agent process ${run.pid} left running by a previous session`)
+      else if (run.pid) logTask(this.ctx, run.taskId, 'warn', 'Previous CLI process ownership cannot be proven after restart. Hydra did not terminate a historical PID; inspect any surviving CLI session manually.')
       this.ctx.store.putRun({ ...run, status: 'interrupted', endedAt: isoNow(), error: 'Hydra stopped while this run was active' })
     }
     for (const task of this.ctx.store.tasksWithStatus(['queued', 'running'])) {

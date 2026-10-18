@@ -130,6 +130,27 @@ describe('engine store', () => {
     expect(s.loaded[task.id]).toBeUndefined()
   })
 
+  it('a delayed detail response and late output cannot restore purged cached content', async () => {
+    const { world, task, store, transport } = await open()
+    const run = world.startRun(task.id, 'plan', 'planner', 'claude')
+    world.check(task.id, 'npm test', 'verify', 0, 100)
+    const detail = await transport.taskDetail(task.id)
+    let resolveDetail!: (value: typeof detail) => void
+    transport.taskDetail = () => new Promise(resolve => { resolveDetail = resolve })
+    const pending = store.loadTask(task.id, true)
+    world.publish({ type: 'task.deleted', taskId: task.id })
+    await settle()
+    resolveDetail(detail)
+    await pending
+    world.publish({ type: 'run.output', taskId: task.id, runId: run.id, stream: 'answer', text: 'late secret' })
+    world.publish({ type: 'task.log', taskId: task.id, level: 'info', message: 'late secret' })
+    await settle()
+    const state = store.get()
+    for (const map of [state.tasks, state.evidence, state.loaded, state.logs, state.drafts]) expect(map[task.id]).toBeUndefined()
+    expect(Object.values(state.runs).some(r => r.taskId === task.id)).toBe(false)
+    expect(state.output[run.id]).toBeUndefined()
+  })
+
   it('keeps check results only for loaded tasks, and forgets the oldest loaded task beyond the limit (R3, R4)', async () => {
     const { world, store } = await open()
     const ids = Array.from({ length: LIMITS.loadedTasks + 2 }, (_, i) => world.createTask(world.projects[0]!.id, `Task ${i}`).id)

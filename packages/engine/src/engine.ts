@@ -19,6 +19,7 @@ import { policyFor } from './workflow/policy.js'
 import { categoryOf, outcomeFor, recommend } from './intelligence/outcomes.js'
 import { checkForUpdate } from './update/updater.js'
 import { checksFor, specsFromDrafts, validateCheck } from './verification/custom.js'
+import { DatabaseSync } from 'node:sqlite'
 import { detectChecks } from './verification/detect.js'
 import { runChecks } from './verification/runner.js'
 
@@ -54,6 +55,7 @@ export class Engine {
   private updatePrepared: string | null = null
   private updateLeaseUntil = 0
   private commandsInFlight = 0
+  private readonly deleting = new Set<string>()
 
   private constructor(options: EngineOptions) {
     const paths = enginePaths(options.dataDir)
@@ -63,7 +65,8 @@ export class Engine {
     }
     this.lock = new InstanceLock(paths.dataDir)
     this.lock.acquire()
-    this.store = new Store(paths.database)
+    try { this.store = new Store(paths.database) }
+    catch (error) { this.lock.release(); throw error }
     for (const file of [paths.database, `${paths.database}-wal`, `${paths.database}-shm`]) ownerOnly(file, 0o600)
     this.version = options.version ?? '2.0.0-alpha.0'
     this.hooks = options.hooks ?? {}
@@ -87,6 +90,7 @@ export class Engine {
 
   static async open(options: EngineOptions): Promise<Engine> {
     const engine = new Engine(options)
+    try {
     const interrupted = await engine.orchestrator.recover()
     const swept = await engine.ctx.workspaces.sweepLeftovers(engine.store.listProjects().map((p) => p.root))
     if (swept) engine.store.audit('engine', 'cleanup', { leftoverCheckouts: swept })
@@ -94,6 +98,7 @@ export class Engine {
     if (!options.skipProbe) await engine.refreshProviders()
     else await engine.ctx.registry.refresh()
     return engine
+    } catch (error) { await engine.close().catch(() => {}); throw error }
   }
 
   get paths() { return this.ctx.paths }
@@ -179,7 +184,19 @@ export class Engine {
   private async dispatch(command: Command, actor: Actor): Promise<unknown> {
     const source = actor.kind === 'remote' ? 'remote' : 'desktop'
     const actorLabel = actor.kind === 'remote' ? `device:${actor.deviceId}` : 'desktop'
+    if ('taskId' in command && this.deleting.has(command.taskId)) throw conflict('This task is being removed. Wait for the operation to finish.')
     switch (command.type) {
+      case 'data.status': return { ...this.store.dataCounts(), backups: readdirSync(this.ctx.paths.backups).filter(f => f.endsWith('.db')).length, schemaVersion: this.store.schemaVersion, retention: 'Task removal retains the journal. Purge removes that task content from the active database; independent backups/exports and provider records can retain copies. No secure-erasure guarantee.' }
+      case 'data.verify_backup': {
+        const file = this.backup()
+        const db = new DatabaseSync(file, { readOnly: true })
+        try {
+          const integrity = db.prepare('PRAGMA integrity_check').all() as Array<Record<string, unknown>>
+          if (integrity.some(row => Object.values(row)[0] !== 'ok')) throw invalid('Backup integrity check failed')
+          const counts = Object.fromEntries(['projects', 'tasks', 'evidence', 'events', 'audit'].map(table => [table, Number((db.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }).n)]))
+          return { file, integrity: 'ok', counts, scope: 'Consistent SQLite snapshot and read-back integrity verified. This does not test installer rollback or power-loss recovery. Backups contain sensitive task data and device credentials.' }
+        } finally { db.close() }
+      }
       case 'update.prepare': {
         if (this.commandsInFlight > 1 || this.store.tasksWithStatus(['running', 'queued']).length) throw conflict('Active tasks or operations must finish before updating.')
         const lease = newId()
@@ -278,6 +295,7 @@ export class Engine {
       case 'task.decide': this.requireTask(command.taskId); this.orchestrator.decide(command.taskId, command.decision, command.feedback, command.headSha, source, command.acceptance, actorLabel); return null
       case 'task.rollback': this.requireTask(command.taskId); return this.orchestrator.rollback(command.taskId, source)
       case 'task.delete': return this.deleteTask(command.taskId, actorLabel)
+      case 'task.purge': return this.deleteTask(command.taskId, actorLabel, true)
       case 'task.archive': {
         const root = this.requireTask(command.taskId)
         // A conversation is archived as a whole: the task, what it follows up on, and its follow-ups.
@@ -402,9 +420,11 @@ export class Engine {
     return { basis: same ? 'suggested' : 'yours', reason: advice.reason.slice(0, 400), suggested: same ? null : advice.assignment }
   }
 
-  private async deleteTask(taskId: string, actorLabel: string): Promise<null> {
+  private async deleteTask(taskId: string, actorLabel: string, purge = false): Promise<null> {
     const task = this.requireTask(taskId)
     if (this.orchestrator.isRunning(taskId)) throw conflict('Cancel the task before deleting it')
+    this.deleting.add(taskId)
+    try {
     const root = this.store.getProject(task.projectId)?.root
     if (root && task.workspace && !task.workspace.removed) {
       if (task.outcome === 'kept_branch') await this.ctx.workspaces.release(root, task.workspace)
@@ -417,8 +437,11 @@ export class Engine {
     for (const t of this.store.listTasks(task.projectId)) {
       if (t.followUpOf === taskId) updateTask(this.ctx, t.id, (draft) => { draft.followUpOf = task.followUpOf })
     }
-    this.store.deleteTask(taskId)
+    if (purge) this.store.purgeTask(taskId)
+    else this.store.deleteTask(taskId)
+    if (purge) this.store.audit(actorLabel, 'task.purged', { taskId, contentPurged: true })
     return null
+    } finally { this.deleting.delete(taskId) }
   }
 
   /** Online, consistent copy of the database. Keeps the newest `keep` backups. */
@@ -452,9 +475,7 @@ export class Engine {
   }
 
   async close(): Promise<void> {
-    await this.orchestrator.shutdown()
-    await this.ctx.registry.dispose()
-    this.store.close()
-    this.lock.release()
+    try { await this.orchestrator.shutdown(); await this.ctx.registry.dispose() }
+    finally { try { this.store.close() } finally { this.lock.release() } }
   }
 }
