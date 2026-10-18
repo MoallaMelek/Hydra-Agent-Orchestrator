@@ -41,8 +41,10 @@ async function setup(adapter: ScriptedAdapter, dataDir = tempDir('hydra-engine-'
   cleanupDirs.push(repo, dataDir)
   const engine = await Engine.open({ dataDir, registry: new AdapterRegistry([adapter]), skipProbe: true })
   engines.push(engine)
-  const project = (await engine.execute({ type: 'project.add', root: repo })) as { ok: true; result: { id: string } }
-  return { engine, repo, dataDir, projectId: project.result.id }
+  const project = (await engine.execute({ type: 'project.add', root: repo })) as { ok: true; result: { id: string; root: string } }
+  // Use the engine's canonical root: macOS /var temp paths resolve to /private/var.
+  // Lock fault injection must hold the exact same repository key as actual apply.
+  return { engine, repo: project.result.root, dataDir, projectId: project.result.id }
 }
 
 async function create(engine: Engine, projectId: string, over: Record<string, unknown> = {}): Promise<Task> {

@@ -4,6 +4,8 @@ Newest entry first.
 
 ## 2026-10-18 — alpha.5 production preparation
 
+19October: first CI Linux passed; Windows/macOS each3path-alias test failures, installers skipped. Fixed assertions/lock injection to use engine canonical roots; full local348pass/1skip again. Actual schema3→4 fixture snapshot migration preserves every task document/count; fresh delivered alpha.5 startup/auth smoke passed. No runtime changes in the CI correction. One further CI run needs approval because original authorization was for one. See RELEASE_QUALIFICATION.md.
+
 Workroom concept selected from3 alternatives; artifact-derived Proofline, bounded inbox/current work, compact recovery, explicit purge/backup tools. Fresh security findings repaired: provider semantic/error redaction and queue bounds, OS-held SQLite ownership, configured Git execution, conservative historical PID handling, remote byte bounds; indexed history/FTS; signed metadata expiry. Review also corrected stale proof labels and delayed-detail cache resurrection. Full check348pass/1skip, typecheck/lint/provenance/build/scan/licenses/audit pass; packaged13product+7onboarding steps and4restart assertions pass. Live trial's Codex target overrun disclosed; no further provider calls. Cross-platform qualification owner-approved; no publication/installation replacement. See TEST_EVIDENCE.md and PRODUCTION_AUDIT.md. Commercial full-app draft preserves Agensi eligibility and owner legal/signing gates.
 
 ## 2026-10-18 — alpha.4 strict engine approval and separate preview
