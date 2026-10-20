@@ -26,7 +26,7 @@ export function AgentsTab({ runs }: { runs: AgentRunInfo[] }) {
               {run.model && <span className="faint mono" style={{ fontSize: 11.5 }}>{run.model}</span>}
               <span className="grow" />
               <span className="faint" style={{ fontSize: 12 }}>
-                {tokens(run.usage.inputTokens + run.usage.outputTokens)} tokens · {run.usage.unpricedTokens ? 'cost not reported' : money(run.usage.costUsd)} · {duration(ended - Date.parse(run.startedAt))}
+                {tokens(run.usage.inputTokens + run.usage.outputTokens + run.usage.cachedTokens)} reported tokens (includes cache) · {run.usage.unpricedTokens ? 'cost not reported' : money(run.usage.costUsd)} · {duration(ended - Date.parse(run.startedAt))}
               </span>
             </header>
             <div className="run__body">

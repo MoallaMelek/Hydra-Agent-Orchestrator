@@ -1,5 +1,11 @@
 # Progress log — Hydra v2
 
+## 2026-10-20 — alpha.6 Experience Revolution preview
+
+Compared three functioning interaction studies and selected Mission Control plus a constrained Neural Canvas and stable inspector. Replaced tall opening/report compositions with launch-first workspace, real recorded stage relationships, selectable agent/check evidence, bounded replay/records/timeline, contextual approvals, shared command navigation, three deliberate themes and secondary-screen hierarchy. Preserved engine orchestration/policy/Git/providers/data. Fixed future-result/history-summary leakage, cache-inclusive usage, safe Markdown and ancestor scroll clipping; no new dependencies.
+
+Final373tests/1skip, types/lint/provenance/build; packaged15product+7onboarding+4restart+5followup, three prototypes, three-theme/narrow/keyboard/reduced-motion/contrast and final direct-profile/visible-launch checks passed. Honest screenshots/comparison/60.728secondediteddemo and skill matrix delivered. Separate unsignedalpha.6 exe/ZIP/profile/shortcut; installed Hydra and personal projects preserved. Main chat sole writer/verifier; read-only bounded Codex design/source/packaged critique integrated. Branch feat/experience-revolution-20261020 from verifiedd189b2d. No further provider/CI/Docker/publication/main merge/license actions. Detailed evidence and remaining production/commercial gates: EXPERIENCE_REVOLUTION.md and TEST_EVIDENCE.md.
+
 Newest entry first.
 
 ## 2026-10-19 — final alpha.5 local qualification

@@ -168,7 +168,7 @@ try {
     await ui.waitText('Project folder')
     await ui.type('#project-root', repo)
     await ui.click('Add project')
-    await ui.waitText('Ask a question or describe a change')
+    await ui.waitText('What should we accomplish?')
     await ui.shot('02-project')
   })
   await step('draft and attachment survive project switches, Settings and reload', async () => {
@@ -204,7 +204,7 @@ try {
     }
     const second = makeRepo()
     await ui.click('Add project'); await ui.type('#project-root', second); await ui.click('Add project')
-    await ui.waitText('Ask a question or describe a change')
+    await ui.waitText('What should we accomplish?')
     await ui.type('#task-prompt', 'UNSENT NATIVE DRAFT B')
     await openProject(); await ui.waitText('acceptance-notes.md')
     if (await ui.evaluate('document.querySelector("#task-prompt").value') !== 'UNSENT NATIVE DRAFT A') throw new Error('Draft leaked between projects')
@@ -245,7 +245,7 @@ try {
   if (useAgents) {
     const toProject = async () => {
       await ui.evaluate(`[...document.querySelectorAll('.nav-item')].find((b) => b.textContent.includes(${JSON.stringify(basename(repo))})).click()`)
-      await ui.waitText('Ask a question or describe a change')
+      await ui.waitText('What should we accomplish?')
     }
     const openLimits = () => ui.evaluate("document.querySelector('#budget-cost') || [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Agents and limits')).click()")
     await step('a casual question: Auto picks a quick answer, the reply streams in and reads naturally', async () => {
@@ -333,7 +333,7 @@ try {
   })
   await step('quitting stops the engine and releases the data lock', async () => {
     await ui.evaluate("[...document.querySelectorAll('.nav-item')].find(b => b.textContent.includes(" + JSON.stringify(basename(repo)) + ")).click()")
-    await ui.waitText('Ask a question or describe a change')
+    await ui.waitText('What should we accomplish?')
     await ui.type('#task-prompt', 'PERSIST THROUGH DESKTOP RESTART')
     await ui.evaluate('window.hydraUi.flush()')
     await ui.evaluate('window.close()').catch(() => {})
@@ -350,7 +350,7 @@ try {
     await ui.shot('07-relaunch')
     if (state.projects.length !== 2) throw new Error(`expected 2 projects, got ${state.projects.length}`)
     await ui.evaluate("[...document.querySelectorAll('.nav-item')].find(b => b.textContent.includes(" + JSON.stringify(basename(repo)) + ")).click()")
-    await ui.waitText('Ask a question or describe a change')
+    await ui.waitText('What should we accomplish?')
     if (await ui.evaluate('document.querySelector("#task-prompt").value') !== 'PERSIST THROUGH DESKTOP RESTART') throw new Error('Draft lost across desktop restart')
     if (await ui.evaluate('document.documentElement.dataset.theme') !== 'terracotta') throw new Error('Theme lost across restart')
     await ui.shot('08-restored-draft')

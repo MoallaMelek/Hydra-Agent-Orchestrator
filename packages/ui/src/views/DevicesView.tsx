@@ -13,6 +13,7 @@ export function DevicesView() {
     <div className="page devices-workspace">
       <div className="page__head"><div className="page__title"><h1>Phone access</h1><p className="muted">Phones that can follow tasks and, if you allow it, approve them.</p></div></div>
       <Callout tone="warn">Preview · trusted networks only. Commands are encrypted after pairing, but the phone page is delivered over HTTP. A network attacker could replace that page before encryption starts. Keep access off on shared or untrusted networks; secure HTTPS or a qualified native client is not available yet.</Callout>
+      <div className="phone-route" aria-label="How phone access works"><div><Smartphone size={22}/><strong>Your desktop</strong><span>Owns execution and evidence</span></div><div><strong>Trusted local network</strong><span>Pair explicitly · enable only when needed</span></div><div><Smartphone size={22}/><strong>Your phone</strong><span>Follows work within granted permissions</span></div></div>
       <PhoneAccessPanel />
       <PairPhonePanel />
       <Panel title="Paired devices">

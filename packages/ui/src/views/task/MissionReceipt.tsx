@@ -11,7 +11,7 @@ export function MissionReceipt({ task, evidence }: { task: Task; evidence: Evide
   return <section className="mission-story" aria-label="Mission receipt">
     <div className="mission-request"><span>Your request</span><p>{task.prompt.length > 500 ? task.prompt.slice(0, 500) + '…' : task.prompt}</p>{task.prompt.length > 500 && <details><summary>Read full request</summary><p>{task.prompt}</p></details>}</div>
     <div className="mission-response"><h2>{task.outcome === 'applied' ? 'Applied to your project' : task.status === 'waiting_input' ? 'Over to you' : task.status === 'paused' || task.status === 'failed' ? 'Let’s recover this work' : task.status === 'completed' ? 'The work is saved' : 'From idea to evidence'}</h2>
-      {task.answer ? <Markdown text={task.answer} /> : <p className="muted">{task.review?.summary ?? task.plan?.summary ?? (task.status === 'queued' ? 'Waiting to start. No agent work has been reported yet.' : 'Hydra will record the plan, changes and check results here as they become available.')}</p>}
+      <Markdown text={task.answer ?? task.review?.summary ?? task.plan?.summary ?? (task.status === 'queued' ? 'Waiting to start. No agent work has been reported yet.' : 'Hydra will record the plan, changes and check results here as they become available.')} />
     </div>
     <div className="mission-receipt">
       <div className="mission-receipt__heading"><h3>Mission receipt</h3><Badge tone={!final ? 'neutral' : receipt.state === 'passed' ? 'ok' : receipt.state === 'failed' ? 'bad' : 'warn'}>{!final ? 'Work in progress' : receipt.state === 'passed' ? 'Checks passed' : receipt.state === 'failed' ? 'Checks failed' : 'Unverified'}</Badge></div>

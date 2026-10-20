@@ -1,6 +1,7 @@
 import { DesktopUpdatesPanel } from './DesktopUpdatesPanel'
 import { SavedDraftsPanel } from './SavedDraftsPanel'
 import { useTheme, setTheme, type Theme } from '../app/preferences'
+import { revealInWorkspace } from '../lib/reveal'
 import { Fragment, useEffect, useState } from 'react'
 import { Button, Panel, Segmented } from '../design/components'
 import { setChoice, useQuality, type QualityChoice } from '../app/quality'
@@ -30,14 +31,17 @@ export function SettingsView() {
   return (
     <div className="page settings-workspace">
       <div className="page__head"><div className="page__title"><h1>Settings</h1><p className="muted">Engine v{engineVersion}</p></div></div>
-      <DisplayPanel />
-      <SavedDraftsPanel />
+      <nav className="settings-index" aria-label="Settings sections" onClick={e=>{const link=(e.target as HTMLElement).closest('a');if(link){e.preventDefault();revealInWorkspace(document.getElementById(link.hash.slice(1)))}}}><a href="#display-settings">Appearance</a><a href="#draft-settings">Drafts</a><a href="#autonomy-settings">Approvals</a><a href="#data-settings">Data</a></nav>
+      <div id="display-settings"><DisplayPanel /></div>
+      <div id="draft-settings"><SavedDraftsPanel /></div>
+      <div id="autonomy-settings" />
       <Panel title="Autonomy modes">
         <dl className="hx-kv">
           {(['safe', 'developer', 'autonomous'] as const).map((m) => <Fragment key={m}><dt>{MODE_INFO[m].label}</dt><dd>{MODE_INFO[m].detail}</dd></Fragment>)}
         </dl>
         <p className="faint" style={{ marginTop: 12, fontSize: 12 }}>Every mode requires your final approval. Git worktrees separate changes; they are not security containers. Provider restrictions differ by CLI and platform. Project checks execute with your user permissions.</p>
       </Panel>
+      <div id="data-settings" />
       <Panel title="Your data">
         <p className="muted">Tasks, history and evidence are stored only on this computer in a local SQLite database, with a daily backup. Nothing is sent to Hydra's developers or any cloud database. Agent prompts go only to the providers you selected, using your own accounts.</p>
         <p className="muted" style={{ marginTop: 12 }}>Removing a task clears its current records and logs, but the event journal, backups and earlier exports may retain its content. Archive only hides it. No secure-erasure or automatic restore guarantee is provided. Keep a known-good installer and test restoration using disposable data before relying on a backup.</p>

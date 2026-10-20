@@ -1,5 +1,11 @@
 # Handoff — Hydra v2 (read this first)
 
+## Current — alpha.6 Experience Revolution (20 October 2026)
+
+Coherent Windows experience-preview milestone complete on `feat/experience-revolution-20261020`, from verified alpha.5 `d189b2d`. Current system/design/evidence: EXPERIENCE_REVOLUTION.md, PRODUCT.md, DESIGN.md and TEST_EVIDENCE.md. Three interactive studies -> Mission Control with bounded truthful canvas, stable operation inspector and recorded replay. Main chat sole writer/integrator/tester; bounded read-only Codex reviewer found historical-review/replay/narrow-focus defects, fixed centrally. Final373pass/1skip,46files; types/lint/provenance/build, packaged15+7+4+5, theme/reflow/contrast/keyboard/reduced-motion, default-profile smoke and actual Windows visible launch pass. Separate unsignedalpha.6 ZIP/exe/shortcut uses LocalAppData/HydraPreviews/Hydra-Experience-Revolution-Data; no original installation, Telekinesis, personal projects/data/auth modifications. No fresh provider/CI calls or Docker. Source/UI frozen for delivery. Large local evidence/output lives with this Codex chat; code/docs/tools pushed on the feature branch, not main.
+
+Still an unsigned trusted-repository personal preview. Signing/notarization, failed-installer/update recovery, hostile-code containment, remote HTTP bootstrap, hard billing caps, alpha.6 macOS/Linux qualification and commercial/legal/Agensi gates remain. Historical paragraphs below are not current alpha.6 qualification. Do not reopen paid evaluations or Actions without fresh explicit approval. Do not merge, publish, replace installation or change license without approval.
+
 ## Current production preparation — alpha.5
 
 Final qualification complete: owner-approved CI39177167557 at448db2a passes all6check/installer jobs (Windowsx64/macOS26ARM64/Ubuntu24x64;6package smokes). Current local368tests/1skip; final13product/7onboarding/default-local-profile/4restart assertions pass. Binary is an unsigned separate preview with embedded Local AppData profile. Runtime source448db2a; subsequent changes record documentation/evidence only. Earlier failed runs/uncached-only usage figures below are historical; total Codex trial227,721includingcache is the correct reconciliation. No more provider/CI runs needed. Commercial gates remain; no release/main merge/license/outreach authorized.

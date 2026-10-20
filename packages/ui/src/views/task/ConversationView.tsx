@@ -35,7 +35,7 @@ export function ConversationView({ task }: { task: Task }) {
   const [submitError, setSubmitError] = useState('')
   const [busy, setBusy] = useState<'follow' | 'change' | null>(null)
   const thinking = task.status === 'running' || task.status === 'queued'
-  const used = task.usage.inputTokens + task.usage.outputTokens
+  const used = task.usage.inputTokens + task.usage.outputTokens + task.usage.cachedTokens
 
   // Earlier turns of this conversation, oldest first.
   const earlier: Task[] = []

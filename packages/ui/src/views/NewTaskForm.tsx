@@ -88,14 +88,17 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
 
   return (
     <div className="composer">
-      <Field label="Ask a question or describe a change" htmlFor="task-prompt">
-        <textarea id="task-prompt" className="hx-textarea" rows={4} maxLength={50000} disabled={busy} value={prompt} onChange={(e) => setPrompt(e.target.value)}
-          placeholder='e.g. "How is authentication wired?" or "Cart totals ignore quantity. Fix total() and add a test."'
+      <Field label="What should we accomplish?" htmlFor="task-prompt">
+        <textarea id="task-prompt" className="hx-textarea" rows={2} maxLength={50000} disabled={busy} value={prompt} onChange={(e) => setPrompt(e.target.value)}
+          placeholder='Describe a change. Ask about your code.'
           onKeyDown={(e) => { if (!e.nativeEvent.isComposing && e.key === 'Enter' && (e.metaKey || e.ctrlKey) && prompt.trim()) void submit() }} />
       </Field>
+      {!prompt && <div className="mission-starters" aria-label="Mission starters">{[['Understand the code','Explain how this project is structured and where the main entry points are.'],['Find a bug','Investigate a bug in this project: '],['Build a change','Implement this change with regression coverage: ']].map(([label,text])=><button type="button" key={label} onClick={()=>{setPrompt(text!);document.getElementById('task-prompt')?.focus()}}>{label}</button>)}</div>}
       <DraftAttachments files={draft.attachments} onChange={attachments => draft.set({ attachments })} disabled={busy} />
       {(draft.error || submitError) && <p role="alert">{draft.error || submitError}</p>}
-      <details className="composer-options"><summary>Handling &amp; approvals <span>{choice === 'auto' ? 'Auto' : DEPTH_LABEL[choice]} · {MODE_INFO[effectiveMode].label}</span></summary>
+      {prompt.trim()&&<p className="mission-route" role="status">{DEPTH_LABEL[depth]} · {DEPTH_HINT[depth]}</p>}
+      <details className="composer-setup"><summary>Mission setup <span>{choice === 'auto' ? 'Auto' : DEPTH_LABEL[choice]} · {MODE_INFO[effectiveMode].label} · agents and limits</span></summary>
+      <div className="composer-options">
       <div className="spread" style={{ flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <Field label="How Hydra handles it">
           <Segmented label="Handling" value={choice} onChange={setChoice} options={[
@@ -108,7 +111,7 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
           </Field>
         )}
       </div>
-      </details>
+      </div>
       {prompt.trim() && (
         <p className="route-preview" role="status">
           <b>{choice === 'auto' ? `Auto → ${DEPTH_LABEL[depth]}` : DEPTH_LABEL[depth]}.</b>{' '}
@@ -146,11 +149,12 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
           <input id="budget-min" className="hx-input" type="number" min={1} step={5} placeholder={String(DEFAULT_BUDGET[effectiveMode].minutes)} value={minutes} onChange={(e) => setMinutes(e.target.value === '' ? '' : Number(e.target.value))} />
         </Field>
       </div>}
+      </details>
       <div className="composer__row" style={{ justifyContent: 'flex-end' }}>
         <p className="composer-trust faint">{label(assignment.planner)} receives your request and selected project context. Project checks run as your user. Use trusted repositories.</p>
         <div className="col" style={{ justifyContent: 'flex-end' }}>
           <Button variant="primary" size="lg" icon={<Sparkles size={16} />} busy={busy} disabled={!prompt.trim() || (choice === 'deep' && !isGit) || !ready.length} onClick={() => void submit()}>
-            {isChange ? 'Start change' : 'Ask'}
+            {!prompt.trim() || isChange ? 'Start mission' : 'Ask'}
           </Button>
         </div>
       </div>

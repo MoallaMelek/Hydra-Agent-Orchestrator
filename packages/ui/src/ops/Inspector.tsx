@@ -65,7 +65,7 @@ function RunDetail({ run, segment, task, trace }: { run: AgentRunInfo; segment: 
   const files = filesOf(activity)
   const lane = trace.lanes.find((l) => l.id === segment.lane)
   const ended = run.endedAt ? Date.parse(run.endedAt) : trace.now
-  const tokenCount = run.usage.inputTokens + run.usage.outputTokens
+  const tokenCount = run.usage.inputTokens + run.usage.outputTokens + run.usage.cachedTokens
   const [all, setAll] = useState(false)
   const calls = all ? activity : activity.slice(-30)
   return (
@@ -75,7 +75,7 @@ function RunDetail({ run, segment, task, trace }: { run: AgentRunInfo; segment: 
         <dt>Role</dt><dd>{lane?.title} · {lane?.duty}</dd>
         <dt>Agent</dt><dd>{lane?.actor}{run.model ? <span className="faint mono"> · {run.model}</span> : null}</dd>
         <dt>Time</dt><dd className="num">{new Date(run.startedAt).toLocaleTimeString()} · {duration(Math.max(0, ended - Date.parse(run.startedAt)))}{run.status === 'running' ? ' so far' : ''}</dd>
-        <dt>Usage</dt><dd className="num">{tokens(tokenCount)} tokens · {run.usage.unpricedTokens ? 'cost not reported by this CLI' : money(run.usage.costUsd)}</dd>
+        <dt>Usage</dt><dd className="num">{tokens(tokenCount)} reported tokens ({tokens(run.usage.cachedTokens)} cached) · {run.usage.unpricedTokens ? 'cost not reported by this CLI' : money(run.usage.costUsd)}. Usage may arrive late; guardrails are not a billing cap.</dd>
         {task.selection && <><dt>Why this agent</dt><dd>{task.selection.basis === 'suggested' ? 'Hydra\'s suggestion' : 'Your choice'}: {task.selection.reason}</dd></>}
       </dl>
       {run.error && <p className="inspector__error">{run.error}</p>}
@@ -157,7 +157,7 @@ function StateDetail({ segment, task }: { segment: Segment; task: Task }) {
   const explain: Record<Segment['kind'], string> = {
     gate: segment.ref.type === 'gate' && segment.ref.reason === 'plan_approval'
       ? 'The agents have only read your code. Nothing is edited until you approve the plan and the exact check commands Hydra will run.'
-      : 'Hydra has verified the result in an isolated copy. Your branch changes only if you accept this exact commit.',
+      : 'Inspect the current revision, reviewer findings and engine-run check evidence. Unresolved conditions block acceptance. Your branch changes only after the engine accepts your revision-bound decision.',
     wait: 'This stage needs an agent, and none has started yet. Hydra runs at most a fixed number of agents at once across all tasks; the others wait for a free slot. Deduced from the stage record and the running agents.',
     checking: 'Hydra is running your check commands itself. Each result appears when its command finishes. Deduced from the stage record: the engine reports a check only once it is done.',
     apply: 'Hydra fast-forwards your branch to exactly the commit you accepted. This step cannot be canceled midway.',
@@ -167,7 +167,7 @@ function StateDetail({ segment, task }: { segment: Segment; task: Task }) {
     <aside className="inspector">
       <Head kind={segment.kind === 'gate' ? 'Your decision' : segment.kind === 'apply' ? 'Apply' : 'In between'} title={segment.label} basis={segment.basis} tone={toneOf(segment.status)} />
       <p className="muted">{explain[segment.kind]}</p>
-      {segment.kind === 'gate' && task.status === 'waiting_input' && <p className="faint" style={{ marginTop: 8 }}>Use the decision bar above the trace.</p>}
+      {segment.kind === 'gate' && task.status === 'waiting_input' && <p className="faint" style={{ marginTop: 8 }}>Use the mission controls below the canvas.</p>}
     </aside>
   )
 }

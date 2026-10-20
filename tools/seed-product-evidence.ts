@@ -13,16 +13,24 @@ const dataDir = mkdtempSync(join(tmpdir(), 'hydra-product-evidence-'))
 const fixtures: Array<{ name: string; taskId: string; root: string }> = []
 let fix = true
 let rejectReview = false
+let repairScenario = false
+let failImplementation = false
+let implementationCount = 0
 const engine = await Engine.open({ dataDir, skipProbe: true, registry: new AdapterRegistry([new ScriptedAdapter(request => {
   if (request.role === 'planner') return { structured: { summary: 'Correct addition while keeping the public function unchanged.', steps: ['Use addition in math.js'], acceptanceCriteria: ['The addition test passes'], risks: ['Callers may have depended on the incorrect result'], filesLikelyTouched: ['math.js'] } }
-  if (request.role === 'implementer') return { files: { 'math.js': fix ? FIXED_MATH : '// Deliberately failing acceptance fixture\n' + BUGGY_NODE_PROJECT['math.js'] }, structured: { summary: 'Fixture implementation', followUps: [] } }
-  return { structured: { verdict: rejectReview ? 'changes_requested' : 'approve', summary: 'Scripted review fixture.', findings: rejectReview ? [{ severity: 'major', file: 'math.js', issue: 'Deliberate blocking review fixture', suggestion: 'Request a repair' }] : [], acceptanceCriteriaMet: [{ criterion: 'The addition test passes', met: true, note: 'Scripted review, not a model judgment.' }] } }
+  if (request.role === 'implementer') {
+    if (failImplementation) return { fail: 'Deliberate scripted execution failure; no provider was called.' }
+    const corrected = repairScenario ? ++implementationCount > 1 : fix
+    return { files: { 'math.js': corrected ? FIXED_MATH : '// Deliberately failing acceptance fixture\n' + BUGGY_NODE_PROJECT['math.js'] }, structured: { summary: 'Fixture implementation', followUps: [] } }
+  }
+  const objection = rejectReview || (repairScenario && implementationCount === 1)
+  return { structured: { verdict: objection ? 'changes_requested' : 'approve', summary: '**Scripted review fixture.** Inspect the exact revision and engine-run evidence.', findings: objection ? [{ severity: 'major', file: 'math.js', issue: 'Deliberate blocking review fixture', suggestion: 'Request a repair' }] : [], acceptanceCriteriaMet: [{ criterion: 'The addition test passes', met: !objection, note: 'Scripted review, not a model judgment.' }] } }
 })]) })
 async function create(name: string, root: string, mode: 'safe' | 'developer' = 'safe') {
   const projectAck = await engine.execute({ type: 'project.add', root, name })
   if (!projectAck.ok) throw new Error(projectAck.error.message)
   const projectId = (projectAck.result as { id: string }).id
-  const ack = await engine.execute({ type: 'task.create', projectId, title: `Test fixture · ${name}`, prompt: `TEST FIXTURE · ${name}. Fix add() in math.js. This is disposable acceptance data using a scripted agent; no real model activity.`, depth: 'deep', mode, assignment: { planner: 'scripted', implementer: 'scripted', reviewer: 'scripted' }, budget: { maxFixRounds: 0 } })
+  const ack = await engine.execute({ type: 'task.create', projectId, title: `Test fixture · ${name}`, prompt: `TEST FIXTURE · ${name}. Fix add() in math.js. This is disposable acceptance data using a scripted agent; no real model activity.`, depth: 'deep', mode, assignment: { planner: 'scripted', implementer: 'scripted', reviewer: 'scripted' }, budget: { maxFixRounds: repairScenario ? 3 : 0 } })
   if (!ack.ok) throw new Error(ack.error.message)
   const taskId = (ack.result as Task).id
   for (let i = 0; i < 1200; i++) {
@@ -33,7 +41,10 @@ async function create(name: string, root: string, mode: 'safe' | 'developer' = '
       await new Promise(resolve => setTimeout(resolve, 100)); continue
     }
     if (task.status === 'waiting_input') { fixtures.push({ name, taskId, root }); return }
-    if (task.status === 'failed') throw new Error(task.error ?? 'Fixture failed')
+    if (task.status === 'failed') {
+      if (name === 'Execution failure') { fixtures.push({ name, taskId, root }); return }
+      throw new Error(task.error ?? 'Fixture failed')
+    }
     await new Promise(resolve => setTimeout(resolve, 100))
   }
   throw new Error('Fixture did not settle')
@@ -59,6 +70,12 @@ try {
       if (name === 'Stale review') { const task=engine.store.getTask(id)!; db.prepare('UPDATE tasks SET doc=? WHERE id=?').run(JSON.stringify({...task,reviewedSha:task.workspace!.baseSha}),id) }
     } finally { db.close() }
   }
+  repairScenario = true
+  await create('Repair journey', makeRepo(BUGGY_NODE_PROJECT), 'developer')
+  repairScenario = false
+  failImplementation = true
+  await create('Execution failure', makeRepo(BUGGY_NODE_PROJECT), 'developer')
+  failImplementation = false
   await create('Plan approval', makeRepo(BUGGY_NODE_PROJECT), 'safe')
   const report = { dataDir, fixtures, agentSource: 'Scripted test adapter; real engine, Git and check processes; no provider activity' }
   writeFileSync(process.argv[2] ?? join(dataDir, 'fixtures.json'), JSON.stringify(report, null, 2))

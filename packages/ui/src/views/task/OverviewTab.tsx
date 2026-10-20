@@ -9,6 +9,8 @@ const SEVERITY_TONE: Record<string, Tone> = { blocker: 'bad', major: 'warn', min
 const OUTCOME_TONE: Record<DemoReport['deltas'][number]['before'], Tone> = { pass: 'ok', fail: 'bad', error: 'warn', missing: 'neutral' }
 
 export function OverviewTab({ task, warnings }: { task: Task; warnings: Warning[] }) {
+  const reviewCurrent=Boolean(task.workspace?.headSha)&&task.reviewedSha===task.workspace?.headSha&&task.stages.filter(s=>s.stage==='review').at(-1)?.status==='succeeded'
+  const reviewApproved=reviewCurrent&&task.review?.verdict==='approve'&&!task.review.findings.some(f=>f.severity==='blocker'||f.severity==='major')&&task.review.acceptanceCriteriaMet.every(c=>c.met)
   return (
     <div className="stack">
       {task.error && task.status !== 'waiting_input' && <FriendlyError message={task.error} status={task.status} />}
@@ -21,7 +23,7 @@ export function OverviewTab({ task, warnings }: { task: Task; warnings: Warning[
           {task.plan && (
             <Panel title="Plan">
               <div className="stack" style={{ gap: 12 }}>
-                <p>{task.plan.summary}</p>
+                <Markdown text={task.plan.summary} />
                 <ol className="list-plain">{task.plan.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>
                 <div><h4 style={{ marginBottom: 6 }}>Acceptance criteria</h4><ul className="list-plain">{task.plan.acceptanceCriteria.map((c, i) => <li key={i}>{c}</li>)}</ul></div>
                 {task.plan.risks.length > 0 && <div><h4 style={{ marginBottom: 6 }}>Risks</h4><ul className="list-plain muted">{task.plan.risks.map((r, i) => <li key={i}>{r}</li>)}</ul></div>}
@@ -29,8 +31,8 @@ export function OverviewTab({ task, warnings }: { task: Task; warnings: Warning[
             </Panel>
           )}
           {task.review && (
-            <Panel title="Review" actions={<Badge tone={task.review.verdict === 'approve' ? 'ok' : 'warn'}>{task.review.verdict === 'approve' ? 'Approved' : 'Changes requested'}</Badge>}>
-              <p style={{ marginBottom: 12 }}>{task.review.summary}</p>
+            <Panel title="Review" actions={<Badge tone={reviewApproved ? 'ok' : 'warn'}>{!reviewCurrent?'Stale or incomplete':reviewApproved?'Approved':'Changes requested'}</Badge>}>
+              <div style={{ marginBottom: 12 }}><Markdown text={task.review.summary} /></div>
               {task.review.findings.length === 0 ? <p className="muted">No findings.</p> : task.review.findings.map((f, i) => (
                 <div className="finding" key={i}>
                   <Badge tone={SEVERITY_TONE[f.severity]}>{f.severity}</Badge>

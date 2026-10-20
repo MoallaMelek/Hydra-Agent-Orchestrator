@@ -31,7 +31,7 @@ export function ProvidersView() {
           return (
             <Panel key={p.id} title={p.displayName} actions={<Badge tone={ready ? 'ok' : p.installed ? 'warn' : 'bad'}>{ready ? 'Ready' : p.installed ? 'Needs attention' : 'Not installed'}</Badge>}>
               <div className="provider-card">
-                <ul className="account-setup"><ProviderStep p={p} /></ul>
+                <div><p className="provider-duty">{p.id==='claude'?'Plan, explain and review':'Build, inspect and repair'}</p>{ready?<p className="muted">Ready to assign to your next mission. No agent starts until you submit work.</p>:<ul className="account-setup"><ProviderStep p={p} /></ul>}<p className="faint provider-billing">{p.capabilities.reportsCost?'Reports usage and cost when supplied by the CLI.':'Reports tokens; monetary cost is unavailable.'} Usage can arrive after a turn completes. Guardrails are not a hard spending cap.</p></div>
                 <details className="disclosure"><summary>Connection details <span>Version, location and restrictions</span></summary>
                 <dl className="hx-kv">
                   <dt>Version</dt><dd className="mono">{p.version ?? '—'}</dd>

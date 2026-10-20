@@ -1,5 +1,17 @@
 # Test evidence — Hydra v2
 
+## 2026-10-20 — alpha.6 Experience Revolution
+
+- Final frozen-source full check: **46 files, 373 passed / 1 skipped, 349.18 seconds**, typecheck/lint/provenance passed. Windows skips the POSIX permission-mode test. Five new historical-projection tests cover bounded moments, actual repair edges and future completion/tool/check/apply-result isolation.
+- Final build and all seven packaged runtime files reconciled. Existing bundle-size warning remains. An extra sandboxed rebuild hit shared-cache EPERM; appropriately authorized rebuild passed. Artifact pattern scan154files passed; unsigned alpha, no broad security certification.
+- Actual packaged Windows product15/15, onboarding7/7, restart4/4 and final followup5/5 passed. Real engine/Git/checks with explicitly scripted adapters in disposable projects. Acceptance/duplicate/revert, failed/missing/stale/untrusted checks, reviewer objections, changed verification/review bindings and unsupported exceptions covered. No new paid provider workflow.
+- Three interactive fixture concepts passed capture/click tests. Separate labeled simulated live transport passed across six stations; this is renderer-only evidence. Real packaged captures include repair, execution failure, reviewer objections, exact checks, replay, timeline, settings/accounts/phone and persisted receipts.
+- 1360/900/390 renderer widths, three themes, 63 solid-token contrast pairs >=4.5:1, keyboard/focus/dialog/reduced-motion/Minimal, narrow inspector return and safe Markdown/main-only scroll passed. Native shell minimum900px; no physical phone/full screen-reader/WCAG certification. Short10-secondHome TaskDuration0.019157s; one warm21second process sample per build and a simulated flood sample are scoped observations, not soak/battery/statistical improvement claims.
+- Final direct-exe smoke: desktop/engine2.0.0-alpha.6; embedded separate LocalAppData profile; connected sandboxed renderer; installed/authenticated provider booleans. Visible fresh zero-project application inspected after correcting launcher window style. New distinct desktop shortcut; installed exe SHA unchanged. No personal data/Telekinesis modifications.
+- Delivered60.728second1360x1080edited screenshot walkthrough decoded at midpoint, labeled scripted agents / real engine-Git-checks. Before/after and score/matrix in EXPERIENCE_REVOLUTION.md. Main chat sole writer/tester; bounded read-only Codex reviewer. No new CI/provider/Docker/release/main/license operations. Signing/recovery/containment/remote/billing/commercial/Agensi gates remain.
+
+Local receipts: experience-release-check.log; experience-release-build-verified.log; experience-build-receipt.json; experience-download-receipt.json; experience-final-launch-smoke.json; experience-visible-launch.json; experience-delivery-packaged/report.json and followup-report.json; experience-final-onboarding/report.json; experience-delivery-restart/report.json; experience-demo-verification.json. Intermediate failures retained and corrected; see EXPERIENCE_REVOLUTION.md for limitations.
+
 ## 2026-10-18 — alpha.5 production preparation
 
 ### Final19October candidate

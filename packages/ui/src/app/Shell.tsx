@@ -16,6 +16,7 @@ import { SettingsView } from '../views/SettingsView'
 import './workbench.css'
 import './surfaces.css'
 import './mission.css'
+import './experience.css'
 
 const CONNECTION = {
   connecting: { tone: 'neutral', label: 'Connecting' },
@@ -41,7 +42,7 @@ function useProjectStatus() {
 
 export function Shell() {
   const { route, go, isRemote } = useApp()
-  useLayoutEffect(() => { document.querySelector('.main')?.scrollTo({ top: 0 }) }, [route])
+  useLayoutEffect(() => { document.querySelector('.main')?.scrollTo({ top: 0 }); const picker=document.querySelector<HTMLDetailsElement>('.project-picker'); if(picker) picker.open=false }, [route])
   const connection = useAppState((s) => s.connection)
   const version = useAppState((s) => s.engineVersion)
   const error = useAppState((s) => s.error)
@@ -67,21 +68,23 @@ export function Shell() {
       <aside className="rail" id="workspace-navigation" aria-label="Navigation">
         <div className="rail__brand">
           <HydraMark size={34} />
-          <b>Hydra</b>
+          <b>Hydra</b><span className="rail__edition">Mission control</span>
         </div>
         <div className="rail__scroll">
           <div className="rail__section">
             {item({ view: 'home' }, <LayoutDashboard size={15} />, 'Workspace')}
           </div>
-          <div className="rail__section">
-            <div className="rail__heading">Projects {!isRemote && <Button variant="ghost" size="sm" icon={<Plus size={14} />} aria-label="Add project" onClick={() => setAdding(true)} />}</div>
+          <details className="rail__section project-picker" onKeyDown={e=>{if(e.key==='Escape'){e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus()}}}>
+            <summary>Projects <span className="num">{projects.length}</span></summary>
+            <div className="project-picker__menu"><div className="rail__heading">Projects {!isRemote && <Button variant="ghost" size="sm" icon={<Plus size={14} />} aria-label="Add project" onClick={() => setAdding(true)} />}</div>
             {projects.length === 0 && <p className="faint" style={{ padding: '4px 8px', fontSize: 12 }}>No projects yet.</p>}
             {[...projects].sort((a, b) => a.name.localeCompare(b.name)).map((project) => {
               const s = status[project.id]
               return <div key={project.id}>{item({ view: 'project', projectId: project.id }, <FolderGit2 size={15} />, project.name,
                 s === 'you' ? <span className="nav-item__you" title="Needs your decision">needs you</span> : s ? <span className="nav-item__meta num">{s} running</span> : null)}</div>
             })}
-          </div>
+            </div>
+          </details>
           <div className="rail__section">
             <div className="rail__heading">System</div>
             {item({ view: 'providers' }, <Cpu size={15} />, 'AI accounts')}

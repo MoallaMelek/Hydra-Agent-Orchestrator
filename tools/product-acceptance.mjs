@@ -25,7 +25,7 @@ async function shot(name) { await sleep(180); const r=await send('Page.captureSc
 async function step(name, fn) { const result=await fn(); report.steps.push({name,result:'PASS',detail:result}); console.log('PASS '+name) }
 const api = (path, body) => evaluate(`fetch(window.hydraHost.apiUrl+${JSON.stringify(path)}, {method:${body ? '"POST"' : '"GET"'},headers:{Authorization:'Bearer '+window.hydraHost.token,'Content-Type':'application/json'},${body ? 'body:'+JSON.stringify(JSON.stringify(body)) : ''}}).then(r=>r.json())`)
 async function home() { await evaluate("[...document.querySelectorAll('.nav-item')].find(e=>e.textContent.trim()==='Workspace').click()"); await wait("document.querySelector('#workspace-project')") }
-async function openTask(name) { await home(); if (!await evaluate(`[...document.querySelectorAll('.needs-you__row')].some(e=>e.textContent.includes(${JSON.stringify(name)}))`)) await evaluate("[...document.querySelectorAll('button')].find(e=>e.textContent.includes('Show all') && e.textContent.includes('decisions'))?.click()"); await evaluate(`[...document.querySelectorAll('.needs-you__row')].find(e=>e.textContent.includes(${JSON.stringify(name)})).click()`); await wait("document.querySelector('.mission-receipt')"); await sleep(350) }
+async function openTask(name) { await home(); if (!await evaluate(`[...document.querySelectorAll('.needs-you__row')].some(e=>e.textContent.includes(${JSON.stringify(name)}))`)) await evaluate("[...document.querySelectorAll('button')].find(e=>e.textContent.includes('Show all') && e.textContent.includes('decisions'))?.click()"); await evaluate(`[...document.querySelectorAll('.needs-you__row')].find(e=>e.textContent.includes(${JSON.stringify(name)})).click()`); await wait("document.querySelector('.mission-scene')"); await sleep(350) }
 async function geometry() { return evaluate(`({overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth, outerScroll:document.documentElement.scrollHeight>document.documentElement.clientHeight+1, width:innerWidth, height:innerHeight})`) }
 try {
   assert(existsSync(executable), 'Package missing')
@@ -39,7 +39,7 @@ try {
   await step('packaged workspace and three-window reflow',async()=>{
     const results=[]
     for(const [width,height] of [[1360,900],[900,760],[390,844]]){await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await shot('workspace-'+width);const g=await geometry();assert(!g.overflow&&!g.outerScroll,'Workspace overflow '+width);results.push(g)}
-    await send('Emulation.clearDeviceMetricsOverride');return results
+    await send('Emulation.setDeviceMetricsOverride',{width:1360,height:900,deviceScaleFactor:1,mobile:false});return results
   })
   await step('accounts, settings and phone access retain a usable hierarchy',async()=>{
     for(const [label,screen] of [['AI accounts','accounts'],['Phone access','phone'],['Settings','settings']]) { await click(label); await shot(screen); assert(!(await geometry()).overflow,label+' overflow') }
@@ -62,7 +62,7 @@ try {
   })
   await step('passing, failed and absent evidence are distinct at final approval',async()=>{
     for(const [name,state] of [['Passing check','Checks passed'],['Failing check','Checks failed'],['No checks','Unverified']]) {
-      await openTask(name); const text=await evaluate('document.body.innerText');assert(text.includes(state),'Wrong evidence label for '+name)
+      await openTask(name); await evaluate("document.querySelector('.mission-dossier').open=true"); const text=await evaluate('document.body.innerText');assert(text.includes(state),'Wrong evidence label for '+name)
       const accept=await evaluate("[...document.querySelectorAll('.decision button')].find(e=>e.textContent.includes('Accept'))?.disabled")
       assert(accept===(name!=='Passing check'),'Wrong default acceptance state')
       await shot('receipt-'+name.toLowerCase().replaceAll(' ','-'))
@@ -79,23 +79,32 @@ try {
     assert(!await evaluate("document.querySelector('dialog[open]')"),'Escape did not close dialog')
     return dialog
   })
-  await step('recorded proof opens its actual evidence inspector',async()=>{
-    await openTask('Passing check');await evaluate("[...document.querySelectorAll('.proofline button')].find(e=>e.textContent.includes('Checks recorded')).click()");await sleep(200)
-    assert(await evaluate("document.activeElement?.id==='task-inspector'"),'Proof inspector focus missing')
-    assert(await evaluate("document.querySelector('[role=tab][aria-selected=true]').textContent.includes('Checks')"),'Proof selected wrong inspector')
-    await shot('proof-inspector')
+  await step('canvas selects actual checks and focuses their inspector',async()=>{
+    await openTask('Passing check');await shot('mission-canvas')
+    await evaluate("document.querySelector('.mission-station--checks').click()")
+    await shot('selected-checks');await click('Open check evidence')
+    assert(await evaluate("document.activeElement?.id==='task-inspector'"),'Evidence inspector focus missing')
+    assert(await evaluate("document.querySelector('[role=tab][aria-selected=true]').textContent.includes('Checks')"),'Wrong evidence tab')
   })
-  await step('operations are opt-in; tabs support arrow navigation; reduced motion and narrow receipts work',async()=>{
-    await openTask('Passing check');assert(!await evaluate("document.querySelector('.ops-grid')"),'Operations mounted while collapsed')
-    await evaluate("document.querySelector('.work-details').open=true");await wait("document.querySelector('.ops-grid')");await shot('operations-disclosed')
-    await evaluate("document.querySelector('.work-details').open=false")
-    await evaluate("document.querySelector('[role=tab]').focus()")
-    await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});await sleep(150)
-    assert((await evaluate("document.activeElement.textContent")).includes('Changes'),'Arrow tab navigation failed')
-    await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await sleep(150)
-    assert(await evaluate("document.documentElement.dataset.quality!=='full'"),'Reduced motion ignored')
-    await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});await shot('receipt-390');assert(!(await geometry()).overflow,'Receipt overflow')
-    await send('Emulation.clearDeviceMetricsOverride');await send('Emulation.setEmulatedMedia',{features:[]})
+  await step('record replay hides current artifacts; narrow themes and reduced motion retain controls',async()=>{
+    await openTask('Passing check');await click('Replay records');await shot('historical-replay')
+    assert(await evaluate("document.querySelector('.mission-historical').textContent.includes('Historical artifact snapshots are unavailable')"),'Historical snapshots misrepresented')
+    assert(!await evaluate("document.querySelector('.mission-focus .inspector')"),'Current artifacts leaked into replay')
+    await click('Return to latest')
+    for(const theme of ['Midnight','Light','Terracotta']) {
+      await click('Settings');await click(theme);await openTask('Passing check')
+      await shot('canvas-'+theme.toLowerCase())
+      await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false})
+      await shot('canvas-'+theme.toLowerCase()+'-390');assert(!(await geometry()).overflow,'Narrow scene overflow')
+      await send('Emulation.setDeviceMetricsOverride',{width:1360,height:900,deviceScaleFactor:1,mobile:false})
+    }
+    await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]})
+    assert(await evaluate("getComputedStyle(document.querySelector('.mission-station')).transitionDuration==='0s'"),'Reduced motion not honored')
+    await send('Emulation.setEmulatedMedia',{features:[]})
+    await click('Settings');await click('Minimal');await openTask('Passing check')
+    assert(await evaluate("document.querySelectorAll('.mission-station').length===6&&getComputedStyle(document.querySelector('.mission-station')).transitionDuration==='0s'"),'Minimal quality hid evidence or retained motion')
+    await shot('minimal-quality');await click('Settings');await click('Auto')
+    await click('Settings');await click('Midnight')
   })
   await step('engine refuses failed, missing, stale, untrusted and rejected-review decisions through HTTP',async()=>{
     const results=[]
@@ -110,11 +119,57 @@ try {
       const exception=await api('/api/commands',{...command,decision:'accept_exception',reason:'test exception'})
       assert(!exception.ok,'Unsupported exception accepted')
       assert((await api('/api/tasks/'+taskId)).task.outcome===null,'Blocked task changed outcome')
-      if (['Changed command','Changed definitions'].includes(name)) assert(await evaluate("[...document.querySelectorAll('.proofline button')].find(e=>e.textContent.includes('Checks recorded')).textContent.includes('untrusted')"),'Stale check proof appears trusted')
-      if (name==='Stale review') assert(await evaluate("[...document.querySelectorAll('.proofline button')].find(e=>e.textContent.includes('Review recorded')).textContent.includes('Stale')"),'Stale review appears approved')
+      if (['Changed command','Changed definitions'].includes(name)) assert(await evaluate("document.querySelector('.mission-station--checks').textContent.match(/untrusted|stale/i)"),'Stale check proof appears trusted')
+      if (name==='Stale review') assert(await evaluate("document.querySelector('.mission-station--review').textContent.includes('Stale')"),'Stale review appears approved')
       await shot('blocked-'+name.toLowerCase().replaceAll(' ','-'));results.push({name,denied:denied.error.code,exception:exception.error.code})
     }
     return results
+  })
+  await step('launch action fits desktop and laptop; native accessibility tree exposes mission controls',async()=>{
+    await home()
+    const sizes=[]
+    for(const [width,height] of [[1360,900],[900,760]]) {
+      await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false})
+      const bounds=await evaluate("(()=>{const r=document.querySelector('.composer .hx-btn--primary').getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:innerHeight}})()")
+      assert(bounds.bottom<=bounds.height,'Launch action below first viewport '+width);sizes.push({width,...bounds})
+    }
+    await send('Emulation.setDeviceMetricsOverride',{width:1360,height:900,deviceScaleFactor:1,mobile:false})
+    await openTask('Passing check')
+    const tree=(await send('Accessibility.getFullAXTree')).result.nodes.filter(n=>!n.ignored)
+    for(const name of ['Plan','Build','Review','Engine checks','Your decision']) assert(tree.some(n=>n.role?.value==='button'&&n.name?.value?.includes(name)),'AX button missing '+name)
+    assert(tree.some(n=>n.role?.value==='slider'&&n.name?.value==='Recorded moment'),'Replay slider name absent')
+    assert(tree.some(n=>n.role?.value==='main'),'Main landmark absent')
+    await send('Page.bringToFront')
+    await send('Emulation.setFocusEmulationEnabled',{enabled:true})
+    await evaluate("document.querySelector('.mission-station--plan').focus()")
+    assert(await evaluate("document.activeElement===document.querySelector('.mission-station--plan')"),'Station did not receive keyboard focus')
+    await send('Input.dispatchKeyEvent',{type:'rawKeyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13})
+    await send('Input.dispatchKeyEvent',{type:'char',text:'\r',unmodifiedText:'\r',key:'Enter',code:'Enter',windowsVirtualKeyCode:13})
+    await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13})
+    await wait("document.querySelector('.mission-station--plan').getAttribute('aria-pressed')==='true'")
+    return {sizes,exposedNodes:tree.length,scope:'Browser accessibility tree and keyboard checks; not a screen-reader user study'}
+  })
+  await step('actual recorded repair, handoffs, timeline and failure recovery remain inspectable',async()=>{
+    await openTask('Repair journey')
+    assert(await evaluate("!document.querySelector('.mission-station--repair').textContent.includes('No record yet')"),'Repair operation absent')
+    await evaluate("document.querySelector('.mission-station--repair').click()")
+    await shot('repair-journey');await click('Timeline');await shot('agent-timeline');await click('Records');await shot('operation-records')
+    await click('Canvas');await evaluate("document.querySelector('.mission-station--review').click()")
+    await evaluate("(()=>{const s=document.querySelector('select[aria-label=\"Select recorded operation\"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,s.options[0].value);s.dispatchEvent(new Event('change',{bubbles:true}))})()")
+    await wait("document.querySelector('.mission-focus__finding').textContent.includes('Earlier or incomplete review operation')");await shot('earlier-review-no-current-summary')
+    await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false})
+    await evaluate("document.querySelector('.mission-station--plan').click()")
+    await wait("document.activeElement?.id==='mission-focus'")
+    assert(await evaluate("document.querySelector('#mission-focus').getBoundingClientRect().top>=0&&document.querySelector('#mission-focus').getBoundingClientRect().top<innerHeight"),'Narrow evidence inspector was not revealed')
+    await shot('narrow-inspector-focus');await click('Back to canvas')
+    await wait("document.activeElement?.classList.contains('mission-station')")
+    await send('Emulation.setDeviceMetricsOverride',{width:1360,height:900,deviceScaleFactor:1,mobile:false})
+    await click('Canvas');await click('Replay records');await click('Play records');await sleep(850);await click('Pause replay');await shot('replay-playing-paused');await click('Return to latest')
+    await home();await evaluate("[...document.querySelectorAll('.mission-preview')].find(e=>e.textContent.includes('Execution failure')).click()")
+    await wait("document.querySelector('.mission-scene')");await shot('execution-failure')
+    assert((await evaluate('document.body.innerText')).includes('Deliberate scripted execution failure'),'Failure cause not displayed')
+    await openTask('Reviewer objections');await evaluate("document.querySelector('.mission-station--review').click()");await shot('reviewer-finding')
+    assert(await evaluate("document.querySelector('.mission-focus').textContent.includes('Deliberate blocking review fixture')"),'Reviewer finding missing')
   })
   await step('real fixture apply and revert preserve Git history',async()=>{
     await openTask('Passing check');await click('Accept')
@@ -122,7 +177,7 @@ try {
     for(let i=0;i<200;i++){const d=await api('/api/tasks/'+taskId);if(d.task.outcome==='applied')break;await sleep(100)}
     const applied=(await api('/api/tasks/'+taskId)).task
     assert(applied.outcome==='applied' && applied.acceptance?.unresolved.length===0,'Fixture was not applied with a receipt')
-    await wait("document.body.innerText.includes('Accepted with passing checks and reviewer approval')");await shot('accepted-receipt')
+    await evaluate("document.querySelector('.mission-dossier').open=true");await wait("document.body.innerText.includes('Accepted with passing checks and reviewer approval')");await evaluate("document.querySelector('.mission-receipt').scrollIntoView({block:'start'})");await shot('accepted-receipt')
     const duplicate=await api('/api/commands',{type:'task.decide',taskId,decision:'accept',headSha:applied.acceptance.revision,acceptance:{decisionId:applied.acceptance.decisionId,snapshot:applied.acceptance.snapshot}})
     assert(!duplicate.ok,'Duplicate acceptance was allowed')
     await click('Roll back');await wait("document.body.innerText.includes('Rolled back')");await shot('rolled-back')
