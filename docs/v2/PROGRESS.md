@@ -64,3 +64,7 @@ Undici connect/header/body timeout codes now classify as transient network failu
 
 ## 2026-10-17 — event cursor acknowledgment
 Durable events advance the replay cursor only after the view callback succeeds, so an isolated failed update can replay. Reentrant newer updates cannot move the cursor backwards. Two regressions; npm run check passed: 252 passed, 2 skipped; typecheck, lint and provenance passed. Independent read-only Codex review found no blocking regression in this five-fix batch. Residual: a subsequent durable event can still advance beyond a failed callback before reconnect.
+
+
+## 2026-10-21 — honest outcome costs
+fix(outcomes): distinguish measured free work from unpriced usage. Full checks passed; see TEST_EVIDENCE.md.

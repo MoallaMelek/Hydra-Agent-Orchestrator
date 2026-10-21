@@ -302,3 +302,7 @@ Reconciliation with concurrent main: retained both evidence sections and all cod
 Final `npm run check` passed: 267 tests passed, 2 skipped, typecheck, lint and
 provenance passed. Codex authored and verified these fixes; a separate Codex
 session reviewed the updater and approval-digest changes.
+
+
+## 2026-10-21 — honest outcome costs
+Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.
