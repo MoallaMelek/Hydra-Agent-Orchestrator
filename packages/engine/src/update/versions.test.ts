@@ -12,3 +12,13 @@ it.each([
   expect(compareVersions(a, b)).toBe(order)
   expect(compareVersions(b, a)).toBe(-order || 0)
 })
+
+
+it.each([
+  ['9007199254740992.0.0', '9007199254740993.0.0'],
+  ['2.9007199254740992.0', '2.9007199254740993.0'],
+  ['2.0.9007199254740992', '2.0.9007199254740993']
+])('preserves integer precedence beyond Number precision: %s and %s', (a, b) => {
+  expect(compareVersions(a, b)).toBe(-1)
+  expect(compareVersions(b, a)).toBe(1)
+})

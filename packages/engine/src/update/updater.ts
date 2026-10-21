@@ -65,9 +65,9 @@ export function compareVersions(a: string, b: string): number {
   }
   const [ma, pa] = parts(a)
   const [mb, pb] = parts(b)
-  const na = ma.split('.').map(Number)
-  const nb = mb.split('.').map(Number)
-  for (let i = 0; i < 3; i++) if ((na[i] ?? 0) !== (nb[i] ?? 0)) return (na[i] ?? 0) < (nb[i] ?? 0) ? -1 : 1
+  const na = ma.split('.').map((part) => BigInt(part))
+  const nb = mb.split('.').map((part) => BigInt(part))
+  for (let i = 0; i < 3; i++) if ((na[i] ?? 0n) !== (nb[i] ?? 0n)) return (na[i] ?? 0n) < (nb[i] ?? 0n) ? -1 : 1
   if (pa === pb) return 0
   if (!pa) return 1
   if (!pb) return -1
