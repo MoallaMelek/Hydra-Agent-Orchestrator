@@ -62,6 +62,7 @@ function parse(strategy: string): Assignment {
  * the best observed success, with the counts shown. Never a confidence score.
  */
 export function recommend(category: string, available: readonly ProviderId[], history: readonly Outcome[]): Recommendation {
+  if (!available.length) throw new Error('No ready agent is available for a recommendation.')
   const answer = category.startsWith('answer')
   const real = available.filter((p) => p !== 'scripted')
   const pool = real.length ? real : available

@@ -306,3 +306,7 @@ session reviewed the updater and approval-digest changes.
 
 ## 2026-10-21 — honest outcome costs
 Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.
+
+
+## 2026-10-21 — no-agent recommendations
+Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.

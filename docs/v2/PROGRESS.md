@@ -68,3 +68,7 @@ Durable events advance the replay cursor only after the view callback succeeds, 
 
 ## 2026-10-21 — honest outcome costs
 fix(outcomes): distinguish measured free work from unpriced usage. Full checks passed; see TEST_EVIDENCE.md.
+
+
+## 2026-10-21 — no-agent recommendations
+fix(recommendations): report when no ready agent is available. Full checks passed; see TEST_EVIDENCE.md.
