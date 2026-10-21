@@ -76,3 +76,7 @@ fix(recommendations): report when no ready agent is available. Full checks passe
 
 ## 2026-10-21 — precise release precedence
 fix(updater): preserve large integer version precedence. Full checks passed; see TEST_EVIDENCE.md.
+
+
+## 2026-10-21 — complete installer writes
+fix(updater): complete partial installer file writes. Full checks passed; see TEST_EVIDENCE.md.

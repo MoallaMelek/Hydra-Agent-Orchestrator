@@ -314,3 +314,7 @@ Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 sk
 
 ## 2026-10-21 — precise release precedence
 Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.
+
+
+## 2026-10-21 — complete installer writes
+Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.

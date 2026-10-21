@@ -138,7 +138,7 @@ export async function downloadUpdate(file: z.infer<typeof UpdateFile>, dir: stri
       size += value.byteLength
       if (size > file.size) throw new Error('The download is larger than the signed size.')
       hash.update(value)
-      await handle.write(value) // rejects on a disk error instead of waiting forever
+      await handle.writeFile(value) // completes partial filesystem writes or rejects on a disk error
     }
     await handle.close()
     handle = null
