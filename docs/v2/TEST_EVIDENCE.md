@@ -318,3 +318,8 @@ Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 sk
 
 ## 2026-10-21 — complete installer writes
 Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.
+
+
+## 2026-10-21 — Engine utility regression coverage
+
+Added credential-format redaction, timestamp/entropy ID boundary, and priced/unpriced usage-accounting regression tests. No application visuals or runtime behavior changed. `npm run check` passed: typecheck, lint, 283 tests passed, 1 Windows-specific skip, and originality check passed. A fresh independent read-only reviewer inspected the tests. Codex wrote and verified them.
