@@ -25,3 +25,7 @@ Motion: short pointer feedback, no keyboard entrance delay, no constant telemetr
 | Plain paragraph received Markdown; usage omitted cache | Safe Markdown renderer and cache-inclusive reported totals | Readable content and truthful budget context |
 
 The installed Impeccable, app-appropriate Taste redesign resource and Emil design-engineering guidance were consulted passively. Website-specific Taste v2 draw/imagery, executable skill loaders/hooks and unreviewed scripts were deliberately skipped. The skill matrix, prototype comparison, measured evidence and limitations are in `docs/v2/EXPERIENCE_REVOLUTION.md` and the accompanying delivery outputs. No novice study, screen-reader certification or commercial-readiness claim follows from these design decisions.
+
+## 21 October spatial refinement
+
+The mission map now offers Flow and Network over the same bounded typed graph, with compact role anchors, actual operation nodes and reported-call satellites. Flow is the default; Network is the explorable view. Native search, one node tab stop, pan/zoom/fit and the existing inspector support density. Membership is arrowless; only recorded stage transitions are directed. Fixed point geometry is independent from label size. Captions live outside the plot. Full rationale, passive skills, evidence and remaining limits: `docs/v2/SPATIAL_CANVAS.md`.

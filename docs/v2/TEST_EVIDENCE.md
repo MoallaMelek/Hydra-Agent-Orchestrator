@@ -1,5 +1,9 @@
 # Test evidence — Hydra v2
 
+## 2026-10-21 — spatial mission canvas
+
+Final source/build/check outcomes and exact scopes are recorded in SPATIAL_CANVAS.md. Packaged spatial11 assertions pass, with zero reported renderer/driver errors; Flow/Network three-theme captures,1500/900/390 renderer widths, roving focus, fixed points, search, zoom/fit, replay, narrow reveal/return and failed-check refusal. Separate lab202nodes/190calls is explicitly SIMULATED FIXTURE transport, not a provider/engine trace. Known previous safety suite remains; no new paid workflow or cross-platform qualification. New pure graph tests cover membership, future-node isolation, bounded counts/unique IDs/endpoints, typed layouts and chronological cap across mixed run/evidence insertion order. Distinct default-profile smoke passes; original installation/data untouched. See SPATIAL_CANVAS.md for final full-suite counts and limitations.
+
 ## 2026-10-20 — alpha.6 Experience Revolution
 
 - Final frozen-source full check: **46 files, 373 passed / 1 skipped, 349.18 seconds**, typecheck/lint/provenance passed. Windows skips the POSIX permission-mode test. Five new historical-projection tests cover bounded moments, actual repair edges and future completion/tool/check/apply-result isolation.

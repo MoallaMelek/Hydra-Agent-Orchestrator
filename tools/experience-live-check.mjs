@@ -24,8 +24,8 @@ app.whenReady().then(async()=>{
     const seen=new Set()
     while(Date.now()-started<60000){
       const state=await window.webContents.executeJavaScript(`(() => {
-        const stations=[...document.querySelectorAll('.mission-station')];
-        const active=stations.filter(e=>e.classList.contains('mission-station--running')).map(e=>e.querySelector('strong').textContent);
+        const stations=[...document.querySelectorAll('.spatial-node--station')];
+        const active=stations.filter(e=>e.dataset.operationState==='running').map(e=>e.querySelector('.spatial-node__label').firstChild.textContent);
         const phase=document.querySelector('.mission-scene__bar p')?.textContent??'';
         return {nodes:stations.length,active,phase,fixture:document.querySelector('.lab-banner')?.textContent,overflow:document.documentElement.scrollWidth>innerWidth};
       })()`)

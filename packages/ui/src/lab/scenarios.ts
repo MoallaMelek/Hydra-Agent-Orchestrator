@@ -15,9 +15,10 @@ export interface Player {
   transport: FixtureTransport
 }
 
-export type ScenarioId = 'simple' | 'complex' | 'concurrent' | 'failed-review' | 'approval' | 'flood' | 'idle' | 'idle-running'
+export type ScenarioId = 'simple' | 'complex' | 'concurrent' | 'failed-review' | 'approval' | 'flood' | 'idle' | 'idle-running' | 'spatial'
 
 export const SCENARIOS: Record<ScenarioId, { title: string; run: (p: Player) => Promise<string> }> = {
+  spatial: { title: 'Spatial density study: simulated operations and tool calls', run: spatial },
   simple: { title: 'Simple question, one agent', run: simple },
   complex: { title: 'Full change: plan → implement → review → verify → approval', run: complex },
   concurrent: { title: 'Concurrent tasks sharing three agent slots', run: concurrent },
@@ -260,4 +261,18 @@ async function flood(p: Player): Promise<string> {
   })) })()
   ;(window as unknown as { __floodDone: Promise<void> }).__floodDone = done
   return ids[0]!
+}
+
+/** Static visual stress fixture; not an execution trace from a real provider. */
+async function spatial(p:Player):Promise<string>{
+ const w=p.world,project=w.addProject('SIMULATED spatial study'),task=w.createTask(project.id,'SIMULATED FIXTURE · Inspect a five-run repair journey. No real provider work.')
+ for(const stage of ['plan','implement','review','fix','review'] as const){
+  const role=stage==='plan'?'planner':stage==='review'?'reviewer':'implementer'
+  w.beginStage(task.id,stage);const run=w.startRun(task.id,stage,role,role==='implementer'?'codex':'claude')
+  for(let i=0;i<38;i++){w.now+=120;w.tool(run.id,['Read','Grep','Edit','Bash'][i%4]!,`fixture/module-${i}.ts`)}
+  w.now+=250;w.endRun(run.id);w.endStage(task.id)
+ }
+ w.beginStage(task.id,'verify');w.check(task.id,'npm test','verify',0,1400,'SIMULATED fixture result');w.endStage(task.id)
+ w.update(task.id,t=>{t.stage='approval';t.status='waiting_input';t.waitReason='final_approval'})
+ return task.id
 }

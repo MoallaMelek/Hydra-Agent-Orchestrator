@@ -224,3 +224,65 @@ textarea { caret-color:var(--accent); }
 @media(max-width:1120px) { .shell .rail { gap:16px; padding-inline:20px; } .rail__edition { display:none; } .shell .rail__scroll { gap:8px; } .shell .nav-item { padding:8px; } .launch-deck { grid-template-columns:minmax(0,1fr) 240px; gap:24px; } .mission-scene__body { grid-template-columns:minmax(0,1fr) 260px; } .mission-map { gap:55px 20px; padding:30px 20px; min-height:330px; } .mission-station { padding:10px; } .mission-station__identity { flex-direction:column; align-items:flex-start; } .mission-focus { padding:16px; max-height:590px; } }
 @media(max-width:900px) { .shell .rail { flex-wrap:wrap; gap:10px; } .shell .rail__brand { margin-right:auto; } .shell .rail__scroll { order:3; width:100%; flex-basis:100%; } .shell .rail__foot { margin-left:auto; } .shell .nav-item { padding:8px 12px; } .mission-head.task-head { flex-direction:column; align-items:flex-start; } .mission-scene__body { grid-template-columns:minmax(0,1fr); } .mission-map { gap:65px 40px; min-height:320px; } .mission-station__identity { flex-direction:row; } .mission-focus { border-left:0; border-top:1px solid var(--border); max-height:none; } .mission-focus .hx-kv { display:grid; grid-template-columns:85px minmax(0,1fr); } .mission-focus .hx-kv dt { margin:0; } .launch-deck { grid-template-columns:minmax(0,1fr); } .mission-readiness { display:grid; grid-template-columns:1fr 1fr; column-gap:24px; padding:0; } .mission-readiness > h2,.mission-readiness > p,.readiness-boundary { grid-column:1/-1; } .mission-readiness > p { margin-bottom:4px; } .readiness-boundary { padding-top:12px; } .command-ledger { gap:24px; } .experience-onboarding { gap:36px; grid-template-columns:1fr; } .experience-onboarding__intro > h1 { font-size:42px; } }
 @media(max-width:600px) { .shell .rail { position:relative; transform:none; width:100%; padding:10px 14px; } .shell .rail__scroll { flex-wrap:wrap; gap:4px; } .shell .rail__section:last-child { margin-left:0; } .shell .rail__foot .hx-badge { font-size:10px; } .shell .nav-item { padding:8px 9px; font-size:11px; } .shell .nav-item svg { width:13px; } .main > .page { padding:24px 18px 36px; } .launch-deck { gap:22px; } .mission-launch.request-sheet { padding:19px; } .mission-launch .request-sheet__project select { max-width:70%; } .mission-launch__branch { margin-left:0; width:100%; } .request-sheet .hx-textarea { font-size:22px; min-height:95px; } .mission-starters { gap:6px; } .composer-trust { max-width:none!important; } .composer .composer__row:last-child { flex-wrap:wrap; } .command-ledger { grid-template-columns:1fr; } .command-section-head { flex-wrap:wrap; gap:5px; } .mission-map { display:flex; flex-direction:column; gap:10px; min-height:0; padding:16px; } .mission-map__connections { display:none; } .mission-station__identity { flex-direction:row; } .mission-station { display:grid; grid-template-columns:minmax(0,1fr) minmax(80px,.75fr); gap:8px; padding:12px; } .mission-station__state { margin:0; align-self:center; font-size:11px; } .mission-station__records { grid-column:1/-1; } .mission-station .role-mark { width:29px; height:29px; } .mission-station strong { font-size:13px; } .mission-station small { font-size:10px; } .mission-scene__bar { padding:16px; flex-wrap:wrap; gap:12px; } .mission-scene__caption { flex-wrap:wrap; padding:10px 16px; } .mission-focus { padding:16px; } .mission-focus .hx-kv { display:block; } .mission-focus .hx-kv dt { margin:12px 0 4px; } .mission-replay { padding:12px 16px; } .mission-head .task-head__stats { gap:20px; } .mission-action .decision { padding:14px; } .providers-workspace .provider-card { grid-template-columns:1fr; } .project-picker__menu { left:auto; right:0; width:min(280px,85vw); } }
+
+/* Spatial refinement: the canvas is the working surface, role labels are anchors. */
+.mission-scene__body{grid-template-columns:minmax(0,1fr) 300px}
+.mission-focus{max-height:730px}
+.spatial-canvas{--plan-ink:#a6b6ed;--build-ink:#9acbb9;--review-ink:#ddbe91;--repair-ink:#e5a69b;--checks-ink:#9fc8de;--decision-ink:#c9b7dd;background:var(--bg-sunken);position:relative}
+.spatial-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-block:1px solid var(--border)}
+.spatial-toolbar label{display:flex;align-items:center;gap:9px;color:var(--text-3)}
+.spatial-toolbar input{background:transparent;border:0;color:var(--text);width:min(200px,35vw);font:inherit;font-size:12px;padding:6px}
+.spatial-toolbar .row{gap:3px;font-size:10px;color:var(--text-2)}
+.spatial-viewport{height:530px;position:relative;overflow:hidden;cursor:grab;touch-action:pan-y;isolation:isolate}
+.spatial-viewport:active{cursor:grabbing}
+.spatial-viewport:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+.spatial-world{position:absolute;inset:0;transform-origin:center}
+.spatial-world svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.spatial-edge{fill:none;stroke:var(--text-3);stroke-width:.65;opacity:.25;vector-effect:non-scaling-stroke}
+.spatial-edge--transition{stroke:var(--accent);stroke-width:1.2;opacity:.55;color:var(--accent)}
+.spatial-edge--activity{stroke-dasharray:2 3;opacity:.3}
+.spatial-edge.is-related{opacity:1;stroke-width:1.2}
+.spatial-node{--node-ink:var(--plan-ink);position:absolute;transform:translate(-50%,-50%);border:0;background:transparent;color:var(--text);padding:0;display:flex;align-items:center;gap:9px;cursor:pointer;z-index:2;text-align:left;max-width:190px;font:inherit;transition:opacity 120ms}
+.spatial-node--plan{--node-ink:var(--plan-ink)}.spatial-node--build{--node-ink:var(--build-ink)}.spatial-node--review{--node-ink:var(--review-ink)}.spatial-node--repair{--node-ink:var(--repair-ink)}.spatial-node--checks{--node-ink:var(--checks-ink)}.spatial-node--decision{--node-ink:var(--decision-ink)}
+.spatial-node__point{flex-shrink:0;display:grid;place-items:center;width:30px;height:30px;color:var(--node-ink);font-size:20px;background:var(--bg-sunken);border:1px solid var(--node-ink);border-radius:50%}
+.spatial-node--station{z-index:4;min-width:145px;padding:9px 12px;border:1px solid var(--border);border-radius:5px;background:var(--surface)}
+.spatial-node--station .spatial-node__point{font-size:12px;width:28px;height:28px;border-radius:6px}
+.spatial-node__label{font-size:12px;font-weight:550;line-height:1.3;overflow-wrap:anywhere}
+.spatial-node__label small{display:block;font-size:10px;font-weight:400;color:var(--text-2);margin-top:3px}
+.spatial-node--tool{z-index:1;min-width:24px;min-height:24px;justify-content:center}
+.spatial-node--tool .spatial-node__point{width:4px;height:4px;background:var(--node-ink);border:0}
+.spatial-node--tool .spatial-node__label{display:none}
+.spatial-node--operation .spatial-node__label{max-width:160px;font-size:10px;display:none}
+.spatial-canvas--flow .spatial-node--operation .spatial-node__label{display:block}
+.spatial-canvas--flow .spatial-node--operation .spatial-node__label small{display:none}
+.spatial-node:is(:hover,:focus-visible,[aria-pressed=true]){z-index:5;opacity:1}
+.spatial-node:is(:hover,:focus-visible,[aria-pressed=true]) .spatial-node__point{outline:3px solid var(--border);outline-offset:4px}
+.spatial-node--operation:is(:hover,:focus-visible,[aria-pressed=true]) .spatial-node__label{display:block;background:var(--surface);padding:6px;border-radius:4px}
+.spatial-node.is-dim{opacity:.45}.spatial-node.is-failed .spatial-node__point{border-color:var(--bad);color:var(--bad);border-radius:3px}
+.spatial-caption{position:absolute;bottom:20px;left:20px;pointer-events:none;display:grid;gap:5px;color:var(--text-2)}
+.spatial-caption b{font-size:17px;font-weight:500;color:var(--text)}.spatial-caption span{font-size:10px}
+.spatial-legend{padding:12px 18px;display:flex;gap:10px 20px;flex-wrap:wrap;border-top:1px solid var(--border);font-size:10px;color:var(--text-2)}
+.spatial-legend span{display:flex;gap:6px;align-items:center}.spatial-legend i{width:18px;border-top:1px solid var(--text-3)}.spatial-legend .is-dotted{border-top-style:dotted}.spatial-legend .is-directed{border-color:var(--accent)}
+.spatial-help{padding:0 18px 14px;font-size:11px;color:var(--text-2);line-height:1.6;min-height:44px}
+.spatial-search{position:absolute;z-index:8;top:55px;left:16px;width:min(340px,90%);max-height:280px;overflow:auto;background:var(--surface);padding:14px;border:1px solid var(--border);border-radius:7px}
+.spatial-search p{font-size:11px;color:var(--text-2);margin-bottom:8px}.spatial-search button{display:block;text-align:left;width:100%;padding:8px;border:0;border-bottom:1px solid var(--border);color:var(--text);background:transparent;font:inherit;font-size:12px;cursor:pointer}.spatial-search small{display:block;font-size:10px;color:var(--text-2);margin-top:3px}
+@media(max-width:1050px){.mission-scene__body{grid-template-columns:1fr}.mission-focus{max-height:none;border-left:0;border-top:1px solid var(--border)}}
+@media(max-width:650px){.spatial-viewport{height:440px}.spatial-node--station{min-width:0;max-width:96px;padding:6px;gap:4px}.spatial-node--station .spatial-node__label{font-size:10px}.spatial-node--station small{display:none}.spatial-node--station .spatial-node__point{width:22px;height:22px}.spatial-node--operation .spatial-node__label{max-width:95px}.spatial-toolbar{padding:10px}.spatial-caption{bottom:8px;left:12px}.spatial-caption b{font-size:14px}.spatial-canvas--flow .spatial-node--operation{max-width:120px}.spatial-canvas--flow .spatial-node--operation .spatial-node__label{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.spatial-node{transition:none}}
+[data-motion=off] .spatial-node{transition:none}
+
+.spatial-caption{top:16px;right:18px;bottom:auto;left:auto;text-align:right}
+[data-theme="light"] .spatial-canvas{--plan-ink:#4c5790;--build-ink:#2e6650;--review-ink:#865d25;--repair-ink:#934c41;--checks-ink:#37677e;--decision-ink:#735685}
+[data-theme="terracotta"] .spatial-canvas{--plan-ink:#c2c8f0;--build-ink:#b4d8b9;--review-ink:#e8c28a;--repair-ink:#ebaca0;--checks-ink:#add4e5;--decision-ink:#d8c4e8}
+[data-motion="reduced"] .spatial-node,[data-quality="minimal"] .spatial-node{transition:none}
+
+.spatial-canvas--network .spatial-node--station{background:transparent;border-color:transparent}
+/* Point coordinates stay fixed when labels appear; labels are separate annotations. */
+.spatial-node{width:30px;max-width:30px;height:30px;justify-content:center;gap:0}
+.spatial-node--station{min-width:30px;width:30px;max-width:30px;height:30px;padding:0;border:0;background:transparent}
+.spatial-node__label{position:absolute;left:calc(100% + 8px);top:50%;transform:translateY(-50%);width:145px;max-width:145px}
+.spatial-node--operation .spatial-node__label{max-width:145px}
+.spatial-node--label-left .spatial-node__label{left:auto;right:calc(100% + 8px);text-align:right}
+.spatial-node--tool{width:24px;max-width:24px;height:24px}
+.spatial-caption{position:static;text-align:left;padding:12px 18px;border-top:1px solid var(--border)}
+@media(max-width:650px){.spatial-node--station{min-width:30px;width:30px;max-width:30px;height:30px;padding:0}.spatial-node__label,.spatial-node--operation .spatial-node__label{width:95px;max-width:95px}.spatial-canvas--flow .spatial-node--operation{max-width:30px}}

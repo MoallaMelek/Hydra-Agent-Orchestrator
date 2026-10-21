@@ -1,5 +1,9 @@
 # Progress log — Hydra v2
 
+## 2026-10-21 — spatial mission canvas study
+
+User requested stronger alignment with network and directed-flow references. Implemented Flow/Network views, real operation/call nodes, typed edges, scoped search, pan/zoom/fit and roving keyboard access. Historical projection and engine approval behavior preserved. Independent read-only review identified point anchoring, chronological cap and caption overlap; corrected centrally. Actual packaged11 assertions and labeled simulated202node/190call density render pass. Full check 378pass/1skip,47files; types/lint/provenance/UI-shell-lab builds pass; six-stage simulated live fixture passes. Full evidence in SPATIAL_CANVAS.md. Dedicated branch fromf227439; separate study profile/executable; installed Hydra, prior preview, personal data/auth and Telekinesis untouched. No provider/CI/release/main/license actions.
+
 ## 2026-10-20 — alpha.6 Experience Revolution preview
 
 Compared three functioning interaction studies and selected Mission Control plus a constrained Neural Canvas and stable inspector. Replaced tall opening/report compositions with launch-first workspace, real recorded stage relationships, selectable agent/check evidence, bounded replay/records/timeline, contextual approvals, shared command navigation, three deliberate themes and secondary-screen hierarchy. Preserved engine orchestration/policy/Git/providers/data. Fixed future-result/history-summary leakage, cache-inclusive usage, safe Markdown and ancestor scroll clipping; no new dependencies.
