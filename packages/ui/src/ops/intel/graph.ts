@@ -246,7 +246,7 @@ export function buildIntel(input: IntelInput): IntelGraph {
   // Reviews and their findings
   const reviews: ReviewSnapshot[] = input.reviews?.length ? [...input.reviews] : task.review ? [{ review: task.review, reviewedSha: task.reviewedSha ?? null, at: ms(stages.filter((s) => s.stage === 'review').at(-1)?.endedAt) ?? ms(task.updatedAt)! }] : []
   const reviewStages = stages.filter((s) => s.stage === 'review' && s.status !== 'running')
-  if (!input.reviews?.length && reviewStages.length > reviews.length) {
+  if (reviewStages.length > reviews.length) {
     gaps.push(`${reviewStages.length - reviews.length} earlier review record(s) are not retained by this view; their stage notes remain.`)
   }
   reviews.forEach((rv, ri) => {

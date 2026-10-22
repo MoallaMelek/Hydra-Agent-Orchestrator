@@ -118,6 +118,9 @@
 .composer { display: flex; flex-direction: column; gap: 12px; }
 .composer .hx-textarea { min-height: 64px; font-size: 15px; background: var(--void); }
 .home__compose { gap: 10px; }
+/* Home: the composer rests as one command line; it opens when you focus it or type. */
+.home__compose:not(:focus-within) .composer--empty > :not(.hx-field), .home__compose:not(:focus-within) .composer--empty .hx-field__hint { display: none; }
+.home__compose:not(:focus-within) .composer--empty .hx-textarea { min-height: 46px; height: 46px; resize: none; }
 .home__compose .hx-field__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .composer__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: end; }
 .composer__row[style*="flex-end"] { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }

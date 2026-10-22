@@ -87,7 +87,7 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
   }
 
   return (
-    <div className="composer">
+    <div className={`composer ${prompt || draft.attachments.length ? '' : 'composer--empty'}`}>
       <Field label="Request" htmlFor="task-prompt" hint="Ctrl+Enter sends. Questions get an answer; changes become a mission you approve.">
         <textarea id="task-prompt" className="hx-textarea" rows={2} maxLength={50000} disabled={busy} value={prompt} onChange={(e) => setPrompt(e.target.value)}
           placeholder='Add rate limiting to the login route, with tests. Or ask how the auth flow works.'
