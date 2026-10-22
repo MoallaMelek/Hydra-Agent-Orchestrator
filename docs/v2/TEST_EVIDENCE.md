@@ -660,6 +660,7 @@ Final `npm run check` passed: 267 tests passed, 2 skipped, typecheck, lint and
 provenance passed. Codex authored and verified these fixes; a separate Codex
 session reviewed the updater and approval-digest changes.
 
+<<<<<<< HEAD
 ## 2026-10-17 — Mission Desk final acceptance
 
 Branch: feat/hydra-product-milestone-20261017. Source reconciles assessed alpha.3 / 4d2a48b and remote main d18a690, plus the repository's 6e8c4a2 Git bookkeeping fix. Work stayed in the existing v2 worktree. Original Desktop source and installed application/data were not replaced.
@@ -685,3 +686,25 @@ Codex wrote/integrated and verified. A read-only Codex subagent challenged produ
 Initial failures retained in the record: a linked dependency cache required reviewed filesystem access; first redactor/receipt fixtures had incorrect test assumptions; an export fixture timed out under broad worker contention (passed isolated, workers capped at four); a later concurrency run exposed the real commondir race (fixed with the existing branch patch); light success text measured 4.4839:1 against the new background (darkened and all 63 pairs rechecked). Test-driver issues included DOM-object readiness, obsolete screen labels, shortened CSS hex parsing and project labels containing status text; drivers were corrected before final passes. One intermediate package lacked the final dialog title; the final package passed title/focus/Escape checks.
 
 No public publishing, deployment, spending/purchases, tester invitations, main merge, license change, signing credential change or original-user-data migration occurred. Release blockers and exact approval-dependent work are in AGENSI_FULL_PRODUCT.md. This is a coherent product/trust milestone, not unrestricted commercial-release qualification.
+=======
+
+## 2026-10-21 — honest outcome costs
+Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.
+
+
+## 2026-10-21 — no-agent recommendations
+Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.
+
+
+## 2026-10-21 — precise release precedence
+Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.
+
+
+## 2026-10-21 — complete installer writes
+Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.
+
+
+## 2026-10-21 — Engine utility regression coverage
+
+Added credential-format redaction, timestamp/entropy ID boundary, and priced/unpriced usage-accounting regression tests. No application visuals or runtime behavior changed. `npm run check` passed: typecheck, lint, 283 tests passed, 1 Windows-specific skip, and originality check passed. A fresh independent read-only reviewer inspected the tests. Codex wrote and verified them.
+>>>>>>> origin/main

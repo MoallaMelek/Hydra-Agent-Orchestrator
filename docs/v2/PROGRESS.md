@@ -137,3 +137,24 @@ Undici connect/header/body timeout codes now classify as transient network failu
 
 ## 2026-10-17 — event cursor acknowledgment
 Durable events advance the replay cursor only after the view callback succeeds, so an isolated failed update can replay. Reentrant newer updates cannot move the cursor backwards. Two regressions; npm run check passed: 252 passed, 2 skipped; typecheck, lint and provenance passed. Independent read-only Codex review found no blocking regression in this five-fix batch. Residual: a subsequent durable event can still advance beyond a failed callback before reconnect.
+
+
+## 2026-10-21 — honest outcome costs
+fix(outcomes): distinguish measured free work from unpriced usage. Full checks passed; see TEST_EVIDENCE.md.
+
+
+## 2026-10-21 — no-agent recommendations
+fix(recommendations): report when no ready agent is available. Full checks passed; see TEST_EVIDENCE.md.
+
+
+## 2026-10-21 — precise release precedence
+fix(updater): preserve large integer version precedence. Full checks passed; see TEST_EVIDENCE.md.
+
+
+## 2026-10-21 — complete installer writes
+fix(updater): complete partial installer file writes. Full checks passed; see TEST_EVIDENCE.md.
+
+
+## 2026-10-21 — Engine utility regression coverage
+
+Added credential-format redaction, timestamp/entropy ID boundary, and priced/unpriced usage-accounting regression tests. No application visuals or runtime behavior changed. `npm run check` passed: typecheck, lint, 283 tests passed, 1 Windows-specific skip, and originality check passed. A fresh independent read-only reviewer inspected the tests. Codex wrote and verified them.
