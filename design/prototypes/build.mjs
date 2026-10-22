@@ -10,3 +10,6 @@ for (const name of entries) {
   })
   console.log('built', name)
 }
+// Same fixture data as a script, so the prototypes also open straight from disk.
+const { readFileSync, writeFileSync } = await import('node:fs')
+writeFileSync(`${root}design/prototypes/data/missions.js`, `window.__HYDRA_FIXTURES = ${readFileSync(`${root}design/prototypes/data/missions.json`, 'utf8')};\n`)

@@ -78,7 +78,7 @@ async function svgBench(G: ReturnType<typeof makeGraph>) {
 async function sigmaBench(G: ReturnType<typeof makeGraph>) {
   box.replaceChildren(); const t0 = performance.now(); const h0 = heap()
   const div = document.createElement('div'); div.style.width = '1000px'; div.style.height = '700px'; div.style.background = '#07090c'; box.append(div)
-  const graph = new Graph()
+  const graph = new Graph({ multi: true, type: 'undirected' })
   for (const n of G.nodes) graph.addNode(String(n.id), { x: n.x, y: -n.y, size: n.size, label: n.label, color: '#ffb24a' })
   G.edges.forEach(([a, b], k) => graph.addEdgeWithKey(String(k), String(a), String(b), { color: '#2a4a6a', size: 1 }))
   let lit: Set<string> | null = null

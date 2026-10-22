@@ -1,5 +1,5 @@
 (() => {
-  // packages/protocol/src/verification.ts
+  // ../../packages/protocol/src/verification.ts
   var checkSpecBinding = (c) => JSON.stringify([c.id, c.ecosystem, c.label, c.kind, c.argv, c.cwd, c.timeoutSec, c.required]);
   function verificationReceipt(task, evidence) {
     const revision = task.workspace?.headSha;
@@ -58,7 +58,7 @@
     return { snapshot, unresolved, evidenceIds, allowed: unresolved.length === 0 };
   }
 
-  // packages/ui/src/ops/intel/graph.ts
+  // ../../packages/ui/src/ops/intel/graph.ts
   var ms = (iso) => iso ? Date.parse(iso) : null;
   var shortSha = (sha) => sha.slice(0, 7);
   var COMMIT_NOTE = /Commit ([0-9a-f]{7,40})/;
@@ -258,7 +258,7 @@
     return { task, nodes, edges, byId, start: created, end: Math.max(moments.at(-1) ?? created, live && task.status === "running" ? now : 0), moments, live, counts, gaps };
   }
 
-  // design/prototypes/src/shared.ts
+  // src/shared.ts
   var SCENARIO_NAME = {
     repair: "Repair journey",
     clean: "Applied change",
@@ -269,7 +269,7 @@
   };
   var ORDER = ["repair", "verify-fail", "plan-gate", "clean", "failure", "question"];
   async function loadPack() {
-    const pack = await fetch("data/missions.json").then((r) => r.json());
+    const pack = window.__HYDRA_FIXTURES ?? await fetch("data/missions.json").then((r) => r.json());
     const missions = pack.missions.map((m) => {
       const graph = buildIntel({ task: m.detail.task, runs: m.detail.runs, evidence: m.detail.evidence, diff: m.diff, reviews: m.reviews.map((r) => ({ review: r.review, reviewedSha: r.reviewedSha, at: Date.parse(r.at) })), now: Date.parse(pack.recordedAt) });
       return { scenario: m.scenario, title: m.detail.task.title, project: pack.projects.find((p) => p.id === m.detail.task.projectId), graph, raw: m };
@@ -431,10 +431,10 @@
     return el("div", { class: "insp" }, head, body);
   }
   function fixtureBanner(pack) {
-    return el("div", { class: "fixture-banner", role: "note" }, el("b", {}, "Recorded fixture"), ` \xB7 real Hydra ${pack.engineVersion} engine, Git worktrees and check processes \xB7 agents are the scripted test adapter, so tool calls and review text are scripted, not model activity \xB7 recorded ${new Date(pack.recordedAt).toLocaleString()}`);
+    return el("div", { class: "fixture-banner", role: "note" }, el("b", {}, "Recorded fixture"), ` \xB7 real Hydra engine at commit ${String(pack.engineCommit ?? "unknown").slice(0, 7)} (alpha.6 line), Git worktrees and check processes \xB7 agents are the scripted test adapter, so tool calls and review text are scripted, not model activity \xB7 recorded ${new Date(pack.recordedAt).toLocaleString()}`);
   }
 
-  // design/prototypes/src/c-adaptive.ts
+  // src/c-adaptive.ts
   var PHASE_NAME = { plan: "Plan", build: "Build", review: "Review", proof: "Proof", decide: "Decide", answer: "Answer" };
   function phaseOf(g) {
     const t = g.task;

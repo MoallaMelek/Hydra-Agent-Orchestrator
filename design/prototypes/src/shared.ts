@@ -16,7 +16,8 @@ export const SCENARIO_NAME: Record<string, string> = {
 export const ORDER = ['repair', 'verify-fail', 'plan-gate', 'clean', 'failure', 'question']
 
 export async function loadPack(): Promise<{ pack: FixturePack; missions: LoadedMission[] }> {
-  const pack: FixturePack = await fetch('data/missions.json').then((r) => r.json())
+  // data/missions.js carries the same JSON for pages opened straight from disk (file:// blocks fetch).
+  const pack: FixturePack = (window as any).__HYDRA_FIXTURES ?? await fetch('data/missions.json').then((r) => r.json())
   const missions = pack.missions.map((m) => {
     const graph = buildIntel({ task: m.detail.task, runs: m.detail.runs, evidence: m.detail.evidence, diff: m.diff, reviews: m.reviews.map((r) => ({ review: r.review, reviewedSha: r.reviewedSha, at: Date.parse(r.at) })), now: Date.parse(pack.recordedAt) })
     return { scenario: m.scenario, title: m.detail.task.title, project: pack.projects.find((p) => p.id === m.detail.task.projectId)!, graph, raw: m }
@@ -165,7 +166,7 @@ export function renderInspector(g: IntelGraph, n: IntelNode | null, opts: { onSe
 }
 
 export function fixtureBanner(pack: FixturePack): HTMLElement {
-  return el('div', { class: 'fixture-banner', role: 'note' }, el('b', {}, 'Recorded fixture'), ` · real Hydra ${pack.engineVersion} engine, Git worktrees and check processes · agents are the scripted test adapter, so tool calls and review text are scripted, not model activity · recorded ${new Date(pack.recordedAt).toLocaleString()}`)
+  return el('div', { class: 'fixture-banner', role: 'note' }, el('b', {}, 'Recorded fixture'), ` · real Hydra engine at commit ${String((pack as any).engineCommit ?? "unknown").slice(0, 7)} (alpha.6 line), Git worktrees and check processes · agents are the scripted test adapter, so tool calls and review text are scripted, not model activity · recorded ${new Date(pack.recordedAt).toLocaleString()}`)
 }
 
 /** Deterministic PRNG for layouts and the labelled density simulation. */
