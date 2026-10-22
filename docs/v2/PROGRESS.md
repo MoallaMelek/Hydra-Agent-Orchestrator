@@ -141,3 +141,7 @@ Durable events advance the replay cursor only after the view callback succeeds, 
 
 ## 2026-10-22 — UX rebuild: direction review (pre-implementation)
 Research board (17 captured references), product-truth and foundations draft (`design/FOUNDATIONS-DRAFT.md`), a read-only evidence-graph adapter with tests, real-engine UX fixtures, and three working direction prototypes (A Neural command network, B Engineering observatory, C Adaptive workspace) with screenshots and a recorded walkthrough. Paused for the owner's direction choice before the hone design system is locked and the Electron app is rebuilt. No engine, provider, persistence, policy or packaging change.
+
+
+## 2026-10-22 — Command Network rebuild (implementation)
+Design system locked (`design/DESIGN-SYSTEM.md`, `design/VOICE.md`; alpha.6 doc archived). The desktop UI now opens on a command frame and Home with the project network; change missions open on the evidence map (mission clock, revision spine, checks, findings, decision) with an accessible list, filters, search, focus, replay through recorded moments only, a Timeline lens and a Records lens; delivery reuses the existing decision commands and engine policy. Night/Day tokens with alpha.6 aliases; Archivo + Azeret Mono self-hosted. hone audit run and P1/P2 findings fixed. Windows preview zip cross-built and unverified on Windows. Engine and protocols untouched.

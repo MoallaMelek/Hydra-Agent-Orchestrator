@@ -185,7 +185,7 @@ export function IntelNetwork({ graph, layout, lens, label, selected, onSelect, o
         {LIST_ORDER.map((k) => {
           const items = graph.nodes.filter((n) => n.kind === k && !(lens === 'mission' && k === 'mission') && !hidden.has(k))
           if (!items.length) return null
-          return <div key={k}><h3>{KIND_PLURAL[k]} <span className="mono faint">{items.length}</span></h3><ul>{items.map((n) => <li key={n.id}><button className={`net__item ${n.id === selected ? 'is-selected' : ''}`} aria-current={n.id === selected || undefined} onClick={() => activate(n.id)}><span className={`glyph g-${n.kind} s-${n.status}`} aria-hidden /><span className="grow">{labelOf(n)}</span><span className="faint mono">{[statusWord(n), n.basis !== 'observed' ? n.basis : ''].filter(Boolean).join(' · ')}</span></button></li>)}</ul></div>
+          return <div key={k}><h3>{KIND_PLURAL[k]} <span className="mono faint">{items.length}</span></h3><ul>{items.map((n) => <li key={n.id}><button className={`net__item ${n.id === selected ? 'is-selected' : ''}`} aria-current={n.id === selected || undefined} onClick={() => activate(n.id)}><span className={`glyph g-${n.kind} s-${n.status}`} aria-hidden /><span className="grow">{labelOf(n)}</span><span className="faint mono">{[n.kind === 'check' ? `${n.detail} · ${n.evidence!.commitSha.slice(0, 7)}` : '', statusWord(n), n.basis !== 'observed' ? n.basis : ''].filter(Boolean).join(' · ')}</span></button></li>)}</ul></div>
         })}
       </div>}
     </div>
