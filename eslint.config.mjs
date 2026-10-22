@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint'
 import globals from 'globals'
 
 export default tseslint.config(
-  { ignores: ['.hydra-dev/**', '**/dist/**', '**/out/**', '**/release/**', '**/node_modules/**', '**/coverage/**', '**/.lab-dist/**'] },
+  { ignores: ['.hydra-dev/**', '**/dist/**', '**/out/**', '**/release/**', '**/node_modules/**', '**/coverage/**', '**/.lab-dist/**', '**/.review-dist/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

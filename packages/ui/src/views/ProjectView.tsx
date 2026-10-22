@@ -6,6 +6,8 @@ import { useApp, useAppState } from '../app/context'
 import { NewTaskForm } from './NewTaskForm'
 import { ChecksPanel } from './ChecksPanel'
 import { ago, statusLabel } from '../lib/format'
+import { IntelNetwork } from '../ops/intel/IntelNetwork'
+import { useProjectNetwork } from '../ops/intel/project'
 
 export function ProjectView({ projectId }: { projectId: string }) {
   const { go, run, store, isRemote } = useApp()
@@ -17,6 +19,8 @@ export function ProjectView({ projectId }: { projectId: string }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(true)
   const [refresh, setRefresh] = useState(0)
+  const network = useProjectNetwork(projectId)
+  const [selected, setSelected] = useState<string | null>(null)
   useEffect(() => {
     let canceled = false
     setBusy(true); setError('')
@@ -31,10 +35,14 @@ export function ProjectView({ projectId }: { projectId: string }) {
   if (!project) return <div className="page"><EmptyState title="Project not found" /></div>
   return <div className="page project-workspace">
     <header className="page__head">
-      <div className="page__title"><h1>{project.name}</h1><p className="muted">A question, a change, a clear next step.</p><p className="project-location"><GitBranch size={13} aria-hidden /> <span>{project.root}</span><Badge tone={project.isGit ? 'neutral' : 'warn'}>{project.isGit ? 'Git project' : 'Questions only'}</Badge></p></div>
+      <div className="page__title"><h1>{project.name}</h1><p className="muted">Ask about the code or describe a change. Every change runs in its own worktree.</p><p className="project-location"><GitBranch size={13} aria-hidden /> <span>{project.root}</span><Badge tone={project.isGit ? 'neutral' : 'warn'}>{project.isGit ? 'Git project' : 'Questions only'}</Badge></p></div>
       {!isRemote && <Button variant="ghost" size="sm" icon={<Trash2 size={14} />} onClick={() => void run({ type: 'project.remove', projectId }, 'Project removed from Hydra (files untouched)').then(ack => ack.ok && go({ view: 'home' }))}>Remove</Button>}
     </header>
     <section className="request-sheet" aria-label="Start a conversation"><NewTaskForm projectId={projectId} isGit={project.isGit} /></section>
+    {network.missions > 0 && <section className="home__map" aria-label="Mission network">
+      <div className="home__map-head"><h2 className="home__h">Mission network</h2><p className="faint">Missions linked only through files they recorded touching or planned to touch{network.missions > network.withRuns ? ` · ${network.missions - network.withRuns} of ${network.missions} show planned files only` : ''}{network.truncated ? ' · latest 24' : ''}.</p></div>
+      <IntelNetwork compact graph={network.graph} layout={network.layout} lens="project" label={`Missions in ${project.name}`} selected={selected} onSelect={setSelected} onActivate={(id) => { if (id.startsWith('task:')) go({ view: 'task', taskId: id.slice(5) }); else setSelected(id) }} />
+    </section>}
     {!isRemote && <details className="disclosure"><summary>Project checks <span>Commands Hydra runs to gather evidence</span></summary><ChecksPanel projectId={projectId} isGit={project.isGit} /></details>}
     <Panel title={archived ? 'Archive' : 'History'} actions={<>
       <label className="history-search"><Search size={14} aria-hidden /><input className="hx-input" type="search" placeholder="Search all project history" aria-label="Search history" maxLength={200} value={query} onChange={e => { setQuery(e.target.value); setBefore(undefined) }} /></label>

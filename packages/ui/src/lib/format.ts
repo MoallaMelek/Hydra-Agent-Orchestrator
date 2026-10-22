@@ -25,7 +25,7 @@ export function ago(iso: string, now = Date.now()): string {
   return new Date(iso).toLocaleDateString()
 }
 
-export const shortSha = (sha: string | null | undefined): string => (sha ? sha.slice(0, 8) : '—')
+export const shortSha = (sha: string | null | undefined): string => (sha ? sha.slice(0, 7) : '—')
 
 export function usageLine(usage: UsageTotals): string {
   const parts = [money(usage.costUsd)]

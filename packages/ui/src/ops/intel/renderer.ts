@@ -117,7 +117,7 @@ export class NetworkRenderer {
     const pts = [...this.target.values()]
     if (!pts.length || !rect.width) return
     const lx = this.view.lens === 'mission' ? 210 + extraX : 60 + extraX
-    const ly = this.view.lens === 'mission' ? 40 + extraY : 40 + extraY
+    const ly = this.view.lens === 'mission' ? 64 + extraY : 40 + extraY
     const minX = Math.min(...pts.map((p) => p.x)) - lx, maxX = Math.max(...pts.map((p) => p.x)) + lx
     const minY = Math.min(...pts.map((p) => p.y)) - ly, maxY = Math.max(...pts.map((p) => p.y)) + ly
     const k = Math.min((rect.width - 24) / Math.max(maxX - minX, 1), (rect.height - 24) / Math.max(maxY - minY, 1), 1.6)
@@ -214,7 +214,7 @@ export class NetworkRenderer {
       ctx.setLineDash([2, 6]); ctx.beginPath(); ctx.ellipse(centre.x, centre.y, RX * 0.84 * this.transform.k, RY * 0.8 * this.transform.k, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([])
       const top = centre.y - RY * this.transform.k
       ctx.fillStyle = P.ink3; ctx.font = `500 10px ${P.mono}`; ctx.textAlign = 'right'
-      ctx.fillText('TIME →', centre.x - 16, top - 10)
+      ctx.fillText('TIME →', centre.x - 14, top + 18)
       ctx.strokeStyle = P.ink3; ctx.beginPath(); ctx.moveTo(centre.x, top - 6); ctx.lineTo(centre.x, top + 6); ctx.stroke()
     }
 
@@ -277,7 +277,8 @@ export class NetworkRenderer {
     const ctx = this.ctx, P = this.palette, view = this.view, g = this.graph!
     const placed: Array<[number, number, number, number]> = []
     for (const n of nodes) { if (dimmed(n.id)) continue; const p = this.toScreen(this.shown.get(n.id)!); const s = this.size(n); placed.push([p.x - s - 2, p.y - s - 2, s * 2 + 4, s * 2 + 4]) }
-    const overlaps = (b: [number, number, number, number]) => placed.some((q) => b[0] < q[0] + q[2] && b[0] + b[2] > q[0] && b[1] < q[1] + q[3] && b[1] + b[3] > q[1])
+    const labelBoxes: Array<[number, number, number, number]> = []
+    const hits = (list: Array<[number, number, number, number]>, b: [number, number, number, number]) => list.some((q) => b[0] < q[0] + q[2] && b[0] + b[2] > q[0] && b[1] < q[1] + q[3] && b[1] + b[3] > q[1])
     const order = [...nodes].sort((a, b) => ((lit?.has(a.id) ? 0 : 10) + KIND_PRIORITY[a.kind]) - ((lit?.has(b.id) ? 0 : 10) + KIND_PRIORITY[b.kind]) || b.weight - a.weight)
     const focusPoint = view.focus ? this.toScreen(this.shown.get(view.focus) ?? { x: 0, y: 0 }) : null
     for (const n of order) {
@@ -296,10 +297,11 @@ export class NetworkRenderer {
       if (n.kind === 'revision' && !view.focus) { x = p.x - w / 2; y = p.y + s + 16 }
       const leftFirst = focusPoint !== null && n.id !== view.focus && p.x < focusPoint.x
       const right: [number, number] = [x, y], left: [number, number] = [p.x - s - 7 - w, y]
-      const fixedSlot = n.kind === 'stage' || (n.kind === 'revision' && !view.focus)
-      const slots: Array<[number, number]> = fixedSlot ? [[x, y]] : [...(leftFirst ? [left, right] : [right, left]), [p.x - w / 2, p.y + s + 15], [p.x - w / 2, p.y - s - 7]]
+      const below: [number, number] = [p.x - w / 2, p.y + s + 15], above: [number, number] = [p.x - w / 2, p.y - s - 7]
+      const slots: Array<[number, number]> = n.kind === 'stage' ? [[x, y]] : n.kind === 'revision' && !view.focus ? [below, above, right, left] : [...(leftFirst ? [left, right] : [right, left]), below, above]
       let chosen: [number, number] | null = null
-      for (const [sx, sy] of slots) { const box: [number, number, number, number] = [sx - 3, sy - 12, w + 6, 17]; if (!overlaps(box)) { chosen = [sx, sy]; placed.push(box); break } }
+      // Revision labels name the commits; they may cross a glyph but never another label.
+      for (const [sx, sy] of slots) { const box: [number, number, number, number] = [sx - 3, sy - 12, w + 6, 17]; if (!hits(labelBoxes, box) && (n.kind === 'revision' || !hits(placed, box))) { chosen = [sx, sy]; placed.push(box); labelBoxes.push(box); break } }
       if (!chosen) continue
       ctx.fillStyle = n.kind === 'stage' ? this.hue(n.actor) : n.kind === 'finding' && n.status === 'blocked' ? P.stop : lit?.has(n.id) ? P.ink : P.ink2
       ctx.textAlign = 'left'; ctx.fillText(text, chosen[0], chosen[1])

@@ -49,7 +49,7 @@ export function DecisionBar({ task, blockingWarnings }: { task: Task; blockingWa
             <span className="muted">{task.error ?? (approval.allowed ? 'Accept delivers this revision. Passing checks do not prove correctness.' : 'Send this back for repair, preserve its isolated branch, or reject it.')}</span>
             <small className="faint">Reviewed revision <code>{shortSha(head)}</code> · applies by fast-forward only</small>
             {loaded && !approval.allowed && <div className="decision-reasons"><p role="alert">{approval.unresolved[0]}</p><details><summary>Inspect {approval.unresolved.length} unresolved condition{approval.unresolved.length === 1 ? '' : 's'} and policy</summary><ul>{approval.unresolved.map((reason, i) => <li key={i}>{reason}</li>)}</ul><p>Applying by exception is not supported. Every client follows the engine policy.</p></details></div>}
-            {blockingWarnings > 0 && <small>Review the additional warnings below before deciding.</small>}
+            {blockingWarnings > 0 && <small>Read the additional warnings in Records → Summary before deciding.</small>}
           </div>
           <Button variant="ghost" icon={<GitBranch size={15} />} busy={busy === 'keep'} onClick={() => void act('keep', { type: 'task.decide', decision: 'keep_branch' }, 'Branch kept for manual merge')}>Keep branch</Button>
           <Button variant="danger" icon={<Trash2 size={15} />} busy={busy === 'reject'} onClick={() => void act('reject', { type: 'task.decide', decision: 'reject' }, 'Discarded')}>Reject</Button>

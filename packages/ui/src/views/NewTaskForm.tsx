@@ -1,7 +1,7 @@
 import { useDraft, composeRequest } from '../app/preferences'
 import { DraftAttachments } from './DraftAttachments'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, ShieldAlert, Sparkles } from 'lucide-react'
+import { ChevronDown, ChevronRight, ShieldAlert } from 'lucide-react'
 import { routeRequest, type AutonomyMode, type DepthChoice, type ProviderId, type Task } from '@hydra/protocol'
 import { Button, Callout, Field, Segmented } from '../design/components'
 import { useApp, useAppState } from '../app/context'
@@ -88,13 +88,15 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
 
   return (
     <div className="composer">
-      <Field label="What should we accomplish?" htmlFor="task-prompt">
+      <Field label="Request" htmlFor="task-prompt" hint="Ctrl+Enter sends. Questions get an answer; changes become a mission you approve.">
         <textarea id="task-prompt" className="hx-textarea" rows={2} maxLength={50000} disabled={busy} value={prompt} onChange={(e) => setPrompt(e.target.value)}
-          placeholder='Describe a change. Ask about your code.'
+          placeholder='Add rate limiting to the login route, with tests. Or ask how the auth flow works.'
           onKeyDown={(e) => { if (!e.nativeEvent.isComposing && e.key === 'Enter' && (e.metaKey || e.ctrlKey) && prompt.trim()) void submit() }} />
       </Field>
-      {!prompt && <div className="mission-starters" aria-label="Mission starters">{[['Understand the code','Explain how this project is structured and where the main entry points are.'],['Find a bug','Investigate a bug in this project: '],['Build a change','Implement this change with regression coverage: ']].map(([label,text])=><button type="button" key={label} onClick={()=>{setPrompt(text!);document.getElementById('task-prompt')?.focus()}}>{label}</button>)}</div>}
-      <DraftAttachments files={draft.attachments} onChange={attachments => draft.set({ attachments })} disabled={busy} />
+      <div className="composer__tools">
+        {!prompt && <div className="mission-starters" aria-label="Mission starters">{[['Explain the structure','Explain how this project is structured and where the main entry points are.'],['Investigate a bug','Investigate a bug in this project: '],['Make a change','Implement this change with regression coverage: ']].map(([label,text])=><button type="button" key={label} onClick={()=>{setPrompt(text!);document.getElementById('task-prompt')?.focus()}}>{label}</button>)}</div>}
+        <DraftAttachments files={draft.attachments} onChange={attachments => draft.set({ attachments })} disabled={busy} />
+      </div>
       {(draft.error || submitError) && <p role="alert">{draft.error || submitError}</p>}
       {prompt.trim()&&<p className="mission-route" role="status">{DEPTH_LABEL[depth]} · {DEPTH_HINT[depth]}</p>}
       <details className="composer-setup"><summary>Mission setup <span>{choice === 'auto' ? 'Auto' : DEPTH_LABEL[choice]} · {MODE_INFO[effectiveMode].label} · agents and limits</span></summary>
@@ -153,7 +155,7 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
       <div className="composer__row" style={{ justifyContent: 'flex-end' }}>
         <p className="composer-trust faint">{label(assignment.planner)} receives your request and selected project context. Project checks run as your user. Use trusted repositories.</p>
         <div className="col" style={{ justifyContent: 'flex-end' }}>
-          <Button variant="primary" size="lg" icon={<Sparkles size={16} />} busy={busy} disabled={!prompt.trim() || (choice === 'deep' && !isGit) || !ready.length} onClick={() => void submit()}>
+          <Button variant="primary" size="lg" busy={busy} disabled={!prompt.trim() || (choice === 'deep' && !isGit) || !ready.length} onClick={() => void submit()}>
             {!prompt.trim() || isChange ? 'Start mission' : 'Ask'}
           </Button>
         </div>

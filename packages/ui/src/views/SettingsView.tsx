@@ -81,9 +81,12 @@ function DisplayPanel() {
   const [choice, effective] = useQuality()
   return (
     <Panel title="Display">
-      <Segmented<Theme> label="Color theme" value={theme} onChange={setTheme} options={[{value: 'dark', label: 'Midnight'}, {value: 'light', label: 'Light'}, {value: 'terracotta', label: 'Terracotta'}]} />
+      <div className="spread" style={{ flexWrap: 'wrap', alignItems: 'flex-start', marginBottom: 16 }}>
+        <p className="muted" style={{ maxWidth: '62ch' }}>Night is drawn as light on a dark field: brightness shows what is happening now. Day uses the same marks in ink on paper.</p>
+        <Segmented<Theme> label="Theme" value={theme === 'light' ? 'light' : 'dark'} onChange={setTheme} options={[{ value: 'dark', label: 'Night' }, { value: 'light', label: 'Day' }]} />
+      </div>
       <div className="spread" style={{ flexWrap: 'wrap', alignItems: 'flex-start' }}>
-        <p className="muted" style={{ maxWidth: '62ch' }}>Visual quality of the live views. Auto follows your system's reduced-motion setting and switches to Minimal if this computer starts missing frames. Lower levels remove animation and tool-call marks; every piece of information stays.</p>
+        <p className="muted" style={{ maxWidth: '62ch' }}>Motion on the map and timeline. Auto follows your system's reduced-motion setting and switches to Minimal if this computer starts missing frames. Reduced and Minimal make every transition instant; no information is removed.</p>
         <Segmented<QualityChoice> label="Visual quality" value={choice} onChange={setChoice} options={[
           { value: 'auto', label: 'Auto' }, { value: 'full', label: 'Full' }, { value: 'reduced', label: 'Reduced' }, { value: 'minimal', label: 'Minimal' }
         ]} />

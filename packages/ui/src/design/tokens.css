@@ -1,111 +1,75 @@
 /*
- * Hydra "Relay" design tokens (docs/v2/REDESIGN.md §4).
- * Graphite ground in tone steps, one signal accent, state colours only where they mean
- * something: amber = needs you, green = passed/verified, red = failed/blocked.
+ * Hydra "Command Network" tokens (design/DESIGN-SYSTEM.md).
+ * Light means now, hue means who, red means stop; no other colour carries meaning.
+ * Night is the default; Day is a token swap, never a component swap. A saved "terracotta"
+ * preference from alpha.6 renders Night. The second block keeps the alpha.6 token names as
+ * aliases so every existing surface follows the new palette without a parallel stylesheet.
  */
-:root {
-  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
-  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif;
-  --font-mono: "Cascadia Mono", "Cascadia Code", "SF Mono", ui-monospace, Consolas, monospace;
+@font-face { font-family: "Archivo"; src: url("./fonts/archivo-latin-standard-normal.woff2") format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
+@font-face { font-family: "Azeret Mono"; src: url("./fonts/azeret-mono-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
 
-  --text-xs: 12px; --text-sm: 12.5px; --text-md: 13.5px; --text-lg: 15px; --text-xl: 17px; --text-2xl: 21px; --text-3xl: 27px;
+:root {
+  --void: #07090c; --deck: #0d1117; --deck-2: #121821; --rule: #18202a; --rule-2: #26303c;
+  --ink: #e8ecf1; --ink-2: #9ba6b4; --ink-3: #7b8696;
+  --planner: #74b9ff; --builder: #ffb24a; --reviewer: #3fd0c4; --engine: #a9b6c6; --you: #f4efe3; --stop: #ff5b52;
+  --float: 0 16px 40px rgba(0, 0, 0, .5);
+  --tint: rgba(232, 236, 241, .06); --tint-2: rgba(232, 236, 241, .1);
+  --you-tint: rgba(244, 239, 227, .08); --stop-tint: rgba(255, 91, 82, .1);
+
+  --font-sans: "Archivo", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: "Azeret Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --text-xs: 11px; --text-sm: 12px; --text-md: 13px; --text-lg: 14px; --text-xl: 16px; --text-2xl: 19px; --text-3xl: 22px; --text-4xl: 28px; --text-5xl: 36px;
   --lh: 1.5;
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px;
-  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px;
+  --radius-sm: 3px; --radius-md: 4px; --radius-lg: 4px;
+  --frame: 52px;
 
-  /* Motion vocabulary: short, ease-out, transform and opacity only. */
-  --ease-out: cubic-bezier(.23, 1, .32, 1);
-  --ease-in-out: cubic-bezier(.77, 0, .175, 1);
+  /* Motion: named moves only (FORM, HANDOFF, ISOLATE, EGO, BREATHE, REVEAL); all ≤ 420 ms. */
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
   --ease: var(--ease-out);
-  --dur-fast: 120ms; --dur: 180ms; --dur-slow: 220ms;
-
-  /* Dark (default) */
-  --bg: #0f1114;
-  --bg-sunken: #0b0d0f;
-  --rail: #121418;
-  --surface: #16191e;
-  --surface-2: #1c2026;
-  --surface-3: #252a32;
-  --surface-hover: var(--surface-2);
-  --bg-raised: var(--surface-2);
-  --border: #262b33;
-  --border-strong: #353c47;
-  --text: #e9ebee;
-  --text-2: #aab0b9;
-  --text-3: #858c97;
-  --accent: #6db6f2;
-  --accent-strong: #93c9f5;
-  --accent-ink: #06121c;
-  --accent-soft: rgba(109, 182, 242, .14);
-  --you: #f0b04a; --you-soft: rgba(240, 176, 74, .14); --you-ink: #1d1300;
-  --ok: #5cc994; --ok-soft: rgba(92, 201, 148, .13); --ok-ink: #04140c;
-  --bad: #f0707a; --bad-soft: rgba(240, 112, 122, .14); --bad-ink: #1a0507;
-  --warn: var(--you); --warn-soft: var(--you-soft);
-  --info: #a3b1c6; --info-soft: rgba(163, 177, 198, .12);
-  --lane: #1a1d23;
-  --lane-alt: #181b20;
-  --seg: #3a4250;
-  --seg-done: #4a5464;
-  --diff-add-bg: rgba(92, 201, 148, .11); --diff-add-fg: #a7e6c6;
-  --diff-del-bg: rgba(240, 112, 122, .11); --diff-del-fg: #f6b0b6;
-  --float-shadow: 0 12px 32px rgba(0, 0, 0, .45), 0 2px 6px rgba(0, 0, 0, .3);
-  --shadow: var(--float-shadow);
-  --focus: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  --dur-fast: 120ms; --dur: 160ms; --dur-slow: 240ms;
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --bg: #f3f4f6;
-  --bg-sunken: #eceef1;
-  --rail: #eceef1;
-  --surface: #ffffff;
-  --surface-2: #f5f6f8;
-  --surface-3: #e9ecf0;
-  --border: #e2e5ea;
-  --border-strong: #cdd2da;
-  --text: #15181d;
-  --text-2: #4a515d;
-  --text-3: #636b78;
-  --accent: #1d6fbf;
-  --accent-strong: #165a9c;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(29, 111, 191, .1);
-  --you: #a35f00; --you-soft: rgba(196, 122, 0, .12); --you-ink: #ffffff;
-  --ok: #16804d; --ok-soft: rgba(22, 128, 77, .1); --ok-ink: #ffffff;
-  --bad: #c2343f; --bad-soft: rgba(194, 52, 63, .09); --bad-ink: #ffffff;
-  --info: #4c5a70; --info-soft: rgba(76, 90, 112, .09);
-  --lane: #f6f7f9;
-  --lane-alt: #f1f3f6;
-  --seg: #c3cad4;
-  --seg-done: #9aa4b2;
-  --diff-add-bg: rgba(22, 128, 77, .09); --diff-add-fg: #0e5e37;
-  --diff-del-bg: rgba(194, 52, 63, .08); --diff-del-fg: #96222c;
-  --float-shadow: 0 12px 32px rgba(20, 24, 33, .12), 0 2px 6px rgba(20, 24, 33, .08);
+  --void: #f4f6f8; --deck: #ffffff; --deck-2: #eef1f4; --rule: #dde2e8; --rule-2: #c8cfd8;
+  --ink: #0e1217; --ink-2: #48525f; --ink-3: #626c78;
+  --planner: #1d63b0; --builder: #9a5800; --reviewer: #0b7a71; --engine: #566373; --you: #0e1217; --stop: #c62a24;
+  --float: 0 16px 40px rgba(14, 18, 23, .16);
+  --tint: rgba(14, 18, 23, .04); --tint-2: rgba(14, 18, 23, .07);
+  --you-tint: rgba(14, 18, 23, .05); --stop-tint: rgba(198, 42, 36, .08);
   color-scheme: light;
 }
 
-/* Adaptive quality (Settings → Display). Reduced: no movement. Minimal: no transitions at all. */
+/* alpha.6 names, mapped onto the system. */
+:root, [data-theme] {
+  --bg: var(--void); --bg-sunken: var(--void); --rail: var(--deck);
+  --surface: var(--deck); --surface-2: var(--deck-2); --surface-3: var(--rule-2); --surface-hover: var(--deck-2); --bg-raised: var(--deck-2);
+  --border: var(--rule); --border-strong: var(--rule-2);
+  --text: var(--ink); --text-2: var(--ink-2); --text-3: var(--ink-3);
+  --accent: var(--ink); --accent-strong: var(--ink); --accent-ink: var(--void); --accent-soft: var(--tint-2);
+  --you-soft: var(--you-tint); --you-ink: var(--void);
+  --ok: var(--engine); --ok-soft: var(--tint); --ok-ink: var(--void);
+  --bad: var(--stop); --bad-soft: var(--stop-tint); --bad-ink: var(--void);
+  --warn: var(--you); --warn-soft: var(--you-tint);
+  --info: var(--ink-2); --info-soft: var(--tint);
+  --lane: var(--deck); --lane-alt: var(--deck-2); --seg: var(--rule-2); --seg-done: var(--ink-3);
+  /* Diffs: additions are ink, deletions ink-3. Red is reserved for stop. */
+  --diff-add-bg: var(--tint-2); --diff-add-fg: var(--ink);
+  --diff-del-bg: transparent; --diff-del-fg: var(--ink-3);
+  --float-shadow: var(--float); --shadow: var(--float);
+  --focus: 0 0 0 2px var(--void), 0 0 0 4px var(--ink);
+}
+
+/* Adaptive quality (Settings → Display). Reduced: fades only. Minimal: nothing moves. */
 [data-quality="reduced"] { --dur-fast: 80ms; --dur: 120ms; --dur-slow: 120ms; }
 [data-quality="minimal"] { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-quality="full"]) { --dur-fast: 80ms; --dur: 120ms; --dur-slow: 120ms; }
+  :root:not([data-quality="full"]) { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }
 }
 
-/* Terracotta: the warm Hydra identity, with the same semantic contract. */
-[data-theme="terracotta"] {
-  --bg: #262624; --bg-sunken: #21211f; --rail: #2b2b29;
-  --surface: #30302e; --surface-2: #373733; --surface-3: #41413b;
-  --border: #45453e; --border-strong: #68685e;
-  --text: #eeeae5; --text-2: #d2ccc3; --text-3: #bdb5aa;
-  --accent: #efa88b; --accent-strong: #ffd0ba; --accent-ink: #262624; --accent-soft: rgba(239,168,139,.12);
-  --you: #edc579; --you-soft: rgba(237,197,121,.12); --you-ink: #262624;
-  --ok: #91d3a2; --ok-soft: rgba(145,211,162,.12); --ok-ink: #262624;
-  --bad: #ff9d9d; --bad-soft: rgba(255,157,157,.12); --bad-ink: #262624;
-  --lane: #292927; --lane-alt: #2e2e2b; --seg: #686459; --seg-done: #999182;
-  --diff-add-bg: rgba(145,211,162,.12); --diff-add-fg: #b3ebbf;
-  --diff-del-bg: rgba(255,157,157,.12); --diff-del-fg: #ffb6b6;
-  color-scheme: dark;
-}
 .draft-files { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
-.saved-draft { padding: 16px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
-.update-error { margin-top: 16px; padding: 12px; background: var(--bad-soft); border-radius: var(--radius-sm); color: var(--text); }
+.saved-draft { padding: 16px 0; border-bottom: 1px solid var(--rule); overflow-wrap: anywhere; }
+.update-error { margin-top: 16px; padding: 12px; background: var(--stop-tint); border-radius: var(--radius-sm); color: var(--ink); }
