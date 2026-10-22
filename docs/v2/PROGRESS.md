@@ -137,3 +137,7 @@ Undici connect/header/body timeout codes now classify as transient network failu
 
 ## 2026-10-17 — event cursor acknowledgment
 Durable events advance the replay cursor only after the view callback succeeds, so an isolated failed update can replay. Reentrant newer updates cannot move the cursor backwards. Two regressions; npm run check passed: 252 passed, 2 skipped; typecheck, lint and provenance passed. Independent read-only Codex review found no blocking regression in this five-fix batch. Residual: a subsequent durable event can still advance beyond a failed callback before reconnect.
+
+
+## 2026-10-22 — UX rebuild: direction review (pre-implementation)
+Research board (17 captured references), product-truth and foundations draft (`design/FOUNDATIONS-DRAFT.md`), a read-only evidence-graph adapter with tests, real-engine UX fixtures, and three working direction prototypes (A Neural command network, B Engineering observatory, C Adaptive workspace) with screenshots and a recorded walkthrough. Paused for the owner's direction choice before the hone design system is locked and the Electron app is rebuilt. No engine, provider, persistence, policy or packaging change.

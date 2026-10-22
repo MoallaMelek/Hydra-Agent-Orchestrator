@@ -1,0 +1,8 @@
+/* Self-hosted OFL-1.1 fonts from @fontsource-variable (latin subset). Works offline, as Hydra must. */
+@font-face{font-family:"Archivo";src:url("archivo-latin-standard-normal.woff2") format("woff2");font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:"Azeret Mono";src:url("azeret-mono-latin-wght-normal.woff2") format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Atkinson Hyperlegible Next";src:url("atkinson-hyperlegible-next-latin-wght-normal.woff2") format("woff2");font-weight:200 800;font-display:swap}
+@font-face{font-family:"Atkinson Hyperlegible Mono";src:url("atkinson-hyperlegible-mono-latin-wght-normal.woff2") format("woff2");font-weight:200 800;font-display:swap}
+@font-face{font-family:"Red Hat Text";src:url("red-hat-text-latin-wght-normal.woff2") format("woff2");font-weight:300 700;font-display:swap}
+@font-face{font-family:"Red Hat Display";src:url("red-hat-display-latin-wght-normal.woff2") format("woff2");font-weight:300 900;font-display:swap}
+@font-face{font-family:"Red Hat Mono";src:url("red-hat-mono-latin-wght-normal.woff2") format("woff2");font-weight:300 700;font-display:swap}

@@ -13,3 +13,4 @@ coverage/
 .hydra-dev/
 .vite/
 packages/ui/.lab-dist/
+design/prototypes/video/

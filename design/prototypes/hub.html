@@ -1,0 +1,171 @@
+<title>Hydra Design Directions</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+/* Hub for choosing a direction: a short brief, three concept plates with live prototypes,
+   an honest comparison and the decision. Dark-first, neutral so the concepts carry the colour. */
+:root{
+  --bg:#0b0d10; --plate:#12161b; --rule:#232a33; --ink:#e9ecf0; --ink-2:#a3acb7; --ink-3:#6d7682;
+  --stop:#ff5b52; --you:#ffd400; --ok:#cfe9d9;
+  --display:"Archivo","Segoe UI",system-ui,sans-serif; --body:"Archivo","Segoe UI",system-ui,sans-serif; --mono:"Atkinson Hyperlegible Mono","Cascadia Mono",Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#f1f3f5;--plate:#ffffff;--rule:#d8dde3;--ink:#101317;--ink-2:#454d58;--ink-3:#7a828d;--stop:#c8102e;--ok:#1d5c3a;color-scheme:light}}
+:root[data-theme="light"]{--bg:#f1f3f5;--plate:#ffffff;--rule:#d8dde3;--ink:#101317;--ink-2:#454d58;--ink-3:#7a828d;--stop:#c8102e;--ok:#1d5c3a;color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:400 15.5px/1.6 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 90px}
+.wrap{max-width:1200px;margin:0 auto;display:grid;gap:64px}
+h1,h2,h3{margin:0;text-wrap:balance;font-family:var(--display)}
+h1{font-size:clamp(32px,4.6vw,56px);line-height:1.02;font-weight:750;font-stretch:88%;letter-spacing:-.015em}
+h2{font-size:28px;line-height:1.1;font-weight:700;font-stretch:92%}
+h3{font-size:16px;font-weight:700}
+p{margin:0;max-width:70ch}
+a{color:inherit;text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--you);outline-offset:3px}
+.eyebrow{font:500 11px/1.4 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.lead{display:grid;gap:18px}
+.lead p{color:var(--ink-2);font-size:18px}
+.facts{display:flex;flex-wrap:wrap;gap:8px 22px;font:400 12.5px/1.5 var(--mono);color:var(--ink-2)}
+.facts b{color:var(--ink);font-weight:500}
+.concept{display:grid;gap:22px;padding-top:28px;border-top:1px solid var(--rule)}
+.concept header{display:flex;justify-content:space-between;align-items:end;gap:20px;flex-wrap:wrap}
+.concept header p{color:var(--ink-2)}
+.open{display:inline-flex;align-items:center;gap:10px;font:600 15px var(--body);padding:11px 16px;border:1px solid var(--ink);border-radius:4px;text-decoration:none;white-space:nowrap}
+.open:hover{background:var(--ink);color:var(--bg)}
+.shots{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+.shots .side{display:grid;gap:12px;align-content:start}
+figure{margin:0;min-width:0}
+figure img{display:block;width:100%;height:auto;border:1px solid var(--rule);border-radius:3px}
+figcaption{font:400 12px/1.45 var(--mono);color:var(--ink-3);margin-top:6px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px}
+.cols>div{min-width:0;display:grid;gap:8px;align-content:start}
+.cols ul{margin:0;padding-left:18px;display:grid;gap:6px;color:var(--ink-2)}
+.swatches{display:flex;flex-wrap:wrap;gap:6px}
+.sw{display:grid;gap:4px;font:400 10.5px/1.2 var(--mono);color:var(--ink-3)}
+.sw i{display:block;width:44px;height:28px;border-radius:2px;border:1px solid var(--rule)}
+.spec{font-size:22px;line-height:1.2}
+.law{font:500 13.5px/1.5 var(--mono);color:var(--ink)}
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:3px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font:500 11px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);background:var(--plate)}
+td{color:var(--ink-2)} td.n{font:500 14px var(--mono);color:var(--ink);text-align:center;white-space:nowrap}
+td:first-child{color:var(--ink)}
+.best{background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.rec{display:grid;gap:16px;padding:28px;border:1px solid var(--ink);border-radius:4px}
+.rec ol{margin:0;padding-left:20px;display:grid;gap:10px}
+.rec li b{font-weight:650}
+.ask{background:var(--you);color:#0b0d10;padding:0 4px}
+.video{display:grid;gap:8px}
+video{width:100%;border:1px solid var(--rule);border-radius:3px;background:#000}
+.bench td.n{font-size:13px}
+.note{color:var(--ink-3);font-size:13.5px}
+@media (max-width:820px){.shots{grid-template-columns:1fr}}
+</style>
+
+<div class="wrap">
+  <header class="lead">
+    <span class="eyebrow">Project Hydra · UX rebuild · Direction review</span>
+    <h1>Three ways to see what your agents actually did</h1>
+    <p>Three working prototypes of the same missions. Each one opens real records from the Hydra engine, not mockup data. Try them, then pick one direction or the recommended hybrid. Nothing in the app changes until you choose.</p>
+    <div class="facts"><span><b>6</b> recorded missions</span><span><b>283</b> engine events</span><span>real engine, Git worktrees and check processes</span><span>agents: the scripted test adapter, so tool calls and review text are scripted</span><span>branch feat/jarvis-ux-rebuild-20261022</span></div>
+  </header>
+
+  <section class="video" aria-labelledby="tour">
+    <span class="eyebrow">72-second tour</span>
+    <h2 id="tour">All three prototypes, recorded in a real browser</h2>
+    <video src="video/Hydra-UX-Concepts-Walkthrough.webm" controls muted playsinline preload="metadata" poster="shots/a-mission.png"></video>
+    <p class="note">Scripted browser tour over the recorded fixtures, with captions. No agent or provider activity.</p>
+  </section>
+
+  <section class="concept" aria-labelledby="ca">
+    <header><div><span class="eyebrow">Concept A</span><h2 id="ca">Neural Command Network</h2><p>The mission as a settled map: stages on a clock ring, the revision chain across the centre, files pulled toward the agents that touched them.</p></div><a class="open" href="a.html" target="_blank" rel="noopener">Open prototype A ↗</a></header>
+    <div class="shots">
+      <figure><img src="shots/a-mission.png" alt="Concept A: an elliptical ring of stages lit in agent colours, a chain of three revision diamonds across the centre with checks fanned above them, and files with review findings below." loading="lazy"><figcaption>Repair journey. Ring segments light in the colour of the agent that handed off.</figcaption></figure>
+      <div class="side">
+        <figure><img src="shots/a-focus-file.png" alt="Concept A focus mode on src/pricing.js: five agent runs and a blocker finding on the left, the head revision below, everything else faded." loading="lazy"><figcaption>Focus (F) on a file: who read and edited it, in order.</figcaption></figure>
+        <figure><img src="shots/a-failing-check.png" alt="Concept A with failures shown: the blocked decision ring in red and the engine's refusal reason in the inspector." loading="lazy"><figcaption>Show failures: the engine's refusal, verbatim.</figcaption></figure>
+      </div>
+    </div>
+    <div class="cols">
+      <div><h3>Worldview</h3><p>Engineering work is a network of evidence. Understand it by walking the relationships.</p><p class="law">Hue = who · Red = stop · Light = now</p><div class="swatches"><span class="sw"><i style="background:#07090c"></i>void</span><span class="sw"><i style="background:#74b9ff"></i>planner</span><span class="sw"><i style="background:#ffb24a"></i>builder</span><span class="sw"><i style="background:#3fd0c4"></i>reviewer</span><span class="sw"><i style="background:#a9b6c6"></i>engine</span><span class="sw"><i style="background:#f4efe3"></i>you</span><span class="sw"><i style="background:#ff5b52"></i>stop</span></div><p class="spec" style="font-family:Archivo;font-stretch:90%;font-weight:650">Archivo, width-variable <span style="font-family:'Azeret Mono';font-size:15px;font-weight:400">· Azeret Mono 25e31e8</span></p></div>
+      <div><h3>Strongest at</h3><ul><li>Distinctive at first glance; nothing like a dashboard</li><li>Cross-stage relationships: one file's history across Build, Review and Repair</li><li>Project lens links missions only through files they really touched</li></ul></div>
+      <div><h3>Weakest at</h3><ul><li>Clock positions are a convention you have to learn once</li><li>Exact time comparisons are harder on a ring than on a line</li><li>Missions with 100+ operations will need aggregation; phones get the list view</li></ul></div>
+    </div>
+  </section>
+
+  <section class="concept" aria-labelledby="cb">
+    <header><div><span class="eyebrow">Concept B</span><h2 id="cb">Engineering Observatory</h2><p>Recorded time runs left to right through four planes: You, Agents, Code, Proof. Every revision is a gate cut through all of them.</p></div><a class="open" href="b.html" target="_blank" rel="noopener">Open prototype B ↗</a></header>
+    <div class="shots">
+      <figure><img src="shots/b-cross-section.png" alt="Concept B: four stacked time planes with a revision gate selected, and a cross-section panel listing who made the revision, its checks and its review." loading="lazy"><figcaption>Select a revision gate: the cross-section says who made it, what proved it and who reviewed it.</figcaption></figure>
+      <div class="side">
+        <figure><img src="shots/b-depth.png" alt="Concept B depth mode: the four planes tilted into a separated layer stack." loading="lazy"><figcaption>Depth: the same planes as a layer stack, for orientation.</figcaption></figure>
+        <figure><img src="shots/b-failing-check.png" alt="Concept B on the failing-check mission: a red failed test pill at the head revision and the decision marked blocked." loading="lazy"><figcaption>Failing check, bound to its revision.</figcaption></figure>
+      </div>
+    </div>
+    <div class="cols">
+      <div><h3>Worldview</h3><p>A precision instrument observing a process. Read it like a scope: time, lanes, cuts.</p><p class="law">Position = who · Light = how much · Red = stop</p><div class="swatches"><span class="sw"><i style="background:#071217"></i>ground</span><span class="sw"><i style="background:#1d4a53"></i>lum 1</span><span class="sw"><i style="background:#2c8a86"></i>lum 2</span><span class="sw"><i style="background:#7fd4a8"></i>lum 3</span><span class="sw"><i style="background:#e7f59b"></i>lum 4</span><span class="sw"><i style="background:#ffffff"></i>you</span><span class="sw"><i style="background:#ff6b5b"></i>stop</span></div><p class="spec" style="font-family:'Atkinson Hyperlegible Next';font-weight:700">Atkinson Hyperlegible <span style="font-family:'Atkinson Hyperlegible Mono';font-size:15px;font-weight:400">· Mono 0O 1lI 25e31e8</span></p></div>
+      <div><h3>Strongest at</h3><ul><li>The exact question of trust: is this revision proven?</li><li>Precise replay and attempts; time is never distorted</li><li>SVG marks are real, focusable elements</li></ul></div>
+      <div><h3>Weakest at</h3><ul><li>Less of a network; relationships across files are implied by alignment</li><li>Rows grow with file count; needs collapsing for big changes</li><li>Phones need a different layout (cross-section list provided)</li></ul></div>
+    </div>
+  </section>
+
+  <section class="concept" aria-labelledby="cc">
+    <header><div><span class="eyebrow">Concept C</span><h2 id="cc">Adaptive Workspace</h2><p>The workspace reorganises around the phase: plan structure, build stream, review comparison, proof matrix, then a calm decision brief.</p></div><a class="open" href="c.html" target="_blank" rel="noopener">Open prototype C ↗</a></header>
+    <div class="shots">
+      <figure><img src="shots/c-decide.png" alt="Concept C decide lens: Accept 25e31e8? with four columns, what changes, what proves it, what remains and what accepting does." loading="lazy"><figcaption>Decide: the four things you need before accepting, nothing else.</figcaption></figure>
+      <div class="side">
+        <figure><img src="shots/c-review.png" alt="Concept C review lens: review 1 changes requested with a blocker, review 2 approved, and a criteria matrix." loading="lazy"><figcaption>Review attempts side by side.</figcaption></figure>
+        <figure><img src="shots/c-plan-approval.png" alt="Concept C plan lens in safe mode: steps, files the plan expects to touch, acceptance criteria and a yellow Your turn note." loading="lazy"><figcaption>Safe mode plan approval. Yellow only means your turn.</figcaption></figure>
+      </div>
+    </div>
+    <div class="cols">
+      <div><h3>Worldview</h3><p>The interface is the current question. Show what matters now; keep the rest one step away.</p><p class="law">Yellow = your turn · Red = stop · Ink = everything else</p><div class="swatches"><span class="sw"><i style="background:#eceef1"></i>paper</span><span class="sw"><i style="background:#ffffff"></i>panel</span><span class="sw"><i style="background:#0f1216"></i>ink</span><span class="sw"><i style="background:#ffd400"></i>your turn</span><span class="sw"><i style="background:#c8102e"></i>stop</span></div><p class="spec" style="font-family:'Red Hat Display';font-weight:800">Red Hat Display <span style="font-family:'Red Hat Mono';font-size:15px;font-weight:400">· Text · Mono 25e31e8</span></p></div>
+      <div><h3>Strongest at</h3><ul><li>Understandable without a tutorial</li><li>The delivery moment: calm, complete, explicit consequences</li><li>Light and dark, phone-ready, fully accessible HTML</li></ul></div>
+      <div><h3>Weakest at</h3><ul><li>The least spatial or cinematic; alone it risks reading as a well-made conventional app</li><li>Relationships across phases are split between lenses</li></ul></div>
+    </div>
+  </section>
+
+  <section class="concept" aria-labelledby="cmp">
+    <span class="eyebrow">Comparison</span>
+    <h2 id="cmp">Scored against the brief</h2>
+    <p class="note">1–5, my design judgement after building and using each one on the same records. Not a user study.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Criterion</th><th>A Network</th><th>B Observatory</th><th>C Adaptive</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Understandable without a tutorial</td><td class="n">3</td><td class="n">3</td><td class="n best">5</td><td>C names the phase and shows one question at a time; A's clock and B's planes need a first look at the legend.</td></tr>
+        <tr><td>Real evidence in one or two actions</td><td class="n">4</td><td class="n">4</td><td class="n best">5</td><td>All three open the same inspector; C puts diffs and check output directly on the lens.</td></tr>
+        <tr><td>Truthfulness and labelling</td><td class="n best">5</td><td class="n best">5</td><td class="n">4</td><td>C's "not raised again" is derived and says so, but it is the one place a reader might over-trust a comparison.</td></tr>
+        <tr><td>Distinctive, not another dashboard</td><td class="n best">5</td><td class="n">4</td><td class="n">2</td><td>A has no category precedent; B reads as an instrument; C is excellent but familiar in shape.</td></tr>
+        <tr><td>Relationships (who touched what, chains)</td><td class="n best">5</td><td class="n">4</td><td class="n">2</td><td>A's focus on a file is the clearest picture of rework across stages.</td></tr>
+        <tr><td>Time and replay precision</td><td class="n">3</td><td class="n best">5</td><td class="n">2</td><td>B keeps linear recorded time and revision gates; A's ring trades precision for shape.</td></tr>
+        <tr><td>Comfort after 40 minutes</td><td class="n">3</td><td class="n">4</td><td class="n best">5</td><td>Dense dark canvases tire faster; C is calm by design.</td></tr>
+        <tr><td>Scale (100+ operations, many missions)</td><td class="n">3</td><td class="n best">4</td><td class="n best">4</td><td>A needs aggregation above roughly 100 operations; B and C grow linearly.</td></tr>
+        <tr><td>Accessibility and phones</td><td class="n">3</td><td class="n">3</td><td class="n best">5</td><td>A and B provide list alternatives; C is native HTML throughout.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="concept bench" aria-labelledby="tech">
+    <span class="eyebrow">Rendering technology</span>
+    <h2 id="tech">What draws the network</h2>
+    <p>Same synthetic graph, three renderers, two interactions per size: isolate (every element restyles each frame) and pan. Script time is the main-thread work per frame.</p>
+    <div id="bench-slot"><p class="note">Benchmark results are added below once measured on your laptop.</p></div>
+  </section>
+
+  <section class="rec" aria-labelledby="recommend">
+    <span class="eyebrow">Recommendation</span>
+    <h2 id="recommend">A hybrid: C's flow, A's map, B's proof</h2>
+    <ol>
+      <li><b>C owns the shell and the flow.</b> The phase rail decides which surface leads, and Decide is C's calm brief. The light theme comes from C.</li>
+      <li><b>A owns the signature surface.</b> The neural network is the live and explore view of a mission, and the project lens is the home overview of all work.</li>
+      <li><b>B owns proof and replay.</b> Revision gates and the cross-section become the Timeline lens and the Proof phase.</li>
+      <li><b>One colour law everywhere:</b> hue means who, red means stop, light means now, yellow means your turn.</li>
+      <li><b>One type system:</b> Archivo (its width axis gives condensed labels for dense maps and wide display headings from one family) with Atkinson Hyperlegible Mono for hashes, paths and numbers, where 0/O and 1/l/I must never be confused.</li>
+    </ol>
+    <p>This keeps what only A does (the picture of relationships), what only B does (the exact-revision trust question) and what only C does (understandable without a tutorial, calm at delivery). Each part stays in the role it is strongest at, instead of being averaged.</p>
+    <p><span class="ask">Your turn:</span> reply in the conversation with <b>A</b>, <b>B</b>, <b>C</b>, <b>Hybrid</b>, or your own mix ("A's map with C's colours", for example). I'll lock the design system from your answer and only then rebuild the app.</p>
+  </section>
+
+  <footer class="note">Prototype controls that would change a mission (Accept, Approve plan) are inert. Truth labels: observed (solid), derived (dashed), planned (dotted), unavailable (stated). Foundations draft: design/FOUNDATIONS-DRAFT.md on the branch.</footer>
+</div>

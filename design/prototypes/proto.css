@@ -1,0 +1,63 @@
+/* Structure shared by the three prototypes. Each prototype sets the tokens. */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.mono,code,pre,.num{font-family:var(--mono)}
+.dim{color:var(--ink-3)}
+.fixture-banner{font:400 11.5px/1.45 var(--mono);color:var(--ink-2);background:var(--banner);border-bottom:1px solid var(--rule);padding:6px max(16px,env(safe-area-inset-left,0px));}
+.fixture-banner b{color:var(--ink);font-weight:600}
+.btn{border:1px solid var(--rule-2);background:var(--panel-2);border-radius:var(--radius);padding:6px 11px;cursor:pointer;line-height:1.2;white-space:nowrap}
+.btn:hover{border-color:var(--ink-3)}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+.btn-quiet{background:transparent}
+.linkish{background:none;border:0;padding:0;color:var(--ink);text-decoration:underline;text-decoration-color:var(--rule-2);text-underline-offset:3px;cursor:pointer;text-align:left}
+.linkish:hover{text-decoration-color:var(--ink)}
+
+/* Inspector */
+.insp{display:grid;gap:14px;align-content:start}
+.insp-eyebrow{margin:0;font:500 10.5px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.insp-title{margin:2px 0 0;font:600 19px/1.25 var(--display);overflow-wrap:anywhere;text-wrap:balance}
+.insp-head{display:grid;gap:6px}
+.insp-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.insp-tags>span{font:500 11px/1 var(--mono);padding:5px 7px;border:1px solid var(--rule-2);border-radius:var(--radius-s)}
+.insp-status.s-failed,.insp-status.s-blocked{color:var(--stop);border-color:currentColor}
+.insp-status.s-ok{color:var(--ink)}
+.insp-status.s-waiting{color:var(--human);border-color:currentColor}
+.insp-basis.b-derived{border-style:dashed}
+.insp-basis.b-planned{border-style:dotted}
+.insp-basis.b-unavailable{text-decoration:line-through}
+.insp-body{display:grid;gap:12px}
+.insp-body h3{margin:6px 0 0;font:600 12px/1.3 var(--sans);letter-spacing:.02em;color:var(--ink-2);text-transform:uppercase}
+.insp-facts{display:grid;grid-template-columns:minmax(90px,auto) 1fr;gap:6px 14px;margin:0}
+.insp-facts dt{color:var(--ink-3);font-size:12.5px}
+.insp-facts dd{margin:0;min-width:0;overflow-wrap:anywhere;font-size:13px}
+.insp-facts code{font-size:12px}
+.insp-ops{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:12.5px;max-height:240px;overflow:auto}
+.insp-ops code{font-size:12px;overflow-wrap:anywhere}
+.op{font:600 10.5px/1 var(--mono);padding:3px 5px;border-radius:3px;background:var(--panel-2);color:var(--ink-2)}
+.op-edit{color:var(--bg);background:var(--ink)}
+.insp-dim{color:var(--ink-3)}
+.insp-note,.insp-hint{font-size:12.5px;color:var(--ink-3);margin:0}
+.insp-lead{font-size:15px;margin:0;color:var(--ink)}
+.insp-prompt{margin:0;color:var(--ink-2)}
+.insp-warn{color:var(--stop);margin:0}
+.insp-log,.insp-diff{margin:0;max-height:300px;overflow:auto;font-size:11.5px;line-height:1.5;background:var(--code);border:1px solid var(--rule);border-radius:var(--radius-s);padding:10px;white-space:pre}
+.insp-diff .add{color:var(--ink);background:var(--add)}
+.insp-diff .del{color:var(--ink-2);background:var(--del)}
+.insp-diff .hunk{color:var(--ink-3)}
+.insp-rel{list-style:none;margin:0;padding:0;display:grid;gap:5px;font-size:13px}
+.insp-list{margin:0;padding-left:18px;display:grid;gap:4px}
+.insp-unresolved{margin:0;padding-left:18px;color:var(--stop);display:grid;gap:4px}
+.insp-actions{display:flex;flex-wrap:wrap;gap:8px}
+.insp-gaps{border-top:1px solid var(--rule);padding-top:10px;display:grid;gap:6px;font-size:12.5px;color:var(--ink-2)}
+.insp-gaps p{margin:0}
+.insp-focus{display:flex;justify-content:flex-end}
+.reveal{animation:reveal 160ms ease-out}
+@keyframes reveal{from{opacity:.0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.reveal{animation:none}}
+[hidden]{display:none!important}
