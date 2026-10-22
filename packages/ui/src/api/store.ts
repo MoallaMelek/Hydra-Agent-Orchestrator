@@ -1,5 +1,5 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react'
-import { DURABLE_EVENT_TYPES, type AgentRunInfo, type Device, type EngineSnapshot, type EventEnvelope, type Evidence, type Project, type ProviderStatus, type RunActivity, type Task } from '@hydra/protocol'
+import { DURABLE_EVENT_TYPES, type Review, type AgentRunInfo, type Device, type EngineSnapshot, type EventEnvelope, type Evidence, type Project, type ProviderStatus, type RunActivity, type Task } from '@hydra/protocol'
 import type { ConnectionStatus, Transport } from './transport'
 
 export interface LogLine { at: string; level: 'info' | 'warn' | 'error'; message: string }
@@ -30,15 +30,22 @@ export interface AppState {
   /** A reply being written right now, per task (streamed answer text). */
   drafts: Record<string, string>
   logs: Record<string, LogLine[]>
+  /**
+   * Distinct review records this client has seen per task, oldest first. The engine keeps only
+   * the latest review on the task; earlier ones are known here only if observed live.
+   */
+  reviews: Record<string, ReviewRecord[]>
 }
+
+export interface ReviewRecord { review: Review; reviewedSha: string | null; at: number }
 
 const initial: AppState = {
   ready: false, error: null, connection: 'connecting', engineVersion: '', projects: [], tasks: {}, providers: [], devices: [], remote: null,
-  agentSlots: 3, runs: {}, activity: {}, evidence: {}, loaded: {}, output: {}, drafts: {}, logs: {}
+  agentSlots: 3, runs: {}, activity: {}, evidence: {}, loaded: {}, output: {}, drafts: {}, logs: {}, reviews: {}
 }
 
 /** Memory bounds: the interface must stay small however long Hydra runs. */
-export const LIMITS = { outputChars: 60_000, draftChars: 60_000, activityPerRun: 200, logLines: 300, runs: 500, outputRuns: 60, loadedTasks: 40, tasks: 500 } as const
+export const LIMITS = { outputChars: 60_000, draftChars: 60_000, activityPerRun: 200, logLines: 300, reviewsPerTask: 12, runs: 500, outputRuns: 60, loadedTasks: 40, tasks: 500 } as const
 
 const TERMINAL = new Set<AgentRunInfo['status']>(['succeeded', 'failed', 'canceled', 'interrupted'])
 
@@ -180,6 +187,16 @@ export class EngineStore {
     return { loaded, evidence }
   }
 
+  /** Appends the task's review when it differs from the last one seen (bounded per task and in tasks). */
+  private recordReview(task: Task, at: number): Record<string, ReviewRecord[]> {
+    if (!task.review) return this.state.reviews
+    const list = this.state.reviews[task.id] ?? []
+    const last = list.at(-1)
+    const reviewedSha = task.reviewedSha ?? null
+    if (last && last.reviewedSha === reviewedSha && JSON.stringify(last.review) === JSON.stringify(task.review)) return this.state.reviews
+    return boundKeys({ ...this.state.reviews, [task.id]: [...list, { review: task.review, reviewedSha, at }].slice(-LIMITS.reviewsPerTask) }, LIMITS.loadedTasks)
+  }
+
   /** Loads a task's runs and evidence once; later changes arrive as events. */
   loadTask(taskId: string, force = false): Promise<void> {
     if (this.deleted.has(taskId)) return Promise.resolve()
@@ -198,6 +215,7 @@ export class EngineStore {
         runs: pruned.runs,
         evidence: { ...evidence, [taskId]: [...known.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt)) },
         loaded: pruned.loaded,
+        reviews: this.state.reviews[taskId]?.length ? this.state.reviews : this.recordReview(detail.task, Date.parse(detail.task.stages.filter((x) => x.stage === 'review').at(-1)?.endedAt ?? detail.task.updatedAt)),
         tasks: this.state.tasks[taskId] && detail.task.updatedAt < this.state.tasks[taskId].updatedAt ? this.state.tasks : { ...this.state.tasks, [taskId]: detail.task }
       })
     }).catch(error => { if (!this.deleted.has(taskId)) this.set({ error: `Could not load task evidence: ${(error as Error).message}. Reopen the task to retry.` }) }).finally(() => this.loading.delete(taskId))
@@ -220,7 +238,7 @@ export class EngineStore {
         if (current && event.task.updatedAt < current.updatedAt) return // out of order: keep the newer state
         const drafts = { ...this.state.drafts }
         if (!['running', 'queued'].includes(event.task.status)) delete drafts[event.task.id]
-        return this.set({ tasks: { ...this.state.tasks, [event.task.id]: event.task }, drafts })
+        return this.set({ tasks: { ...this.state.tasks, [event.task.id]: event.task }, drafts, reviews: this.recordReview(event.task, Date.parse(at)) })
       }
       case 'task.deleted': {
         // Everything cached for the task goes with it.
@@ -232,7 +250,7 @@ export class EngineStore {
         const dropRuns = <T,>(map: Record<string, T>) => { const next = { ...map }; for (const r of runIds) delete next[r]; return next }
         return this.set({
           tasks: without(this.state.tasks), evidence: without(this.state.evidence), loaded: without(this.state.loaded), logs: without(this.state.logs),
-          drafts: without(this.state.drafts), runs: dropRuns(this.state.runs), activity: dropRuns(this.state.activity), output: dropRuns(this.state.output)
+          drafts: without(this.state.drafts), reviews: without(this.state.reviews), runs: dropRuns(this.state.runs), activity: dropRuns(this.state.activity), output: dropRuns(this.state.output)
         })
       }
       case 'task.log': {
