@@ -9,7 +9,7 @@
 Night (default): `--void #07090c` canvas ground, never a panel · `--deck #0d1117` panels, inspector, command frame · `--deck-2 #121821` raised controls, inputs · `--rule #18202a` hairlines · `--rule-2 #26303c` control borders · `--ink #e8ecf1` primary text, revision fill · `--ink-2 #9ba6b4` secondary text · `--ink-3 #7b8696` tertiary text (≥4.8:1 on every surface).
 Agents (hue = who, never reused): `--planner #74b9ff` · `--builder #ffb24a` (implementer, repair) · `--reviewer #3fd0c4` · `--engine #a9b6c6` (checks, Hydra itself) · `--you #f4efe3` (your request, decisions, revisions you own).
 `--stop #ff5b52`: failed checks, blocker/major findings, blocked decisions, errors. Nothing else. Deletions are ink-3, not red.
-Day (token swap, not component swap; `[data-theme=light]`): void `#f4f6f8` · deck `#ffffff` · deck-2 `#eef1f4` · rule `#dde2e8` · rule-2 `#c8cfd8` · ink `#0e1217` · ink-2 `#48525f` · ink-3 `#626c78` · planner `#1d63b0` · builder `#9a5800` · reviewer `#0b7a71` · engine `#566373` · you `#0e1217` · stop `#c62a24`. All ≥4.5:1 on day surfaces. Saved `terracotta` preferences render Night.
+Day (token swap, not component swap; `[data-theme=light]`): void `#f4f6f8` · deck `#ffffff` · deck-2 `#eef1f4` · rule `#dde2e8` · rule-2 `#c8cfd8` · ink `#0e1217` · ink-2 `#48525f` · ink-3 `#59626e` · planner `#1d63b0` · builder `#9a5800` · reviewer `#0b7a71` · engine `#566373` · you `#0e1217` · stop `#c62a24`. All ≥4.5:1 on day surfaces. Saved `terracotta` preferences render Night.
 
 ## Type
 

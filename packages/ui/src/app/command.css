@@ -102,7 +102,7 @@
 .mrow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; width: 100%; padding: 10px 6px 10px 10px; border: 0; border-bottom: 1px solid var(--rule); background: none; color: var(--ink); cursor: pointer; text-align: left; }
 .mrow:hover { background: var(--tint); }
 .mrow__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.mrow__main b { font-weight: 600; font-size: 13.5px; }
+.mrow__main b { font-weight: 600; font-size: 13.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow: hidden; line-height: 1.35; }
 .mrow__main small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mrow > svg { color: var(--ink-3); }
 .mrow--you { box-shadow: inset 2px 0 0 var(--you); background: var(--you-tint); }
@@ -200,6 +200,7 @@
 .net__focus > span { flex: 1; min-width: 0; }
 .net__body { position: relative; flex: 1; min-height: 300px; display: flex; }
 .net__canvas { flex: 1; width: 100%; height: 100%; min-height: 0; display: block; cursor: grab; touch-action: none; }
+.net__canvas[hidden] { display: none; }
 .net__canvas:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; border-radius: 0; }
 .net__list { flex: 1; overflow: auto; padding: 8px 16px 20px; background: var(--deck); }
 .net__list h3 { font-size: 12px; font-weight: 650; margin: 16px 0 6px; display: flex; gap: 8px; align-items: baseline; }
@@ -411,6 +412,7 @@
   .frame__nav[aria-current="page"] { box-shadow: inset 2px 0 0 var(--ink); }
   .page { padding: 18px 14px 56px; }
   .home__compose { padding: 16px; }
+  .home__compose:not(:focus-within) .composer--empty .hx-textarea { min-height: 64px; height: 64px; }
   .home__compose-head h1 { font-size: var(--text-3xl); }
   .home__map .net__body { height: 360px; }
   .mission__head, .delivery { padding-left: 14px; padding-right: 14px; }

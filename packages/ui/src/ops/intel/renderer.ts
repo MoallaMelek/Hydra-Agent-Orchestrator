@@ -41,7 +41,7 @@ export function labelOf(n: IntelNode): string {
   if (n.kind === 'revision') return `${n.revision!.short}${n.revision!.role === 'base' ? ' · base' : n.revision!.role === 'head' ? ' · head' : n.revision!.role === 'applied' ? ' · applied' : ''}`
   if (n.kind === 'check') return `${n.label} ${n.status === 'ok' ? '✓' : n.status === 'failed' ? '✕' : '…'}`
   if (n.kind === 'finding') return `${n.finding!.severity}: ${n.label.length > 42 ? n.label.slice(0, 40) + '…' : n.label}`
-  if (n.kind === 'decision') return `${n.label}${n.status === 'blocked' ? ' · blocked' : ''}`
+  if (n.kind === 'decision') return `${n.label}${n.status === 'blocked' ? ' · blocked' : n.status === 'waiting' ? ' · waiting' : n.status === 'idle' ? ' · not reached' : ''}`
   return n.label.length > 46 ? n.label.slice(0, 44) + '…' : n.label
 }
 
@@ -115,12 +115,13 @@ export class NetworkRenderer {
   fit(extraX = 0, extraY = 0): void {
     const rect = this.canvas.getBoundingClientRect()
     const pts = [...this.target.values()]
-    if (!pts.length || !rect.width) return
-    const lx = this.view.lens === 'mission' ? 210 + extraX : 60 + extraX
+    if (!pts.length || rect.width < 48 || rect.height < 48) return
+    const lx = this.view.lens === 'mission' ? 210 + extraX : 220 + extraX
     const ly = this.view.lens === 'mission' ? 64 + extraY : 40 + extraY
     const minX = Math.min(...pts.map((p) => p.x)) - lx, maxX = Math.max(...pts.map((p) => p.x)) + lx
     const minY = Math.min(...pts.map((p) => p.y)) - ly, maxY = Math.max(...pts.map((p) => p.y)) + ly
     const k = Math.min((rect.width - 24) / Math.max(maxX - minX, 1), (rect.height - 24) / Math.max(maxY - minY, 1), 1.6)
+    if (!(k > 0.05)) return
     this.transform = { k, x: rect.width / 2 - ((minX + maxX) / 2) * k, y: rect.height / 2 - ((minY + maxY) / 2) * k }
     this.requestDraw()
   }
@@ -194,7 +195,7 @@ export class NetworkRenderer {
     const ctx = this.ctx, P = this.palette, view = this.view
     const dpr = devicePixelRatio || 1
     const rect = this.canvas.getBoundingClientRect()
-    if (!rect.width || !rect.height) return
+    if (rect.width < 2 || rect.height < 2 || this.transform.k <= 0) return
     if (this.canvas.width !== Math.round(rect.width * dpr) || this.canvas.height !== Math.round(rect.height * dpr)) { this.canvas.width = Math.round(rect.width * dpr); this.canvas.height = Math.round(rect.height * dpr) }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.fillStyle = P.void; ctx.fillRect(0, 0, rect.width, rect.height)
@@ -278,6 +279,7 @@ export class NetworkRenderer {
     const placed: Array<[number, number, number, number]> = []
     for (const n of nodes) { if (dimmed(n.id)) continue; const p = this.toScreen(this.shown.get(n.id)!); const s = this.size(n); placed.push([p.x - s - 2, p.y - s - 2, s * 2 + 4, s * 2 + 4]) }
     const labelBoxes: Array<[number, number, number, number]> = []
+    const bounds = this.canvas.getBoundingClientRect()
     const hits = (list: Array<[number, number, number, number]>, b: [number, number, number, number]) => list.some((q) => b[0] < q[0] + q[2] && b[0] + b[2] > q[0] && b[1] < q[1] + q[3] && b[1] + b[3] > q[1])
     const order = [...nodes].sort((a, b) => ((lit?.has(a.id) ? 0 : 10) + KIND_PRIORITY[a.kind]) - ((lit?.has(b.id) ? 0 : 10) + KIND_PRIORITY[b.kind]) || b.weight - a.weight)
     const focusPoint = view.focus ? this.toScreen(this.shown.get(view.focus) ?? { x: 0, y: 0 }) : null
@@ -301,7 +303,7 @@ export class NetworkRenderer {
       const slots: Array<[number, number]> = n.kind === 'stage' ? [[x, y]] : n.kind === 'revision' && !view.focus ? [below, above, right, left] : [...(leftFirst ? [left, right] : [right, left]), below, above]
       let chosen: [number, number] | null = null
       // Revision labels name the commits; they may cross a glyph but never another label.
-      for (const [sx, sy] of slots) { const box: [number, number, number, number] = [sx - 3, sy - 12, w + 6, 17]; if (!hits(labelBoxes, box) && (n.kind === 'revision' || !hits(placed, box))) { chosen = [sx, sy]; placed.push(box); labelBoxes.push(box); break } }
+      for (const [sx, sy] of slots) { const box: [number, number, number, number] = [sx - 3, sy - 12, w + 6, 17]; if (box[0] >= 2 && box[0] + box[2] <= bounds.width - 2 && !hits(labelBoxes, box) && (n.kind === 'revision' || !hits(placed, box))) { chosen = [sx, sy]; placed.push(box); labelBoxes.push(box); break } }
       if (!chosen) continue
       ctx.fillStyle = n.kind === 'stage' ? this.hue(n.actor) : n.kind === 'finding' && n.status === 'blocked' ? P.stop : lit?.has(n.id) ? P.ink : P.ink2
       ctx.textAlign = 'left'; ctx.fillText(text, chosen[0], chosen[1])

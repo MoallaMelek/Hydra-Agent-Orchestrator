@@ -156,7 +156,7 @@ export function IntelNetwork({ graph, layout, lens, label, selected, onSelect, o
           <Search size={14} aria-hidden />
           <input type="search" aria-label="Find on the map" placeholder="Find a file, check, finding" value={query} onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Escape') { setQuery(''); canvasRef.current?.focus() } if (e.key === 'Enter' && results[0]) { onSelect(results[0].id); rendererRef.current?.centreOn(results[0].id); setQuery('') } }} />
-          {results.length > 0 && <ul className="net__results" role="listbox" aria-label="Matches">{results.map((n) => <li key={n.id} role="option" aria-selected={false}><button onClick={() => { onSelect(n.id); rendererRef.current?.centreOn(n.id); setQuery(''); canvasRef.current?.focus() }}><span className={`glyph g-${n.kind}`} aria-hidden />{labelOf(n)}<span className="faint"> · {KIND_NAME[n.kind]}</span></button></li>)}</ul>}
+          {results.length > 0 && <ul className="net__results" aria-label="Matches">{results.map((n) => <li key={n.id}><button onClick={() => { onSelect(n.id); rendererRef.current?.centreOn(n.id); setQuery(''); canvasRef.current?.focus() }}><span className={`glyph g-${n.kind}`} aria-hidden />{labelOf(n)}<span className="faint"> · {KIND_NAME[n.kind]}</span></button></li>)}</ul>}
         </div>
         {hasFailures && <button className="chip" aria-pressed={failures} onClick={() => setFailures(!failures)} title="Light up failed checks, blocking findings and blocked decisions"><TriangleAlert size={13} aria-hidden />Failures</button>}
         <button className="chip" onClick={fit} title="Fit the map (0)"><Maximize2 size={13} aria-hidden />Fit</button>

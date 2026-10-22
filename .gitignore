@@ -15,3 +15,10 @@ coverage/
 packages/ui/.lab-dist/
 packages/ui/.review-dist/
 design/prototypes/video/
+
+# hone audit binaries (specs and gripes stay in history)
+audit/shots/
+audit/axe/
+audit/verify/
+audit/diff/
+audit/archive/

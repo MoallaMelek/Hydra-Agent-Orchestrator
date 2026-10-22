@@ -68,8 +68,8 @@ function Find() {
       onChange={(e) => { setQ(e.target.value); setOpen(true) }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
       onKeyDown={(e) => { if (e.key === 'Escape') { setQ(''); input.current?.blur() } if (e.key === 'Enter' && hits[0]) pick(hits[0].route) }} />
     <kbd aria-hidden>/</kbd>
-    {open && q.trim() && <ul className="frame__results" role="listbox" aria-label="Matches">
-      {hits.length ? hits.map((h) => <li key={h.key} role="option" aria-selected={false}><button onMouseDown={(e) => e.preventDefault()} onClick={() => pick(h.route)}><span className="truncate">{h.label}</span><span className="faint mono">{h.meta}</span></button></li>)
+    {open && q.trim() && <ul className="frame__results" aria-label="Matches">
+      {hits.length ? hits.map((h) => <li key={h.key}><button onMouseDown={(e) => e.preventDefault()} onClick={() => pick(h.route)}><span className="truncate">{h.label}</span><span className="faint mono">{h.meta}</span></button></li>)
         : <li className="frame__none">No loaded mission matches. Project history searches everything.</li>}
     </ul>}
   </div>

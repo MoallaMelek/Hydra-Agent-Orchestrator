@@ -35,7 +35,7 @@
 
 [data-theme="light"] {
   --void: #f4f6f8; --deck: #ffffff; --deck-2: #eef1f4; --rule: #dde2e8; --rule-2: #c8cfd8;
-  --ink: #0e1217; --ink-2: #48525f; --ink-3: #626c78;
+  --ink: #0e1217; --ink-2: #48525f; --ink-3: #59626e;
   --planner: #1d63b0; --builder: #9a5800; --reviewer: #0b7a71; --engine: #566373; --you: #0e1217; --stop: #c62a24;
   --float: 0 16px 40px rgba(14, 18, 23, .16);
   --tint: rgba(14, 18, 23, .04); --tint-2: rgba(14, 18, 23, .07);

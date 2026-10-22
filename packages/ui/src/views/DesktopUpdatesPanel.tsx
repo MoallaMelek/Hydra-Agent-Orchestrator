@@ -28,7 +28,7 @@ export function DesktopUpdatesPanel() {
   const percent = state?.total ? Math.min(100, state.transferred / state.total * 100) : null
   const status = state?.status === 'idle' && state.latestVersion === state.currentVersion ? 'You’re up to date' : state ? STATUS[state.status] : host.updates ? 'Loading update state…' : 'Desktop updater unavailable in this browser'
   return <Panel title="Updates">
-    <dl className="hx-kv"><dt>Installed</dt><dd>Hydra {state?.currentVersion ?? version}</dd><dt>Latest available</dt><dd>{state?.latestVersion ?? 'Not checked'}</dd><dt>Channel</dt><dd>{state?.channel ?? 'This build'}</dd><dt>Status</dt><dd role="status">{status}</dd></dl>
+    <dl className="hx-kv"><dt>Installed</dt><dd>Hydra {state?.currentVersion ?? version}</dd><dt>Latest available</dt><dd>{state?.latestVersion ?? 'Not checked'}</dd><dt>Channel</dt><dd>{state?.channel ?? 'This build'}</dd><dt>Status</dt><dd><span role="status">{status}</span></dd></dl>
     <p className="muted" style={{ marginTop: 16 }}>You choose when Hydra restarts. Active tasks and unsent drafts block installation. Projects, sign-ins, conversation history and settings stay on this computer; Hydra saves a database backup before updating.</p>
     {state && <div className="col" style={{ marginTop: 16 }}>
       <label><input type="checkbox" checked={state.autoCheck} disabled={busy} onChange={event => void action(event.target.checked ? 'auto-check-on' : 'auto-check-off')} /> Check automatically after startup and every six hours</label>
