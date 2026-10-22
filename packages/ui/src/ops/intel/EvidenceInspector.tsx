@@ -46,7 +46,17 @@ export function EvidenceInspector({ graph: g, node: n, focused, onSelect, onFocu
       <p className="eyebrow">Mission · {t.intent === 'analyze' ? 'Question' : 'Change'}</p>
       <h2 className="insp-title">{t.title}</h2>
       <p className="insp-prompt">{t.prompt}</p>
-      <p className="insp-hint">Select anything on the map to see the record behind it. Keyboard: Tab to the map, arrows move, Enter inspects, F focuses, Esc steps back, / finds.</p>
+      <div className="insp-guide">
+        <p className="eyebrow">Reading the map</p>
+        <ul>
+          <li><span className="glyph g-stage" aria-hidden />Stages run clockwise from the top, in the order they happened.</li>
+          <li><span className="glyph g-run" aria-hidden />Dots are agent runs, coloured by role: <b className="c-planner">planner</b>, <b className="c-builder">implementer</b>, <b className="c-reviewer">reviewer</b>.</li>
+          <li><span className="glyph g-revision" aria-hidden />Revisions are the commits Hydra made, oldest on the left.</li>
+          <li><span className="glyph g-check" aria-hidden />Hexagons are checks Hydra ran; red means failed.</li>
+          <li><span className="glyph g-decision" aria-hidden />The crosshair is your decision.</li>
+        </ul>
+      </div>
+      <p className="insp-hint">Click anything to see the record behind it. Keyboard: Tab to the map, arrows move, Enter inspects, F focuses, Esc steps back.</p>
       {g.gaps.length > 0 && <div className="insp-gaps"><p className="eyebrow">Not in this data</p>{g.gaps.map((x) => <p key={x}>{x}</p>)}</div>}
     </div>
   }

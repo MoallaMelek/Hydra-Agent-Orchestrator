@@ -431,3 +431,9 @@
   .net__body { min-height: 360px; }
   .basis-key { display: none; }
 }
+
+.insp-guide { border-top: 1px solid var(--rule); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.insp-guide ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
+.insp-guide li { display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: baseline; }
+.insp-guide .glyph { justify-self: center; }
+.c-planner { color: var(--planner); font-weight: 600; } .c-builder { color: var(--builder); font-weight: 600; } .c-reviewer { color: var(--reviewer); font-weight: 600; }

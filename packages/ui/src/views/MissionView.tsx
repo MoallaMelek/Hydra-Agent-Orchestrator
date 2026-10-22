@@ -58,7 +58,12 @@ export function MissionView({ task }: { task: Task }) {
   const delivery = useRef<HTMLDivElement>(null)
 
   // Layout is computed from the full record so replay never moves a mark that already exists.
-  const layout = useMemo(() => layoutMission(full), [full])
+  // While a mission runs the graph is rebuilt every second; positions only change when records
+  // (nodes or links) are added, so the layout and the camera stay still between ticks.
+  const shape = `${full.nodes.map((n) => n.id).join('|')}#${full.edges.map((e) => e.id).join('|')}`
+  const fullRef = useRef(full)
+  fullRef.current = full
+  const layout = useMemo(() => layoutMission(fullRef.current), [shape])
   const graph = useMemo(() => projectAt(full, cursor), [full, cursor])
   useEffect(() => { if (selected && !graph.byId.has(selected)) setSelected(null); if (focus && !graph.byId.has(focus)) setFocus(null) }, [graph, selected, focus])
 
