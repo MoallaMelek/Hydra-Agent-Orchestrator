@@ -145,3 +145,8 @@ Research board (17 captured references), product-truth and foundations draft (`d
 
 ## 2026-10-22 — Command Network rebuild (implementation)
 Design system locked (`design/DESIGN-SYSTEM.md`, `design/VOICE.md`; alpha.6 doc archived). The desktop UI now opens on a command frame and Home with the project network; change missions open on the evidence map (mission clock, revision spine, checks, findings, decision) with an accessible list, filters, search, focus, replay through recorded moments only, a Timeline lens and a Records lens; delivery reuses the existing decision commands and engine policy. Night/Day tokens with alpha.6 aliases; Archivo + Azeret Mono self-hosted. hone audit run and P1/P2 findings fixed. Windows preview zip cross-built and unverified on Windows. Engine and protocols untouched.
+
+
+## 2026-10-23 — Living network iteration
+Agents (a role on a provider) are drawn around the mission clock and linked to their runs; handoffs are drawn only where a recorded artifact (plan, reviewed revision, findings, failed checks) links consecutive runs; read-only files stay quiet; replay moves continuously through recorded time with quiet gaps shortened, and each newly recorded link or state change gets one pulse or flash (none under reduced motion). The default inspector is now a mission briefing computed from the records. Validated in the packaged app at the owner's content size and on his PC with his real mission; a Windows-only replay bug found there was fixed (per-mark tweens). UI only.
+
