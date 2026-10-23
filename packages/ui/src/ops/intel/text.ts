@@ -1,8 +1,8 @@
 /** Words for the evidence network (design/VOICE.md): what was recorded, never what an agent "thinks". */
 import type { Basis, IntelGraph, IntelKind, IntelNode } from './graph'
 
-export const KIND_NAME: Record<IntelKind, string> = { mission: 'Mission', stage: 'Stage', run: 'Agent run', file: 'File', revision: 'Revision', check: 'Engine check', finding: 'Review finding', decision: 'Your decision' }
-export const KIND_PLURAL: Record<IntelKind, string> = { mission: 'Missions', stage: 'Stages', run: 'Runs', file: 'Files', revision: 'Revisions', check: 'Checks', finding: 'Findings', decision: 'Decision' }
+export const KIND_NAME: Record<IntelKind, string> = { mission: 'Mission', agent: 'Agent', stage: 'Stage', run: 'Agent run', file: 'File', revision: 'Revision', check: 'Engine check', finding: 'Review finding', decision: 'Your decision' }
+export const KIND_PLURAL: Record<IntelKind, string> = { mission: 'Missions', agent: 'Agents', stage: 'Stages', run: 'Runs', file: 'Files', revision: 'Revisions', check: 'Checks', finding: 'Findings', decision: 'Decision' }
 export const BASIS_TEXT: Record<Basis, string> = { observed: 'Observed', derived: 'Derived', planned: 'Planned', unavailable: 'Unavailable' }
 export const BASIS_HELP: Record<Basis, string> = {
   observed: 'Recorded directly by the engine.',
@@ -25,7 +25,7 @@ export const fmtOffset = (t: number, start: number) => { const s = Math.max(0, (
 const EDGE_VERB: Record<string, [string, string]> = {
   sequence: ['came after', 'handed off to'], performs: ['ran in', 'ran'], read: ['read by', 'read'], edit: ['edited by', 'edited'],
   produced: ['produced by', 'produced'], parent: ['followed', 'followed by'], tested: ['tested by', 'tested'], reviewed: ['reviewed by', 'reviewed'],
-  raised: ['raised by', 'raised'], concerns: ['flagged by', 'concerns'], planned: ['planned in', 'plans to touch'], changed: ['changed in', 'changes'], decides: ['decided by', 'decides on']
+  raised: ['raised by', 'raised'], acts: ['run by', 'ran'], handoff: ['received from', 'handed to'], concerns: ['flagged by', 'concerns'], planned: ['planned in', 'plans to touch'], changed: ['changed in', 'changes'], decides: ['decided by', 'decides on']
 }
 
 /** Neighbours with a plain verb for the edge that joins them, each node once per direction. */

@@ -5,7 +5,7 @@
  * Chosen over SVG after measurement: ~8.8 ms vs ~15.8 ms main-thread per restyle frame and
  * 0.4 s vs 2.4 s setup at 10,000 nodes (design/prototypes/bench.html, TEST_EVIDENCE).
  */
-import type { IntelGraph, IntelKind, IntelNode } from './graph'
+import type { IntelEdge, IntelGraph, IntelKind, IntelNode } from './graph'
 import { RX, RY, type Point, type Positions } from './layout'
 
 export type Lens = 'mission' | 'project'
@@ -34,7 +34,7 @@ function readPalette(): Palette {
   }
 }
 
-const KIND_PRIORITY: Record<IntelKind, number> = { decision: 0, stage: 1, revision: 2, mission: 2, finding: 3, file: 4, run: 6, check: 7 }
+const KIND_PRIORITY: Record<IntelKind, number> = { decision: 0, agent: 1, stage: 1, revision: 2, mission: 2, finding: 3, file: 4, run: 6, check: 7 }
 
 export function labelOf(n: IntelNode): string {
   if (n.kind === 'file') return n.file!.path
@@ -53,10 +53,21 @@ export class NetworkRenderer {
   private shown: Positions = new Map()
   private animStart = 0
   private animDur = 0
+  private animating = false
   private frame = 0
   private palette: Palette
   view: ViewState = { lens: 'mission', selected: null, hover: null, keyFocus: null, focus: null, hidden: new Set(), failures: false, cursor: null }
-  transform = { k: 1, x: 0, y: 0 }
+  /** Recorded events being shown as light: one pulse per edge event, one flash per node event. */
+  private pulses: Array<{ edge: IntelEdge; t0: number; dur: number }> = []
+  private flashes: Array<{ id: string; t0: number; dur: number }> = []
+  /** check id → the revision it ran on; revision id → its checks. */
+  private checkRev = new Map<string, string>()
+  private revChecks = new Map<string, IntelNode[]>()
+  private badges: Array<{ rev: string; x: number; y: number; r: number }> = []
+  /** k = zoom; sx = extra horizontal stretch so the clock uses wide screens (fit only, never above 1.5). */
+  transform = { k: 1, x: 0, y: 0, sx: 1 }
+  private rx(): number { return RX * this.transform.k * this.transform.sx }
+  private ry(): number { return RY * this.transform.k }
   reducedMotion = false
 
   constructor(private readonly canvas: HTMLCanvasElement) {
@@ -70,6 +81,8 @@ export class NetworkRenderer {
   setScene(graph: IntelGraph, pos: Positions, durationMs: number): void {
     const previous = this.shown
     this.graph = graph
+    this.checkRev = new Map(); this.revChecks = new Map()
+    for (const e of graph.edges) if (e.kind === 'tested') { this.checkRev.set(e.from, e.to); const c = graph.byId.get(e.from); if (c) this.revChecks.set(e.to, [...(this.revChecks.get(e.to) ?? []), c]) }
     this.from = new Map()
     for (const id of pos.keys()) this.from.set(id, previous.get(id) ?? this.origin(id, pos))
     this.target = pos
@@ -95,6 +108,9 @@ export class NetworkRenderer {
     const dur = this.reducedMotion ? 0 : durationMs
     if (!dur) { this.shown = new Map(this.target); this.requestDraw(); return }
     this.animStart = performance.now(); this.animDur = dur
+    // One animation loop at a time: a new scene mid-flight retargets the running loop.
+    if (this.animating) return
+    this.animating = true
     const step = (now: number) => {
       const t = Math.min(1, (now - this.animStart) / this.animDur)
       const e = 1 - Math.pow(1 - t, 3)
@@ -102,7 +118,7 @@ export class NetworkRenderer {
       for (const [id, p] of this.target) { const f = this.from.get(id) ?? p; next.set(id, { x: f.x + (p.x - f.x) * e, y: f.y + (p.y - f.y) * e }) }
       this.shown = next
       this.draw()
-      if (t < 1) requestAnimationFrame(step)
+      if (t < 1) requestAnimationFrame(step); else this.animating = false
     }
     requestAnimationFrame(step)
   }
@@ -112,23 +128,29 @@ export class NetworkRenderer {
     this.frame = requestAnimationFrame(() => { this.frame = 0; this.draw() })
   }
 
+  /** Positions the camera frames: the whole recorded layout, so replay and new records never zoom. */
+  framing: Positions | null = null
+
   fit(extraX = 0, extraY = 0): void {
     const rect = this.canvas.getBoundingClientRect()
-    const pts = [...this.target.values()]
+    const pts = [...(this.view.focus || !this.framing ? this.target : this.framing).values()]
     if (!pts.length || rect.width < 48 || rect.height < 48) return
     const lx = this.view.lens === 'mission' ? 210 + extraX : 220 + extraX
-    const ly = this.view.lens === 'mission' ? 64 + extraY : 40 + extraY
+    const ly = this.view.lens === 'mission' ? 84 + extraY : 40 + extraY
     const minX = Math.min(...pts.map((p) => p.x)) - lx, maxX = Math.max(...pts.map((p) => p.x)) + lx
     const minY = Math.min(...pts.map((p) => p.y)) - ly, maxY = Math.max(...pts.map((p) => p.y)) + ly
-    const k = Math.min((rect.width - 24) / Math.max(maxX - minX, 1), (rect.height - 24) / Math.max(maxY - minY, 1), 1.6)
+    const kx = (rect.width - 24) / Math.max(maxX - minX, 1), ky = (rect.height - 24) / Math.max(maxY - minY, 1)
+    const k = Math.min(kx, ky, 1.6)
     if (!(k > 0.05)) return
-    this.transform = { k, x: rect.width / 2 - ((minX + maxX) / 2) * k, y: rect.height / 2 - ((minY + maxY) / 2) * k }
+    // A wide window stretches the clock sideways (up to 1.5×) instead of leaving empty margins.
+    const sx = this.view.lens === 'mission' ? Math.max(1, Math.min(1.5, kx / k)) : 1
+    this.transform = { k, sx, x: rect.width / 2 - ((minX + maxX) / 2) * k * sx, y: rect.height / 2 - ((minY + maxY) / 2) * k }
     this.requestDraw()
   }
 
   centreOn(id: string): void {
     const rect = this.canvas.getBoundingClientRect(); const p = this.target.get(id); if (!p) return
-    this.transform = { ...this.transform, x: rect.width / 2 - p.x * this.transform.k, y: rect.height / 2 - p.y * this.transform.k }
+    this.transform = { ...this.transform, x: rect.width / 2 - p.x * this.transform.k * this.transform.sx, y: rect.height / 2 - p.y * this.transform.k }
     this.requestDraw()
   }
 
@@ -136,22 +158,45 @@ export class NetworkRenderer {
     const rect = this.canvas.getBoundingClientRect()
     const x = mx ?? rect.width / 2, y = my ?? rect.height / 2
     const k = Math.max(0.25, Math.min(4, this.transform.k * factor))
-    this.transform = { k, x: x - ((x - this.transform.x) * k) / this.transform.k, y: y - ((y - this.transform.y) * k) / this.transform.k }
+    this.transform = { k, sx: this.transform.sx, x: x - ((x - this.transform.x) * k) / this.transform.k, y: y - ((y - this.transform.y) * k) / this.transform.k }
     this.requestDraw()
   }
 
   pan(dx: number, dy: number): void { this.transform = { ...this.transform, x: this.transform.x + dx, y: this.transform.y + dy }; this.requestDraw() }
 
-  toScreen(p: Point): Point { return { x: p.x * this.transform.k + this.transform.x, y: p.y * this.transform.k + this.transform.y } }
+  toScreen(p: Point): Point { return { x: p.x * this.transform.k * this.transform.sx + this.transform.x, y: p.y * this.transform.k + this.transform.y } }
 
   visible(): IntelNode[] {
     if (!this.graph) return []
-    return this.graph.nodes.filter((n) => !this.view.hidden.has(n.kind) && this.shown.has(n.id) && !(this.view.lens === 'mission' && n.kind === 'mission'))
+    return this.graph.nodes.filter((n) => !this.view.hidden.has(n.kind) && this.shown.has(n.id) && !(this.view.lens === 'mission' && n.kind === 'mission') && !(n.kind === 'check' && !this.checksOpen(n.id)))
+  }
+
+  /** Checks show one by one only near attention: their revision or a check is selected, hovered or focused, or the map is zoomed in. */
+  private checksOpen(checkId: string): boolean {
+    const rev = this.checkRev.get(checkId)
+    if (!rev || this.transform.k >= 1.5 || this.view.focus) return true
+    const v = this.view
+    return [v.selected, v.hover, v.keyFocus].some((id) => id === rev || (id !== null && this.checkRev.get(id) === rev))
+  }
+
+  /** Read-only files (no edit, not in the diff, no finding) stay quiet until you look at them. */
+  isQuiet(n: IntelNode): boolean {
+    return n.kind === 'file' && this.view.lens === 'mission' && n.file!.edits === 0 && !n.file!.diff && n.file!.findings === 0
+  }
+
+  /** Light for recorded events: a pulse travels each edge once; nodes flash once. Reduced motion shows nothing extra. */
+  play(edges: IntelEdge[], nodeIds: string[]): void {
+    if (this.reducedMotion || (!edges.length && !nodeIds.length)) return
+    const t0 = performance.now()
+    edges.slice(-40).forEach((edge, i) => this.pulses.push({ edge, t0: t0 + Math.min(i, 8) * 40, dur: edge.kind === 'handoff' ? 900 : 620 }))
+    for (const id of nodeIds.slice(-30)) this.flashes.push({ id, t0, dur: 700 })
+    this.requestDraw()
   }
 
   hit(x: number, y: number): string | null {
     let best: string | null = null, bd = Infinity
     for (const n of this.visible()) { const p = this.toScreen(this.shown.get(n.id)!); const d = Math.hypot(p.x - x, p.y - y); if (d < this.size(n) + 8 && d < bd) { bd = d; best = n.id } }
+    for (const b of this.badges) { const d = Math.hypot(b.x - x, b.y - y); if (d < b.r + 8 && d < bd) { bd = d; best = b.rev } }
     return best
   }
 
@@ -175,7 +220,9 @@ export class NetworkRenderer {
 
   size(n: IntelNode): number {
     const lens = this.view.lens
-    const base = n.kind === 'run' ? 5 + Math.sqrt(n.weight) * 1.3 : n.kind === 'file' ? 5 + Math.sqrt(n.weight) * 1.4 : n.kind === 'revision' ? 9 : n.kind === 'check' ? 6 : n.kind === 'finding' ? 6 + n.weight : n.kind === 'decision' ? 12 : n.kind === 'mission' ? (lens === 'mission' ? 4 : 10) : 6
+    if (n.kind === 'agent') return 13 * Math.max(0.8, Math.min(this.transform.k, 1.3))
+    if (this.isQuiet(n)) return 3.5 * Math.max(0.8, Math.min(this.transform.k, 1.4))
+    const base = n.kind === 'run' ? 7 + Math.sqrt(n.weight) * 1.1 : n.kind === 'file' ? 5 + Math.sqrt(n.weight) * 1.4 : n.kind === 'revision' ? 9 : n.kind === 'check' ? 6 : n.kind === 'finding' ? 6 + n.weight : n.kind === 'decision' ? 12 : n.kind === 'mission' ? (lens === 'mission' ? 4 : 10) : 6
     return Math.min(base, 22) * Math.max(0.75, Math.min(this.transform.k, 1.4))
   }
 
@@ -211,38 +258,50 @@ export class NetworkRenderer {
 
     if (clock) {
       ctx.strokeStyle = P.rule; ctx.lineWidth = 1
-      ctx.beginPath(); ctx.ellipse(centre.x, centre.y, RX * this.transform.k, RY * this.transform.k, 0, 0, Math.PI * 2); ctx.stroke()
-      ctx.setLineDash([2, 6]); ctx.beginPath(); ctx.ellipse(centre.x, centre.y, RX * 0.84 * this.transform.k, RY * 0.8 * this.transform.k, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([])
-      const top = centre.y - RY * this.transform.k
+      ctx.beginPath(); ctx.ellipse(centre.x, centre.y, this.rx(), this.ry(), 0, 0, Math.PI * 2); ctx.stroke()
+      ctx.setLineDash([2, 6]); ctx.beginPath(); ctx.ellipse(centre.x, centre.y, this.rx() * 0.84, this.ry() * 0.8, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([])
+      const top = centre.y - this.ry()
       ctx.fillStyle = P.ink3; ctx.font = `500 10px ${P.mono}`; ctx.textAlign = 'right'
       ctx.fillText('TIME →', centre.x - 14, top + 18)
       ctx.strokeStyle = P.ink3; ctx.beginPath(); ctx.moveTo(centre.x, top - 6); ctx.lineTo(centre.x, top + 6); ctx.stroke()
     }
 
-    // Edges: light on Night, ink on Day.
+    // Edges: light on Night, ink on Day. At rest only the structure is drawn (stage ring, handoffs,
+    // agents, revisions, edits, findings, your decision); everything else appears when you look at it.
     ctx.globalCompositeOperation = P.night ? 'lighter' : 'source-over'
+    const focusId = view.focus ?? anchor
+    const now = performance.now()
+    const pulsing = new Set(this.pulses.filter((q) => now >= q.t0 && now < q.t0 + q.dur).map((q) => q.edge.id))
     for (const e of g.edges) {
       if (!ids.has(e.from) || !ids.has(e.to)) continue
       const a = this.toScreen(this.shown.get(e.from)!), b = this.toScreen(this.shown.get(e.to)!)
-      const src = g.byId.get(e.from)!
-      const focusId = view.focus ?? anchor
-      const on = lit ? lit.has(e.from) && lit.has(e.to) && (e.from === focusId || e.to === focusId) : fails ? fails.has(e.from) && fails.has(e.to) : true
+      const src = g.byId.get(e.from)!, dst = g.byId.get(e.to)!
+      const on = lit ? lit.has(e.from) && lit.has(e.to) && (e.from === focusId || e.to === focusId || e.kind === 'handoff') : fails ? fails.has(e.from) && fails.has(e.to) : true
       const recent = view.cursor !== null && e.at !== null && view.cursor - e.at < 4000
+      const hot = pulsing.has(e.id)
       ctx.strokeStyle = e.kind === 'concerns' || (e.kind === 'tested' && src.status === 'failed') ? P.stop : e.kind === 'parent' || e.kind === 'decides' ? P.you : this.hue(src.actor)
       ctx.setLineDash(e.basis === 'derived' ? [6, 4] : e.basis === 'planned' ? [1.5, 4] : [])
       if (e.kind === 'sequence' && clock) {
-        // HANDOFF: the ring between two stages lights in the colour of the stage that handed off.
-        const a1 = Math.atan2((a.y - centre.y) / RY, (a.x - centre.x) / RX)
-        let a2 = Math.atan2((b.y - centre.y) / RY, (b.x - centre.x) / RX)
+        // HANDOFF ring: the arc between two stages lights in the colour of the stage that handed off.
+        const a1 = Math.atan2((a.y - centre.y) / this.ry(), (a.x - centre.x) / this.rx())
+        let a2 = Math.atan2((b.y - centre.y) / this.ry(), (b.x - centre.x) / this.rx())
         if (a2 < a1) a2 += Math.PI * 2
         ctx.lineWidth = lit && on ? 3 : 2; ctx.globalAlpha = on ? (lit ? 0.95 : P.night ? 0.55 : 0.75) : 0.06
-        ctx.beginPath(); ctx.ellipse(centre.x, centre.y, RX * this.transform.k, RY * this.transform.k, 0, a1 + 0.08, a2 - 0.08); ctx.stroke()
+        ctx.beginPath(); ctx.ellipse(centre.x, centre.y, this.rx(), this.ry(), 0, a1 + 0.08, a2 - 0.08); ctx.stroke()
         continue
       }
-      ctx.globalAlpha = on ? (lit ? 0.85 : recent ? 0.75 : e.kind === 'sequence' ? 0.35 : P.night ? 0.2 : 0.32) : 0.04
-      ctx.lineWidth = (e.kind === 'edit' ? 1.6 : e.kind === 'sequence' || e.kind === 'parent' ? 1.4 : 1) * (lit && on ? 1.4 : 1)
-      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo(mx + (centre.x - mx) * 0.12, my + (centre.y - my) * 0.12, b.x, b.y); ctx.stroke()
+      const atRest = this.restAlpha(e, dst)
+      if (!lit && !fails && atRest === 0 && !hot && !recent) continue
+      const c = this.control(e, a, b, centre)
+      if (e.kind === 'handoff') {
+        const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y)
+        grad.addColorStop(0, this.hue(src.actor)); grad.addColorStop(1, this.hue(dst.actor))
+        ctx.strokeStyle = grad
+      }
+      ctx.globalAlpha = hot ? 0.95 : on ? (lit ? 0.85 : recent ? 0.75 : atRest) : 0.04
+      ctx.lineWidth = (e.kind === 'handoff' ? 2 : e.kind === 'edit' ? 1.4 : e.kind === 'parent' ? 1.4 : 1) * (lit && on ? 1.4 : 1) * (hot ? 1.5 : 1)
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo(c.x, c.y, b.x, b.y); ctx.stroke()
+      if (e.kind === 'handoff' && ctx.globalAlpha > 0.1) this.arrow(a, c, b, this.size(dst) + 3)
     }
     ctx.setLineDash([]); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1
 
@@ -270,8 +329,91 @@ export class NetworkRenderer {
       }
     }
     ctx.globalAlpha = 1
+    this.drawBadges(ids, dimmed)
+    const live = this.drawLight(now, ids)
     this.labels(nodes, lit, dimmed, centre, clock)
-    if (breathing) this.requestDraw()
+    if (breathing || live) this.requestDraw()
+  }
+
+  /** How strongly an edge shows when nothing is selected (0 = only when you look). */
+  private restAlpha(e: IntelEdge, dst: IntelNode): number {
+    const night = this.palette.night
+    switch (e.kind) {
+      case 'handoff': return night ? 0.7 : 0.8
+      case 'acts': return night ? 0.22 : 0.3
+      case 'produced': case 'parent': case 'decides': return night ? 0.4 : 0.5
+      case 'concerns': return 0.5
+      case 'edit': return this.isQuiet(dst) ? 0 : night ? 0.2 : 0.3
+      default: return this.view.lens === 'project' ? (night ? 0.2 : 0.32) : 0
+    }
+  }
+
+  /** Control point: handoffs bow toward the centre so the relay reads inside the clock. */
+  private control(e: IntelEdge, a: Point, b: Point, centre: Point): Point {
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2
+    const pull = e.kind === 'handoff' ? 0.32 : 0.12
+    return { x: mx + (centre.x - mx) * pull, y: my + (centre.y - my) * pull }
+  }
+
+  private arrow(a: Point, c: Point, b: Point, inset: number): void {
+    const ctx = this.ctx
+    const len = Math.hypot(b.x - c.x, b.y - c.y) || 1
+    const t = Math.max(0.5, 1 - inset / Math.max(len * 2, 1))
+    const px = (1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, py = (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y
+    const tx = 2 * (1 - t) * (c.x - a.x) + 2 * t * (b.x - c.x), ty = 2 * (1 - t) * (c.y - a.y) + 2 * t * (b.y - c.y)
+    const d = Math.hypot(tx, ty) || 1, ux = tx / d, uy = ty / d
+    ctx.setLineDash([]); ctx.fillStyle = ctx.strokeStyle as string
+    ctx.beginPath(); ctx.moveTo(px + ux * 5, py + uy * 5); ctx.lineTo(px - ux * 4 - uy * 4, py - uy * 4 + ux * 4); ctx.lineTo(px - ux * 4 + uy * 4, py - uy * 4 - ux * 4); ctx.closePath(); ctx.fill()
+  }
+
+  /** Collapsed checks: one badge per revision with pass/fail counts. */
+  private drawBadges(ids: Set<string>, dimmed: (id: string) => boolean): void {
+    const ctx = this.ctx, P = this.palette
+    this.badges = []
+    if (this.view.lens !== 'mission' || this.view.hidden.has('check')) return
+    for (const [rev, checks] of this.revChecks) {
+      if (!ids.has(rev) || this.checksOpen(checks[0]!.id)) continue
+      const present = checks.filter((c) => this.shown.has(c.id) && this.graph!.byId.has(c.id))
+      if (!present.length) continue
+      const pts = present.map((c) => this.toScreen(this.shown.get(c.id)!))
+      const x = pts.reduce((s, p) => s + p.x, 0) / pts.length, y = Math.min(...pts.map((p) => p.y))
+      const failed = present.filter((c) => c.status === 'failed').length, passed = present.filter((c) => c.status === 'ok').length, running = present.length - failed - passed
+      const r = 6
+      ctx.globalAlpha = dimmed(rev) ? 0.12 : 1
+      ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + (i * Math.PI) / 3; ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r) } ctx.closePath()
+      ctx.fillStyle = failed ? P.stop : running ? P.void : P.engine; ctx.fill()
+      if (running && !failed) { ctx.strokeStyle = P.engine; ctx.lineWidth = 1.4; ctx.stroke() }
+      ctx.font = `500 10px ${P.mono}`; ctx.textAlign = 'left'; ctx.fillStyle = failed ? P.stop : P.ink2
+      ctx.fillText([passed ? `${passed}✓` : '', failed ? `${failed}✕` : '', running ? `${running}…` : ''].filter(Boolean).join(' '), x + r + 4, y + 3.5)
+      ctx.globalAlpha = 1
+      this.badges.push({ rev, x, y, r })
+    }
+  }
+
+  /** Pulses along edges and flashes on nodes for recorded events; returns true while any is in flight. */
+  private drawLight(now: number, ids: Set<string>): boolean {
+    const ctx = this.ctx, P = this.palette, g = this.graph!
+    this.pulses = this.pulses.filter((q) => now < q.t0 + q.dur)
+    this.flashes = this.flashes.filter((f) => now < f.t0 + f.dur)
+    const centre = this.toScreen({ x: 0, y: 0 })
+    ctx.globalCompositeOperation = P.night ? 'lighter' : 'source-over'
+    for (const q of this.pulses) {
+      if (now < q.t0 || !ids.has(q.edge.from) || !ids.has(q.edge.to)) continue
+      const t = Math.min(1, (now - q.t0) / q.dur), e = 1 - Math.pow(1 - t, 2)
+      const a = this.toScreen(this.shown.get(q.edge.from)!), b = this.toScreen(this.shown.get(q.edge.to)!), c = this.control(q.edge, a, b, centre)
+      const x = (1 - e) * (1 - e) * a.x + 2 * (1 - e) * e * c.x + e * e * b.x, y = (1 - e) * (1 - e) * a.y + 2 * (1 - e) * e * c.y + e * e * b.y
+      const col = q.edge.kind === 'concerns' ? P.stop : q.edge.kind === 'handoff' ? this.hue(g.byId.get(q.edge.to)?.actor) : this.hue(g.byId.get(q.edge.from)?.actor)
+      ctx.fillStyle = col; ctx.globalAlpha = 0.25 * (1 - t * 0.5); ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill()
+      ctx.globalAlpha = 1 - t * 0.3; ctx.beginPath(); ctx.arc(x, y, q.edge.kind === 'handoff' ? 4 : 3, 0, Math.PI * 2); ctx.fill()
+    }
+    for (const f of this.flashes) {
+      const n = g.byId.get(f.id); if (!n || !ids.has(f.id)) continue
+      const t = Math.min(1, (now - f.t0) / f.dur), p = this.toScreen(this.shown.get(f.id)!), s = this.size(n)
+      ctx.strokeStyle = n.status === 'failed' || n.status === 'blocked' ? P.stop : this.hue(n.actor); ctx.lineWidth = 2
+      ctx.globalAlpha = 1 - t; ctx.beginPath(); ctx.arc(p.x, p.y, s + 4 + t * 12, 0, Math.PI * 2); ctx.stroke()
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'
+    return this.pulses.length > 0 || this.flashes.length > 0
   }
 
   private labels(nodes: IntelNode[], lit: Set<string> | null, dimmed: (id: string) => boolean, centre: Point, clock: boolean): void {
@@ -281,12 +423,28 @@ export class NetworkRenderer {
     const labelBoxes: Array<[number, number, number, number]> = []
     const bounds = this.canvas.getBoundingClientRect()
     const hits = (list: Array<[number, number, number, number]>, b: [number, number, number, number]) => list.some((q) => b[0] < q[0] + q[2] && b[0] + b[2] > q[0] && b[1] < q[1] + q[3] && b[1] + b[3] > q[1])
+    // Handoff labels: what the engine passed from one agent's run to the next.
+    if (this.view.lens === 'mission' && !view.focus) {
+      const ids = new Set(nodes.map((n) => n.id))
+      ctx.font = `500 10px ${P.mono}`
+      for (const e of g.edges) {
+        if (e.kind !== 'handoff' || !e.label || !ids.has(e.from) || !ids.has(e.to) || dimmed(e.from) || dimmed(e.to)) continue
+        const a = this.toScreen(this.shown.get(e.from)!), b = this.toScreen(this.shown.get(e.to)!), c = this.control(e, a, b, centre)
+        const mx = 0.25 * a.x + 0.5 * c.x + 0.25 * b.x, my = 0.25 * a.y + 0.5 * c.y + 0.25 * b.y
+        const w = ctx.measureText(e.label).width
+        const box: [number, number, number, number] = [mx - w / 2 - 4, my - 8, w + 8, 15]
+        if (hits(labelBoxes, box) || hits(placed, box)) continue
+        ctx.fillStyle = P.void; ctx.globalAlpha = 0.85; ctx.fillRect(box[0], box[1], box[2], box[3]); ctx.globalAlpha = 1
+        ctx.fillStyle = P.ink2; ctx.textAlign = 'center'; ctx.fillText(e.label, mx, my + 3.5); ctx.textAlign = 'left'
+        labelBoxes.push(box); placed.push(box)
+      }
+    }
     const order = [...nodes].sort((a, b) => ((lit?.has(a.id) ? 0 : 10) + KIND_PRIORITY[a.kind]) - ((lit?.has(b.id) ? 0 : 10) + KIND_PRIORITY[b.kind]) || b.weight - a.weight)
     const focusPoint = view.focus ? this.toScreen(this.shown.get(view.focus) ?? { x: 0, y: 0 }) : null
     for (const n of order) {
       if (dimmed(n.id)) continue
-      const always = n.kind === 'stage' || n.kind === 'revision' || n.kind === 'decision' || n.kind === 'file' || n.kind === 'mission' || (lit?.has(n.id) ?? false)
-      if (!always && this.transform.k < 1.2) continue
+      const always = n.kind === 'stage' || n.kind === 'agent' || n.kind === 'revision' || n.kind === 'decision' || (n.kind === 'file' && !this.isQuiet(n)) || n.kind === 'mission' || (lit?.has(n.id) ?? false)
+      if (!always && this.transform.k < 1.5) continue
       const p = this.toScreen(this.shown.get(n.id)!)
       const s = this.size(n)
       const text = labelOf(n)
@@ -295,18 +453,27 @@ export class NetworkRenderer {
       ;(ctx as CanvasRenderingContext2D & { fontStretch?: string }).fontStretch = n.kind === 'stage' || n.kind === 'run' ? 'semi-condensed' : 'normal'
       const w = ctx.measureText(text).width
       let x = p.x + s + 7, y = p.y + 4
+      if (n.kind === 'agent') {
+        const dx = p.x - centre.x, dy = p.y - centre.y, d = Math.hypot(dx, dy) || 1
+        x = p.x + (dx / d) * (s + 10) - (dx < -d * 0.3 ? w : dx > d * 0.3 ? 0 : w / 2); y = p.y + (dy / d) * (s + 10) + (dy > 0 ? 10 : -10)
+      }
       if (n.kind === 'stage' && clock) { const dx = p.x - centre.x, dy = p.y - centre.y, d = Math.hypot(dx, dy) || 1; x = p.x + (dx / d) * 22 - (dx < 0 ? w : 0); y = p.y + (dy / d) * 22 + 4 }
       if (n.kind === 'revision' && !view.focus) { x = p.x - w / 2; y = p.y + s + 16 }
       const leftFirst = focusPoint !== null && n.id !== view.focus && p.x < focusPoint.x
       const right: [number, number] = [x, y], left: [number, number] = [p.x - s - 7 - w, y]
       const below: [number, number] = [p.x - w / 2, p.y + s + 15], above: [number, number] = [p.x - w / 2, p.y - s - 7]
-      const slots: Array<[number, number]> = n.kind === 'stage' ? [[x, y]] : n.kind === 'revision' && !view.focus ? [below, above, right, left] : [...(leftFirst ? [left, right] : [right, left]), below, above]
+      const slots: Array<[number, number]> = n.kind === 'stage' || n.kind === 'agent' ? [[x, y]] : n.kind === 'revision' && !view.focus ? [below, above, right, left] : [...(leftFirst ? [left, right] : [right, left]), below, above]
       let chosen: [number, number] | null = null
       // Revision labels name the commits; they may cross a glyph but never another label.
       for (const [sx, sy] of slots) { const box: [number, number, number, number] = [sx - 3, sy - 12, w + 6, 17]; if (box[0] >= 2 && box[0] + box[2] <= bounds.width - 2 && !hits(labelBoxes, box) && (n.kind === 'revision' || !hits(placed, box))) { chosen = [sx, sy]; placed.push(box); labelBoxes.push(box); break } }
       if (!chosen) continue
-      ctx.fillStyle = n.kind === 'stage' ? this.hue(n.actor) : n.kind === 'finding' && n.status === 'blocked' ? P.stop : lit?.has(n.id) ? P.ink : P.ink2
+      ctx.fillStyle = n.kind === 'stage' || n.kind === 'agent' ? this.hue(n.actor) : n.kind === 'finding' && n.status === 'blocked' ? P.stop : lit?.has(n.id) ? P.ink : P.ink2
       ctx.textAlign = 'left'; ctx.fillText(text, chosen[0], chosen[1])
+      if (n.kind === 'agent') {
+        const ag = n.agent!
+        ctx.font = `400 10px ${P.mono}`; ctx.fillStyle = P.ink3
+        ctx.fillText(`${ag.runs.length} run${ag.runs.length === 1 ? '' : 's'} · ${ag.toolCalls} call${ag.toolCalls === 1 ? '' : 's'}${n.status === 'running' ? ' · RUNNING' : ''}`, chosen[0], chosen[1] + 14)
+      }
       if (n.kind === 'stage') {
         ctx.font = `400 10px ${P.mono}`; ctx.fillStyle = n.status === 'failed' ? P.stop : P.ink3
         const word = n.status === 'running' ? 'RUNNING' : n.status === 'waiting' ? 'WAITING' : n.status === 'failed' ? 'FAILED' : n.status === 'ok' ? 'SUCCEEDED' : ''
@@ -324,7 +491,7 @@ export class NetworkRenderer {
     switch (n.kind) {
       case 'stage': {
         ctx.strokeStyle = fail ? P.stop : col; ctx.lineWidth = 3.5; ctx.lineCap = 'round'
-        if (clock) { const ea = Math.atan2((p.y - centre.y) / RY, (p.x - centre.x) / RX); ctx.beginPath(); ctx.ellipse(centre.x, centre.y, RX * this.transform.k, RY * this.transform.k, 0, ea - 0.07, ea + 0.07); ctx.stroke() }
+        if (clock) { const ea = Math.atan2((p.y - centre.y) / this.ry(), (p.x - centre.x) / this.rx()); ctx.beginPath(); ctx.ellipse(centre.x, centre.y, this.rx(), this.ry(), 0, ea - 0.07, ea + 0.07); ctx.stroke() }
         else { ctx.beginPath(); ctx.moveTo(p.x - 8, p.y); ctx.lineTo(p.x + 8, p.y); ctx.stroke() }
         ctx.lineCap = 'butt'
         if (n.status === 'running' || n.status === 'waiting') { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill() }
@@ -333,7 +500,23 @@ export class NetworkRenderer {
       case 'run':
         ctx.fillStyle = col; ctx.beginPath(); ctx.arc(p.x, p.y, s, 0, Math.PI * 2); ctx.fill()
         if (fail) { ctx.strokeStyle = P.stop; ctx.lineWidth = 2; ctx.stroke() }
+        if (s >= 7) this.monogram(n, p, s, P.void)
         break
+      case 'agent': {
+        // An agent is a role on a provider: role hue ring, role initial, provider mark below the ring.
+        const a = n.agent!
+        ctx.save(); ctx.globalAlpha *= 0.16; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(p.x, p.y, s, 0, Math.PI * 2); ctx.fill(); ctx.restore()
+        ctx.strokeStyle = fail ? P.stop : col; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, s, 0, Math.PI * 2); ctx.stroke()
+        this.monogram(n, p, s, col)
+        // Provider mark: Claude Code = filled dot, Codex CLI = open square, others = open dot.
+        const mx = p.x + s * 0.72, my = p.y + s * 0.72
+        ctx.fillStyle = P.void; ctx.beginPath(); ctx.arc(mx, my, 4.5, 0, Math.PI * 2); ctx.fill()
+        ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.4
+        if (a.provider === 'claude') { ctx.beginPath(); ctx.arc(mx, my, 2.6, 0, Math.PI * 2); ctx.fill() }
+        else if (a.provider === 'codex') ctx.strokeRect(mx - 2.5, my - 2.5, 5, 5)
+        else { ctx.beginPath(); ctx.arc(mx, my, 2.6, 0, Math.PI * 2); ctx.stroke() }
+        break
+      }
       case 'file': {
         const f = n.file!
         ctx.strokeStyle = n.status === 'blocked' ? P.stop : P.ink2
@@ -383,6 +566,15 @@ export class NetworkRenderer {
         break
       }
     }
+  }
+
+  private monogram(n: IntelNode, p: Point, s: number, color: string): void {
+    const ctx = this.ctx
+    const letter = n.actor === 'planner' ? 'P' : n.actor === 'implementer' ? 'I' : n.actor === 'reviewer' ? 'R' : ''
+    if (!letter) return
+    ctx.fillStyle = color; ctx.font = `700 ${Math.round(Math.max(9, s * 0.95))}px ${this.palette.sans}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText(letter, p.x, p.y + 0.5)
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left'
   }
 
   dispose(): void { if (this.frame) cancelAnimationFrame(this.frame) }

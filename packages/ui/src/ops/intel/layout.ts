@@ -34,6 +34,22 @@ export function layoutMission(g: IntelGraph): Positions {
   // Runs not placed by a stage record (should not happen; never drop a record).
   g.nodes.filter((n) => n.kind === 'run' && !pos.has(n.id)).forEach((n, i) => pos.set(n.id, { x: -RX * 0.6 + i * 40, y: RY * 0.7 }))
 
+  // Agents stand just outside the clock, beside the stages where their runs happened.
+  const agents = g.nodes.filter((n) => n.kind === 'agent').map((n) => {
+    const runs = g.edges.filter((e) => e.kind === 'acts' && e.from === n.id).map((e) => pos.get(e.to)).filter((p): p is Point => Boolean(p))
+    const vx = runs.reduce((s, p) => s + p.x / RX, 0), vy = runs.reduce((s, p) => s + p.y / RY, 0)
+    return { id: n.id, a: Math.atan2(vy, vx || 0.0001) }
+  }).sort((x, y) => x.a - y.a)
+  for (let pass = 0; pass < 24; pass++) {
+    for (let i = 0; i < agents.length; i++) {
+      const cur = agents[i]!, next = agents[(i + 1) % agents.length]!
+      if (cur === next) continue
+      let gap = next.a - cur.a; if (gap <= 0) gap += Math.PI * 2
+      if (gap < 0.9) { cur.a -= (0.9 - gap) / 2; next.a += (0.9 - gap) / 2 }
+    }
+  }
+  for (const ag of agents) pos.set(ag.id, { x: Math.cos(ag.a) * RX * 1.6, y: Math.sin(ag.a) * RY * 1.55 })
+
   // The revision spine across the centre, in recorded order.
   const revs = g.nodes.filter((n) => n.kind === 'revision').sort((a, b) => a.revision!.index - b.revision!.index)
   const w = Math.min(560, 230 * Math.max(revs.length - 1, 1))

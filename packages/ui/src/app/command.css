@@ -141,9 +141,9 @@
 
 /* ── Mission ─────────────────────────────────────────────────────────── */
 .mission { display: flex; flex-direction: column; height: 100%; min-height: 640px; }
-.mission__head { display: flex; flex-direction: column; gap: 10px; padding: 18px 24px 14px; border-bottom: 1px solid var(--rule); background: var(--deck); }
+.mission__head { display: flex; flex-direction: column; gap: 6px; padding: 12px 24px 10px; border-bottom: 1px solid var(--rule); background: var(--deck); }
 .mission__title { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.mission__title h1 { font-size: var(--text-3xl); font-stretch: 90%; max-width: 64ch; overflow-wrap: anywhere; }
+.mission__title h1 { font-size: var(--text-2xl); font-stretch: 90%; max-width: 64ch; overflow-wrap: anywhere; }
 .mission__meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 11.5px; }
 .mission__now { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink); }
 .now-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
@@ -437,3 +437,58 @@
 .insp-guide li { display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: baseline; }
 .insp-guide .glyph { justify-self: center; }
 .c-planner { color: var(--planner); font-weight: 600; } .c-builder { color: var(--builder); font-weight: 600; } .c-reviewer { color: var(--reviewer); font-weight: 600; }
+
+/* ── Mission header row: now line with Stop on the right ─────────────── */
+.mission__nowrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; min-height: 32px; }
+.mission__stop .row { flex-wrap: nowrap; }
+.replay__speed button { min-height: 26px; padding: 3px 8px; font-family: var(--font-mono); font-size: 11px; }
+
+/* ── Agents in DOM (roster, glyphs) share the map's hue law ─────────── */
+.g-agent { width: 12px; height: 12px; border-radius: 50%; background: transparent; box-shadow: inset 0 0 0 2px var(--builder); }
+.g-handoff { width: 16px; height: 0; border-top: 2px dashed var(--reviewer); background: transparent; vertical-align: 3px; border-image: linear-gradient(90deg, var(--builder), var(--reviewer)) 1; }
+.g-lines { width: 16px; height: 0; border-top: 1.5px dashed var(--ink-2); background: transparent; vertical-align: 3px; }
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin: 0 5px 0 2px; vertical-align: 1px; background: var(--ink-3); }
+.a-planner.dot, .brief-agent.a-planner .brief-agent__mark { background: var(--planner); }
+.a-implementer.dot, .brief-agent.a-implementer .brief-agent__mark { background: var(--builder); }
+.a-reviewer.dot, .brief-agent.a-reviewer .brief-agent__mark { background: var(--reviewer); }
+
+/* ── Mission briefing (inspector default) ───────────────────────────── */
+.brief { gap: 16px; }
+.brief-block { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--rule); padding-top: 12px; font-size: 13px; }
+.brief-block h3 { font: 500 11px/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); display: flex; gap: 8px; align-items: baseline; }
+.brief-block--you { border-top: 0; padding: 12px; background: var(--you-tint); box-shadow: inset 2px 0 0 var(--you); }
+.brief-block--you h3 { color: var(--you); }
+.brief-agents { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.brief-agent { width: 100%; display: grid; grid-template-columns: 26px 1fr; grid-template-rows: auto auto; column-gap: 10px; row-gap: 2px; align-items: center; padding: 8px; border: 1px solid var(--rule); border-radius: var(--radius-md); background: var(--deck-2); color: var(--ink); cursor: pointer; text-align: left; }
+.brief-agent:hover { border-color: var(--rule-2); }
+.brief-agent__mark { grid-row: 1 / 3; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 700 12px var(--font-sans); color: var(--void); background: var(--ink-3); }
+.brief-agent__name { font-size: 13px; } .brief-agent__name em { font-style: normal; color: var(--builder); font-family: var(--font-mono); font-size: 11px; }
+.brief-agent__facts { font-size: 11px; color: var(--ink-3); }
+.brief-relay { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+.brief-relay li::marker { color: var(--ink-3); font-family: var(--font-mono); font-size: 11px; }
+.brief-files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; }
+.brief-files .linkish { font-family: var(--font-mono); font-size: 12px; }
+.is-stop, .is-stop .linkish { color: var(--stop); }
+.brief-legend { border-top: 1px solid var(--rule); padding-top: 10px; font-size: 12.5px; color: var(--ink-2); }
+.brief-legend summary { cursor: pointer; color: var(--ink-2); font-weight: 600; }
+.brief-legend ul { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.brief-legend li { display: flex; gap: 10px; align-items: baseline; }
+.brief-legend li > .glyph { flex: none; width: 16px; }
+.brief-legend li > .glyph.g-agent, .brief-legend li > .glyph.g-revision, .brief-legend li > .glyph.g-decision { width: 12px; margin: 0 2px; }
+
+/* ── Compact mission chrome: the map gets the height ─────────────────── */
+.mission__title { align-items: center; }
+.mission__lenses { padding: 0; background: none; border: 0; }
+.mission__lenses .hx-tabs { border: 1px solid var(--rule-2); border-radius: var(--radius-md); padding: 2px; gap: 2px; }
+.mission__lenses .hx-tab { padding: 5px 12px; border-radius: 3px; }
+.mission__lenses .hx-tab[aria-selected="true"] { background: var(--ink); color: var(--void); }
+.mission__lenses .hx-tab[aria-selected="true"]::after { display: none; }
+.mission__meta { margin-left: auto; }
+.delivery { padding: 8px 24px; }
+.delivery .decision { gap: 8px; }
+.delivery .decision__text { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 2px; }
+.delivery .decision__text > b { font-size: 14px; }
+.delivery .decision__text > .muted, .delivery .decision__text > small { font-size: 12.5px; }
+.delivery .decision-reasons { flex-basis: 100%; margin-top: 2px; flex-direction: row; flex-wrap: wrap; column-gap: 12px; align-items: baseline; }
+.delivery .decision-reasons details[open] { flex-basis: 100%; }
+.net__bar { padding: 8px 14px; }

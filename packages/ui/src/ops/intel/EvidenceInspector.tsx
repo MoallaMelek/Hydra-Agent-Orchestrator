@@ -3,6 +3,7 @@ import { useApp } from '../../app/context'
 import { Button } from '../../design/components'
 import { passedEvidence, STAGE_LABEL, type IntelGraph, type IntelNode } from './graph'
 import { labelOf } from './renderer'
+import { MissionBrief } from './MissionBrief'
 import { BASIS_HELP, BASIS_TEXT, fmtDuration, fmtOffset, KIND_NAME, neighbours, providerName, ROLE_NAME, statusWord } from './text'
 
 function Facts({ rows }: { rows: Array<[string, ReactNode]> }) {
@@ -36,30 +37,13 @@ export interface InspectorProps {
   onSelect: (id: string) => void
   onFocus: (id: string) => void
   onDeliver?: () => void
+  /** Replay position, when replaying. */
+  at?: string
 }
 
 /** One record at a time: what it is, how it is known, the evidence, and what it connects to. */
-export function EvidenceInspector({ graph: g, node: n, focused, onSelect, onFocus, onDeliver }: InspectorProps) {
-  if (!n) {
-    const t = g.task
-    return <div className="insp insp--empty">
-      <p className="eyebrow">Mission · {t.intent === 'analyze' ? 'Question' : 'Change'}</p>
-      <h2 className="insp-title">{t.title}</h2>
-      <p className="insp-prompt">{t.prompt}</p>
-      <div className="insp-guide">
-        <p className="eyebrow">Reading the map</p>
-        <ul>
-          <li><span className="glyph g-stage" aria-hidden />Stages run clockwise from the top, in the order they happened.</li>
-          <li><span className="glyph g-run" aria-hidden />Dots are agent runs, coloured by role: <b className="c-planner">planner</b>, <b className="c-builder">implementer</b>, <b className="c-reviewer">reviewer</b>.</li>
-          <li><span className="glyph g-revision" aria-hidden />Revisions are the commits Hydra made, oldest on the left.</li>
-          <li><span className="glyph g-check" aria-hidden />Hexagons are checks Hydra ran; red means failed.</li>
-          <li><span className="glyph g-decision" aria-hidden />The crosshair is your decision.</li>
-        </ul>
-      </div>
-      <p className="insp-hint">Click anything to see the record behind it. Keyboard: Tab to the map, arrows move, Enter inspects, F focuses, Esc steps back.</p>
-      {g.gaps.length > 0 && <div className="insp-gaps"><p className="eyebrow">Not in this data</p>{g.gaps.map((x) => <p key={x}>{x}</p>)}</div>}
-    </div>
-  }
+export function EvidenceInspector({ graph: g, node: n, focused, onSelect, onFocus, onDeliver, at }: InspectorProps) {
+  if (!n) return <MissionBrief graph={g} onSelect={onSelect} onDeliver={onDeliver} at={at} />
   const word = statusWord(n)
   const { ins, outs } = neighbours(g, n.id)
   const link = (node: IntelNode) => <button className="linkish" onClick={() => onSelect(node.id)}>{node.kind === 'file' ? node.file!.path : labelOf(node)}</button>
@@ -78,6 +62,26 @@ export function EvidenceInspector({ graph: g, node: n, focused, onSelect, onFocu
       </div>
     </header>
     <div className="insp-body">
+      {n.kind === 'agent' && (() => {
+        const a = n.agent!
+        const runs = a.runs.map((id) => g.byId.get(id)).filter((r): r is IntelNode => Boolean(r))
+        return <>
+          <Facts rows={[['Role', ROLE_NAME[a.role] ?? a.role], ['Provider', providerName(a.provider)], ['Runs', String(runs.length)], ['Reported calls', `${a.toolCalls} · ${a.edits} edit${a.edits === 1 ? '' : 's'}`], ['Produced', `${a.revisions} revision${a.revisions === 1 ? '' : 's'} · ${a.findings} finding${a.findings === 1 ? '' : 's'}`], ['Active time', fmtDuration(a.activeMs)], ['Reported usage', `${a.tokens.toLocaleString()} tokens${a.costUsd ? ` · $${a.costUsd.toFixed(3)}` : ''}`]]} />
+          <h3>Runs</h3>
+          <ol className="insp-list">{runs.map((r) => <li key={r.id}>{link(r)} <span className="faint mono">{r.at !== null ? fmtOffset(r.at, g.start) : ''}{r.at !== null && r.end !== null ? ` · ${fmtDuration(r.end - r.at)}` : r.status === 'running' ? ' · running' : ''}</span></li>)}</ol>
+          <p className="insp-note">An agent here is a role played by a provider CLI. Each run is a separate process; the engine passes artifacts between runs.</p>
+        </>
+      })()}
+      {n.kind === 'run' && (() => {
+        const got = g.edges.filter((e) => e.kind === 'handoff' && e.to === n.id), gave = g.edges.filter((e) => e.kind === 'handoff' && e.from === n.id)
+        return (got.length > 0 || gave.length > 0) && <>
+          <h3>Handoffs</h3>
+          <ul className="insp-rel">
+            {got.map((e) => <li key={e.id}><span className="faint">received </span>{e.label}<span className="faint"> from </span>{link(g.byId.get(e.from)!)}</li>)}
+            {gave.map((e) => <li key={e.id}><span className="faint">handed </span>{e.label}<span className="faint"> to </span>{link(g.byId.get(e.to)!)}</li>)}
+          </ul>
+        </>
+      })()}
       {n.kind === 'run' && (() => {
         const f = n.runFacts!
         return <>

@@ -12,10 +12,11 @@
  * Nothing here invents activity, thinking, agent-to-agent messages, progress percentages or
  * parallelism. Agents take turns inside one mission; the sequence edges are the recorded order.
  */
+import { addAgents } from './agents'
 import { approvalContext, type AgentRole, type AgentRunInfo, type Evidence, type Review, type RunActivity, type Task, type TaskDiff, type TaskStage } from '@hydra/protocol'
 
 export type Basis = 'observed' | 'derived' | 'planned' | 'unavailable'
-export type IntelKind = 'mission' | 'stage' | 'run' | 'file' | 'revision' | 'check' | 'finding' | 'decision'
+export type IntelKind = 'mission' | 'agent' | 'stage' | 'run' | 'file' | 'revision' | 'check' | 'finding' | 'decision'
 export type IntelStatus = 'running' | 'ok' | 'failed' | 'waiting' | 'blocked' | 'canceled' | 'idle'
 export type Actor = AgentRole | 'engine' | 'human'
 export type EdgeKind =
@@ -31,6 +32,8 @@ export type EdgeKind =
   | 'planned'    // mission → file (plan.filesLikelyTouched)
   | 'changed'    // revision → file (final diff)
   | 'decides'    // decision → revision
+  | 'acts'       // agent (role · provider) → its run (both named in the run record)
+  | 'handoff'    // run → next run, when a recorded artifact links them (plan, revision, findings, failed checks)
 
 export interface FileFacts {
   path: string
@@ -74,7 +77,10 @@ export interface IntelNode {
   revision?: { sha: string; short: string; role: 'base' | 'work' | 'head' | 'applied'; index: number }
   stageRecord?: Task['stages'][number]
   decision?: { waiting: Task['waitReason']; outcome: Task['outcome']; acceptance: Task['acceptance'] | null; unresolved: string[]; allowed: boolean }
+  agent?: AgentFacts
 }
+
+export interface AgentFacts { role: AgentRole; provider: string; runs: string[]; toolCalls: number; edits: number; revisions: number; findings: number; activeMs: number; tokens: number; costUsd: number }
 
 export interface IntelEdge {
   id: string
@@ -83,6 +89,10 @@ export interface IntelEdge {
   kind: EdgeKind
   basis: Basis
   at: number | null
+  /** What a handoff carried, in words ("the plan", "revision dd0d9cb", "3 findings"). */
+  label?: string
+  /** Node ids of the artifacts a handoff carried. */
+  via?: string[]
 }
 
 export interface ReviewSnapshot { review: Review; reviewedSha: string | null; at: number }
@@ -112,6 +122,7 @@ export interface IntelGraph {
   gaps: string[]
 }
 
+export const emptyCounts = (): Record<IntelKind, number> => ({ mission: 0, agent: 0, stage: 0, run: 0, file: 0, revision: 0, check: 0, finding: 0, decision: 0 })
 const ms = (iso: string | null | undefined): number | null => (iso ? Date.parse(iso) : null)
 const shortSha = (sha: string) => sha.slice(0, 7)
 const COMMIT_NOTE = /Commit ([0-9a-f]{7,40})/
@@ -131,10 +142,15 @@ function stageStatus(s: Task['stages'][number], task: Task): IntelStatus {
 }
 
 /** Normalises a reported tool target to a repository-relative file path, or null when it is not a file. */
-export function fileTarget(a: RunActivity): string | null {
+export function fileTarget(a: RunActivity, root?: string | null): string | null {
   if (a.kind !== 'read' && a.kind !== 'edit') return null
-  const t = a.target.trim().replace(/\\/g, '/').replace(/^\.\//, '')
-  if (!t || /\s/.test(t) || t.includes('*')) return null
+  let t = a.target.trim().replace(/\\/g, '/').replace(/^\.\//, '')
+  // Provider CLIs often report absolute paths inside the isolated worktree; the repository-relative
+  // path is the same file, so it is shown once under its relative name.
+  const base = root ? root.replace(/\\/g, '/').replace(/\/+$/, '') + '/' : null
+  if (base && t.toLowerCase().startsWith(base.toLowerCase())) t = t.slice(base.length)
+  else { const m = /^(?:[a-z]:)?\/.*?\/worktrees\/[^/]+\/(.+)$/i.exec(t); if (m) t = m[1]! }
+  if (!t || /\s/.test(t) || t.includes('*') || t === '.' || t.endsWith('/')) return null
   return t
 }
 
@@ -145,9 +161,9 @@ export function buildIntel(input: IntelInput): IntelGraph {
   const byId = new Map<string, IntelNode>()
   const gaps: string[] = []
   const add = (n: IntelNode) => { if (!byId.has(n.id)) { byId.set(n.id, n); nodes.push(n) } return byId.get(n.id)! }
-  const link = (from: string, to: string, kind: EdgeKind, basis: Basis, at: number | null) => {
+  const link = (from: string, to: string, kind: EdgeKind, basis: Basis, at: number | null, extra?: Pick<IntelEdge, 'label' | 'via'>) => {
     const id = `${kind}:${from}>${to}`
-    if (!edges.some((e) => e.id === id)) edges.push({ id, from, to, kind, basis, at })
+    if (!edges.some((e) => e.id === id)) edges.push({ id, from, to, kind, basis, at, ...extra })
   }
   const runs = [...input.runs].filter((r) => r.taskId === task.id).sort((a, b) => a.startedAt.localeCompare(b.startedAt))
   const evidence = [...input.evidence].filter((e) => e.taskId === task.id).sort((a, b) => a.startedAt.localeCompare(b.startedAt))
@@ -190,7 +206,7 @@ export function buildIntel(input: IntelInput): IntelGraph {
       else if (a.kind === 'edit') facts.edits++
       else if (a.kind === 'search') facts.searches++
       else if (a.kind === 'command') facts.commands.push(a.target)
-      const path = fileTarget(a)
+      const path = fileTarget(a, task.workspace?.path)
       if (path) {
         const f = fileNode(path)
         if (a.kind === 'read') f.reads++; else f.edits++
@@ -299,8 +315,10 @@ export function buildIntel(input: IntelInput): IntelGraph {
     if (target && at !== null) link('decision', target, 'decides', 'observed', at)
   }
 
+  addAgents(task, nodes, edges, add, link)
+
   const moments = [...new Set([...nodes.flatMap((n) => [n.at, n.end]), ...edges.map((e) => e.at)].filter((x): x is number => typeof x === 'number'))].sort((a, b) => a - b)
-  const counts = { mission: 0, stage: 0, run: 0, file: 0, revision: 0, check: 0, finding: 0, decision: 0 } as Record<IntelKind, number>
+  const counts = emptyCounts()
   for (const n of nodes) counts[n.kind]++
   // The domain is what was recorded; a waiting mission does not stretch to the present.
   return { task, nodes, edges, byId, start: created, end: Math.max(moments.at(-1) ?? created, live && task.status === 'running' ? now : 0), moments, live, counts, gaps }
@@ -314,15 +332,32 @@ export function projectAt(g: IntelGraph, cursor: number | null): IntelGraph {
   if (cursor === null || cursor >= g.end) return g
   const keep = (n: IntelNode) => n.kind === 'mission' || (n.at !== null && n.at <= cursor)
   const nodes = g.nodes.filter(keep).map((n): IntelNode => {
-    if (n.end !== null && n.end > cursor && (n.kind === 'run' || n.kind === 'stage' || n.kind === 'check')) return { ...n, status: 'running', end: null }
+    if (n.kind === 'run' && n.runFacts) {
+      // Only the tool calls reported up to the cursor.
+      const activity = n.runFacts.activity.filter((a) => Date.parse(a.at) <= cursor)
+      const runFacts = { ...n.runFacts, activity, reads: activity.filter((a) => a.kind === 'read').length, edits: activity.filter((a) => a.kind === 'edit').length, searches: activity.filter((a) => a.kind === 'search').length, commands: activity.filter((a) => a.kind === 'command').map((a) => a.target) }
+      const open = n.end !== null && n.end > cursor
+      return { ...n, runFacts, weight: 1 + activity.length, status: open ? 'running' : n.status, end: open ? null : n.end }
+    }
+    if (n.kind === 'agent' && n.agent) {
+      const runs = g.nodes.filter((r) => r.kind === 'run' && n.agent!.runs.includes(r.id) && r.at !== null && r.at <= cursor)
+      const calls = runs.reduce((s, r) => s + r.runFacts!.activity.filter((a) => Date.parse(a.at) <= cursor).length, 0)
+      const open = runs.some((r) => r.end === null || r.end > cursor)
+      return { ...n, status: open ? 'running' : n.status, end: open ? null : n.end, weight: 2 + runs.length, agent: { ...n.agent, runs: runs.map((r) => r.id), toolCalls: calls } }
+    }
+    if (n.end !== null && n.end > cursor && (n.kind === 'stage' || n.kind === 'check')) return { ...n, status: 'running', end: null }
     if (n.kind === 'file' && n.file?.diff) return { ...n, file: { ...n.file, diff: null } }
     if (n.kind === 'mission') return { ...n, status: 'running' }
     return n
   })
+  // File counts as of the cursor.
+  const touched = new Map<string, { reads: number; edits: number }>()
+  for (const r of nodes) if (r.kind === 'run') for (const a of r.runFacts!.activity) { const p = fileTarget(a, g.task?.workspace?.path); if (!p) continue; const t = touched.get(p) ?? { reads: 0, edits: 0 }; if (a.kind === 'edit') t.edits++; else t.reads++; touched.set(p, t) }
+  for (let i = 0; i < nodes.length; i++) { const n = nodes[i]!; if (n.kind === 'file' && n.file) { const t = touched.get(n.file.path) ?? { reads: 0, edits: 0 }; nodes[i] = { ...n, file: { ...n.file, ...t } } } }
   const ids = new Set(nodes.map((n) => n.id))
   const edges = g.edges.filter((e) => ids.has(e.from) && ids.has(e.to) && (e.at === null ? e.kind === 'parent' : e.at <= cursor))
   const byId = new Map(nodes.map((n) => [n.id, n]))
-  const counts = { mission: 0, stage: 0, run: 0, file: 0, revision: 0, check: 0, finding: 0, decision: 0 } as Record<IntelKind, number>
+  const counts = emptyCounts()
   for (const n of nodes) counts[n.kind]++
   return { ...g, nodes, edges, byId, counts, end: cursor, live: true }
 }

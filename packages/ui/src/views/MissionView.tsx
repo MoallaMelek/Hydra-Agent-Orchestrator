@@ -82,22 +82,25 @@ export function MissionView({ task }: { task: Task }) {
       <nav className="crumbs" aria-label="Breadcrumbs"><button onClick={() => go({ view: 'home' })}>Home</button><span aria-hidden>/</span>{project && <><button onClick={() => go({ view: 'project', projectId: project.id })}>{project.name}</button><span aria-hidden>/</span></>}<span>Mission</span></nav>
       <div className="mission__title">
         <h1>{task.title}</h1>
+        <div className="mission__lenses">
+          <Tabs<LensId> value={lens} onChange={setLens} tabs={[{ id: 'network', label: 'Network' }, { id: 'timeline', label: 'Timeline' }, { id: 'records', label: 'Records' }]} />
+        </div>
+      </div>
+      <div className="mission__nowrow">
+        <p className="mission__now" role="status"><span className={`now-dot s-${waiting ? 'waiting' : task.status}`} aria-hidden />{nowLine(full)}</p>
         <div className="mission__meta">
           <Badge tone={status.tone} live={status.live}>{status.label}</Badge>
           <span className="mono faint">{MODE_INFO[task.mode].label} · {revisions} revision{revisions === 1 ? '' : 's'} · {full.counts.check} check{full.counts.check === 1 ? '' : 's'}{task.fixRound > 0 ? ` · ${task.fixRound} repair round${task.fixRound === 1 ? '' : 's'}` : ''}</span>
           <span className="mono faint" title="Reported by the provider CLIs; may arrive late">{money(task.usage.costUsd)}{task.usage.unpricedTokens > 0 ? ' + unpriced' : ''} reported</span>
+          {(task.status === 'running' || task.status === 'queued') && <div className="mission__stop" role="region" aria-label="Mission controls" inert={cursor !== null}><DecisionBar task={task} blockingWarnings={blocking} /></div>}
         </div>
       </div>
-      <p className="mission__now" role="status"><span className={`now-dot s-${waiting ? 'waiting' : task.status}`} aria-hidden />{nowLine(full)}</p>
     </header>
 
-    {(waiting || task.status === 'running' || task.status === 'queued') && <div ref={delivery} className={`delivery ${waiting ? 'delivery--waiting' : ''} ${cursor !== null ? 'is-replay' : ''}`} id="delivery" role="region" aria-label={waiting ? 'Your decision' : 'Mission controls'} inert={cursor !== null}>
+    {waiting && <div ref={delivery} className={`delivery delivery--waiting ${cursor !== null ? 'is-replay' : ''}`} id="delivery" role="region" aria-label="Your decision" inert={cursor !== null}>
       <DecisionBar task={task} blockingWarnings={blocking} />
     </div>}
 
-    <div className="mission__lenses">
-      <Tabs<LensId> value={lens} onChange={setLens} tabs={[{ id: 'network', label: 'Network' }, { id: 'timeline', label: 'Timeline' }, { id: 'records', label: 'Records' }]} />
-    </div>
 
     {lens !== 'records' ? <div className="mission__stage">
       <div className="mission__main">
@@ -110,7 +113,7 @@ export function MissionView({ task }: { task: Task }) {
         {diffError && hasWorkspace && <p className="faint replay-note">The diff could not be loaded: {diffError}</p>}
       </div>
       <aside className="mission__inspector" aria-label="Evidence inspector">
-        <EvidenceInspector graph={graph} node={node} focused={focus} onSelect={setSelected} onFocus={(id) => setFocus(focus === id ? null : id)} onDeliver={waiting && cursor === null ? toDelivery : undefined} />
+        <EvidenceInspector graph={graph} node={node} focused={focus} onSelect={setSelected} onFocus={(id) => setFocus(focus === id ? null : id)} onDeliver={waiting && cursor === null ? toDelivery : undefined} at={cursor !== null ? fmtOffset(cursor, full.start) : undefined} />
       </aside>
     </div> : <section className="hx-panel mission__records" aria-label="Recorded work">
       <Tabs<RecordTab> value={records} onChange={setRecords} tabs={[{ id: 'summary', label: 'Summary' }, { id: 'changes', label: 'Changes', count: diff?.files.length }, { id: 'checks', label: 'Checks', count: evidence?.length }, { id: 'log', label: 'Log' }]} />

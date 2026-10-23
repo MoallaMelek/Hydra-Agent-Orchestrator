@@ -97,7 +97,7 @@ async function runningTaskCount(): Promise<number> {
 function createWindow(url: string): void {
   window = new BrowserWindow({
     width: 1360, height: 860, minWidth: 900, minHeight: 600,
-    backgroundColor: '#0b0d12', title: 'Hydra', show: false,
+    backgroundColor: '#07090c', title: 'Hydra', show: false, autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, 'preload.cjs'),
       contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true,

@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 import type { AgentRunInfo, Task } from '@hydra/protocol'
 import { shallow } from '../../api/store'
 import { useApp, useAppState } from '../../app/context'
-import { fileTarget, type IntelGraph, type IntelKind, type IntelNode, type IntelStatus } from './graph'
+import { emptyCounts, fileTarget, type IntelGraph, type IntelNode, type IntelStatus } from './graph'
 import { layoutProject, type Positions, type ProjectEntry } from './layout'
 
 const MAX_MISSIONS = 24
@@ -41,7 +41,7 @@ export function useProjectNetwork(projectId: string | undefined): ProjectNetwork
       const files = new Map<string, 'edit' | 'read' | 'planned'>()
       for (const p of t.plan?.filesLikelyTouched ?? []) files.set(p.replace(/\\/g, '/').replace(/^\.\//, ''), 'planned')
       for (const r of runsOf.get(t.id) ?? []) for (const a of r.activity) {
-        const path = fileTarget(a)
+        const path = fileTarget(a, t.workspace?.path)
         if (!path) continue
         if (a.kind === 'edit') files.set(path, 'edit')
         else if (files.get(path) !== 'edit') files.set(path, 'read')
@@ -50,7 +50,7 @@ export function useProjectNetwork(projectId: string | undefined): ProjectNetwork
       return { id: node.id, label: t.title, node, files: [...files].map(([path, kind]) => ({ path, kind })) }
     })
     const { nodes, edges, pos } = layoutProject(entries)
-    const counts = { mission: 0, stage: 0, run: 0, file: 0, revision: 0, check: 0, finding: 0, decision: 0 } as Record<IntelKind, number>
+    const counts = emptyCounts()
     for (const n of nodes) counts[n.kind]++
     const start = Math.min(...nodes.map((n) => n.at ?? Infinity), Date.now())
     const graph = { task: undefined, nodes, edges, byId: new Map(nodes.map((n) => [n.id, n])), start, end: Date.now(), moments: [], live: false, counts, gaps: [] } as unknown as IntelGraph

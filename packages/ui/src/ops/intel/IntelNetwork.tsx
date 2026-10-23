@@ -20,7 +20,10 @@ export function useReducedMotion(): boolean {
   return reduced
 }
 
-const MISSION_CHANNELS: IntelKind[] = ['stage', 'run', 'file', 'revision', 'check', 'finding', 'decision']
+const MISSION_CHANNELS: IntelKind[] = ['agent', 'run', 'file', 'revision', 'check', 'finding']
+/** Edge and node kinds whose arrival is shown as light (each one a recorded event). */
+const PULSE_EDGES = new Set(['handoff', 'edit', 'read', 'produced', 'reviewed', 'raised', 'concerns', 'decides'])
+const FLASH_NODES = new Set(['run', 'revision', 'check', 'finding', 'decision'])
 const PROJECT_CHANNELS: IntelKind[] = ['mission', 'file']
 const LIST_ORDER: IntelKind[] = ['decision', 'stage', 'run', 'revision', 'check', 'finding', 'file', 'mission']
 
@@ -83,14 +86,27 @@ export function IntelNetwork({ graph, layout, lens, label, selected, onSelect, o
   // FORM on new records, EGO on focus; fit on first draw and when the lens or focus changes.
   const lastFocus = useRef<string | null>(null)
   const lastLayout = useRef<Positions | null>(null)
+  const prevGraph = useRef<IntelGraph | null>(null)
   // Once you pan or zoom, new records never move the camera; Fit (0) hands it back.
   const userMoved = useRef(false)
   useEffect(() => {
     const r = rendererRef.current; if (!r) return
     r.setView({ lens, focus, hidden, failures, cursor })
+    r.framing = layout
     const focusChanged = lastFocus.current !== focus
     if (focusChanged && !first.current) r.moveTo(scenePos, 360)
     else r.setScene(graph, scenePos, first.current ? 420 : 260)
+    // Light for what was recorded since the last frame (replay advancing, or live events arriving).
+    // A large jump (scrubbing) is shown as state only, without light.
+    const prev = prevGraph.current
+    if (prev && lens === 'mission' && prev.task?.id === graph.task?.id) {
+      const had = new Set(prev.edges.map((e) => e.id)), hadNodes = new Set(prev.nodes.map((n) => n.id))
+      const newEdges = graph.edges.filter((e) => !had.has(e.id) && PULSE_EDGES.has(e.kind))
+      const newNodes = graph.nodes.filter((n) => !hadNodes.has(n.id) && FLASH_NODES.has(n.kind)).map((n) => n.id)
+      const changed = graph.nodes.filter((n) => FLASH_NODES.has(n.kind) && hadNodes.has(n.id) && prev.byId.get(n.id)?.status !== n.status).map((n) => n.id)
+      if (newEdges.length + newNodes.length <= 30) r.play(newEdges, [...newNodes, ...changed])
+    }
+    prevGraph.current = graph
     if (first.current || focusChanged || (lastLayout.current !== layout && !userMoved.current)) r.fit()
     first.current = false; lastFocus.current = focus; lastLayout.current = layout
   }, [graph, scenePos, layout, lens, focus, hidden, failures, cursor])
@@ -149,7 +165,7 @@ export function IntelNetwork({ graph, layout, lens, label, selected, onSelect, o
             <span className={`glyph g-${k}`} aria-hidden />{KIND_PLURAL[k]}<span className="mono">{count}</span>
           </button>
         })}
-        {lens === 'mission' && <span className="basis-key" aria-label="Line styles"><i className="k-obs" />observed<i className="k-der" />derived<i className="k-pla" />planned</span>}
+
       </div>
       <div className="net__tools">
         <div className="net__find">

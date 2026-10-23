@@ -91,7 +91,7 @@ export function TimelineLens({ graph: g, full, selected, onSelect }: { graph: In
       {shownFiles.map((f, i) => {
         const y = 52 + i * 24
         const path = f.file!.path
-        const edits = runs.flatMap((r) => r.runFacts!.activity.filter((a) => a.kind === 'edit' && fileTarget(a) === path).map((a) => ({ t: Date.parse(a.at), actor: r.actor })))
+        const edits = runs.flatMap((r) => r.runFacts!.activity.filter((a) => a.kind === 'edit' && fileTarget(a, g.task.workspace?.path) === path).map((a) => ({ t: Date.parse(a.at), actor: r.actor })))
         return <g key={f.id}>
           {lane(y, path.length > 16 ? '…' + path.slice(-15) : path)}
           {edits.map((e, j) => <rect key={j} x={x(e.t) - 1.5} y={y - 7} width={3} height={14} className={`tl-edit a-${e.actor}`} />)}
