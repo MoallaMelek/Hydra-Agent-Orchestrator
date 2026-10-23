@@ -63,7 +63,7 @@ export class NetworkRenderer {
   /** check id → the revision it ran on; revision id → its checks. */
   private checkRev = new Map<string, string>()
   private revChecks = new Map<string, IntelNode[]>()
-  private badges: Array<{ rev: string; x: number; y: number; r: number }> = []
+  private badges: Array<{ rev: string; x: number; y: number; r: number; w: number }> = []
   /** k = zoom; sx = extra horizontal stretch so the clock uses wide screens (fit only, never above 1.5). */
   transform = { k: 1, x: 0, y: 0, sx: 1 }
   private rx(): number { return RX * this.transform.k * this.transform.sx }
@@ -136,10 +136,12 @@ export class NetworkRenderer {
     const pts = [...(this.view.focus || !this.framing ? this.target : this.framing).values()]
     if (!pts.length || rect.width < 48 || rect.height < 48) return
     const lx = this.view.lens === 'mission' ? 210 + extraX : 220 + extraX
-    const ly = this.view.lens === 'mission' ? 84 + extraY : 40 + extraY
+    const ly = this.view.lens === 'mission' ? 24 + extraY : 40 + extraY
+    // Agent labels are two fixed-size screen lines above the top agent and below the bottom one.
+    const padY = this.view.lens === 'mission' ? 52 : 12
     const minX = Math.min(...pts.map((p) => p.x)) - lx, maxX = Math.max(...pts.map((p) => p.x)) + lx
     const minY = Math.min(...pts.map((p) => p.y)) - ly, maxY = Math.max(...pts.map((p) => p.y)) + ly
-    const kx = (rect.width - 24) / Math.max(maxX - minX, 1), ky = (rect.height - 24) / Math.max(maxY - minY, 1)
+    const kx = (rect.width - 24) / Math.max(maxX - minX, 1), ky = (rect.height - 24 - padY * 2) / Math.max(maxY - minY, 1)
     const k = Math.min(kx, ky, 1.6)
     if (!(k > 0.05)) return
     // A wide window stretches the clock sideways (up to 1.5×) instead of leaving empty margins.
@@ -384,9 +386,10 @@ export class NetworkRenderer {
       ctx.fillStyle = failed ? P.stop : running ? P.void : P.engine; ctx.fill()
       if (running && !failed) { ctx.strokeStyle = P.engine; ctx.lineWidth = 1.4; ctx.stroke() }
       ctx.font = `500 10px ${P.mono}`; ctx.textAlign = 'left'; ctx.fillStyle = failed ? P.stop : P.ink2
-      ctx.fillText([passed ? `${passed}✓` : '', failed ? `${failed}✕` : '', running ? `${running}…` : ''].filter(Boolean).join(' '), x + r + 4, y + 3.5)
+      const count = [passed ? `${passed}✓` : '', failed ? `${failed}✕` : '', running ? `${running}…` : ''].filter(Boolean).join(' ')
+      ctx.fillText(count, x + r + 4, y + 3.5)
       ctx.globalAlpha = 1
-      this.badges.push({ rev, x, y, r })
+      this.badges.push({ rev, x, y, r, w: ctx.measureText(count).width })
     }
   }
 
@@ -420,7 +423,8 @@ export class NetworkRenderer {
     const ctx = this.ctx, P = this.palette, view = this.view, g = this.graph!
     const placed: Array<[number, number, number, number]> = []
     for (const n of nodes) { if (dimmed(n.id)) continue; const p = this.toScreen(this.shown.get(n.id)!); const s = this.size(n); placed.push([p.x - s - 2, p.y - s - 2, s * 2 + 4, s * 2 + 4]) }
-    const labelBoxes: Array<[number, number, number, number]> = []
+    // Check badges are drawn first; labels keep clear of them.
+    const labelBoxes: Array<[number, number, number, number]> = this.badges.map((b) => [b.x - b.r - 1, b.y - b.r - 1, b.r * 2 + b.w + 8, b.r * 2 + 2])
     const bounds = this.canvas.getBoundingClientRect()
     const hits = (list: Array<[number, number, number, number]>, b: [number, number, number, number]) => list.some((q) => b[0] < q[0] + q[2] && b[0] + b[2] > q[0] && b[1] < q[1] + q[3] && b[1] + b[3] > q[1])
     // Handoff labels: what the engine passed from one agent's run to the next.
@@ -462,7 +466,7 @@ export class NetworkRenderer {
       const leftFirst = focusPoint !== null && n.id !== view.focus && p.x < focusPoint.x
       const right: [number, number] = [x, y], left: [number, number] = [p.x - s - 7 - w, y]
       const below: [number, number] = [p.x - w / 2, p.y + s + 15], above: [number, number] = [p.x - w / 2, p.y - s - 7]
-      const slots: Array<[number, number]> = n.kind === 'stage' || n.kind === 'agent' ? [[x, y]] : n.kind === 'revision' && !view.focus ? [below, above, right, left] : [...(leftFirst ? [left, right] : [right, left]), below, above]
+      const slots: Array<[number, number]> = n.kind === 'stage' || n.kind === 'agent' ? [[x, y]] : n.kind === 'revision' && !view.focus ? [below, above, right, left, [below[0], below[1] + 14], [above[0], above[1] - 14]] : [...(leftFirst ? [left, right] : [right, left]), below, above]
       let chosen: [number, number] | null = null
       // Revision labels name the commits; they may cross a glyph but never another label.
       for (const [sx, sy] of slots) { const box: [number, number, number, number] = [sx - 3, sy - 12, w + 6, 17]; if (box[0] >= 2 && box[0] + box[2] <= bounds.width - 2 && !hits(labelBoxes, box) && (n.kind === 'revision' || !hits(placed, box))) { chosen = [sx, sy]; placed.push(box); labelBoxes.push(box); break } }
