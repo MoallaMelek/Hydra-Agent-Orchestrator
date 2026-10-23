@@ -7,6 +7,9 @@
  */
 import type { IntelEdge, IntelGraph, IntelKind, IntelNode } from './graph'
 import { RX, RY, type Point, type Positions } from './layout'
+import { tweenProgress } from './tween'
+
+interface Tween { from: Point; start: number; dur: number }
 
 export type Lens = 'mission' | 'project'
 export interface ViewState {
@@ -49,10 +52,9 @@ export class NetworkRenderer {
   private ctx: CanvasRenderingContext2D
   private graph: IntelGraph | null = null
   private target: Positions = new Map()
-  private from: Positions = new Map()
   private shown: Positions = new Map()
-  private animStart = 0
-  private animDur = 0
+  /** Per-mark tweens: a mark whose place is unchanged keeps its running tween when the scene is set again. */
+  private tweens = new Map<string, Tween>()
   private animating = false
   private frame = 0
   private palette: Palette
@@ -83,17 +85,24 @@ export class NetworkRenderer {
     this.graph = graph
     this.checkRev = new Map(); this.revChecks = new Map()
     for (const e of graph.edges) if (e.kind === 'tested') { this.checkRev.set(e.from, e.to); const c = graph.byId.get(e.from); if (c) this.revChecks.set(e.to, [...(this.revChecks.get(e.to) ?? []), c]) }
-    this.from = new Map()
-    for (const id of pos.keys()) this.from.set(id, previous.get(id) ?? this.origin(id, pos))
+    const now = performance.now(), before = this.target
+    const tweens = new Map<string, Tween>()
+    for (const [id, p] of pos) {
+      const old = before.get(id), running = this.tweens.get(id)
+      if (old && old.x === p.x && old.y === p.y) { if (running) tweens.set(id, running) }
+      else tweens.set(id, { from: previous.get(id) ?? this.origin(id, pos), start: now, dur: durationMs })
+    }
+    this.tweens = tweens
     this.target = pos
-    this.animate(durationMs)
+    this.animate()
   }
 
   /** EGO or its reverse: move to new positions without changing the scene. */
   moveTo(pos: Positions, durationMs: number): void {
-    this.from = new Map(this.shown)
+    const now = performance.now()
+    this.tweens = new Map([...pos.keys()].map((id) => [id, { from: this.shown.get(id) ?? pos.get(id)!, start: now, dur: durationMs }]))
     this.target = pos
-    this.animate(durationMs)
+    this.animate()
   }
 
   setView(patch: Partial<ViewState>): void { this.view = { ...this.view, ...patch }; this.requestDraw() }
@@ -104,21 +113,28 @@ export class NetworkRenderer {
     return { x: p.x, y: p.y }
   }
 
-  private animate(durationMs: number): void {
-    const dur = this.reducedMotion ? 0 : durationMs
-    if (!dur) { this.shown = new Map(this.target); this.requestDraw(); return }
-    this.animStart = performance.now(); this.animDur = dur
-    // One animation loop at a time: a new scene mid-flight retargets the running loop.
+  private animate(): void {
+    const place = (now: number): boolean => {
+      const next: Positions = new Map()
+      let moving = false
+      for (const [id, p] of this.target) {
+        const tw = this.tweens.get(id)
+        if (!tw) { next.set(id, p); continue }
+        const e = this.reducedMotion ? 1 : tweenProgress(now, tw.start, tw.dur)
+        next.set(id, { x: tw.from.x + (p.x - tw.from.x) * e, y: tw.from.y + (p.y - tw.from.y) * e })
+        if (e < 1) moving = true; else this.tweens.delete(id)
+      }
+      this.shown = next
+      return moving
+    }
+    // One animation loop at a time; a new scene mid-flight only changes the tweens it reads.
+    if (!place(performance.now())) { this.requestDraw(); return }
     if (this.animating) return
     this.animating = true
-    const step = (now: number) => {
-      const t = Math.min(1, (now - this.animStart) / this.animDur)
-      const e = 1 - Math.pow(1 - t, 3)
-      const next: Positions = new Map()
-      for (const [id, p] of this.target) { const f = this.from.get(id) ?? p; next.set(id, { x: f.x + (p.x - f.x) * e, y: f.y + (p.y - f.y) * e }) }
-      this.shown = next
+    const step = () => {
+      const moving = place(performance.now())
       this.draw()
-      if (t < 1) requestAnimationFrame(step); else this.animating = false
+      if (moving) requestAnimationFrame(step); else this.animating = false
     }
     requestAnimationFrame(step)
   }
@@ -411,7 +427,7 @@ export class NetworkRenderer {
     }
     for (const f of this.flashes) {
       const n = g.byId.get(f.id); if (!n || !ids.has(f.id)) continue
-      const t = Math.min(1, (now - f.t0) / f.dur), p = this.toScreen(this.shown.get(f.id)!), s = this.size(n)
+      const t = Math.min(1, Math.max(0, (now - f.t0) / f.dur)), p = this.toScreen(this.shown.get(f.id)!), s = this.size(n)
       ctx.strokeStyle = n.status === 'failed' || n.status === 'blocked' ? P.stop : this.hue(n.actor); ctx.lineWidth = 2
       ctx.globalAlpha = 1 - t; ctx.beginPath(); ctx.arc(p.x, p.y, s + 4 + t * 12, 0, Math.PI * 2); ctx.stroke()
     }
