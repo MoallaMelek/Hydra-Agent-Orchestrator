@@ -1,13 +1,24 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useApp } from '../../app/context'
 import { Button } from '../../design/components'
 import { passedEvidence, STAGE_LABEL, type IntelGraph, type IntelNode } from './graph'
 import { labelOf } from './renderer'
 import { MissionBrief } from './MissionBrief'
+import { explainNode, type Explanation } from './explain'
+import { AiExplanation } from './AiExplanation'
 import { BASIS_HELP, BASIS_TEXT, fmtDuration, fmtOffset, KIND_NAME, neighbours, providerName, ROLE_NAME, statusWord } from './text'
 
 function Facts({ rows }: { rows: Array<[string, ReactNode]> }) {
   return <dl className="insp-facts">{rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+}
+
+/** What the selected thing is and what it did, in plain English, from its records. */
+export function PlainEnglish({ x }: { x: Explanation }) {
+  return <section className="insp-plain" aria-label="From Hydra's records">
+    <h3>From Hydra's records</h3>
+    {x.here.map((s, i) => <p key={i}>{s}</p>)}
+    {x.next && <p className="insp-plain__next">{x.next}</p>}
+  </section>
 }
 
 function DiffBlock({ patch }: { patch: string }) {
@@ -30,6 +41,9 @@ function FullLog({ evidenceId }: { evidenceId: string }) {
   </div>
 }
 
+/** A finding's full text is shown in the body; its title keeps to the first sentence. */
+const shortTitle = (t: string) => { const first = t.split(/(?<=[.!?])\s/)[0] ?? t; return first.length > 110 ? `${first.slice(0, 108).trimEnd()}…` : first }
+
 export interface InspectorProps {
   graph: IntelGraph
   node: IntelNode | null
@@ -43,17 +57,25 @@ export interface InspectorProps {
 
 /** One record at a time: what it is, how it is known, the evidence, and what it connects to. */
 export function EvidenceInspector({ graph: g, node: n, focused, onSelect, onFocus, onDeliver, at }: InspectorProps) {
+  // A new selection starts at the top, where its plain-English summary is.
+  const top = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    for (let el = top.current?.parentElement; el && el !== document.body; el = el.parentElement) {
+      const o = getComputedStyle(el).overflowY
+      if ((o === 'auto' || o === 'scroll') && el.scrollHeight > el.clientHeight) { el.scrollTop = 0; break }
+    }
+  }, [n?.id])
   if (!n) return <MissionBrief graph={g} onSelect={onSelect} onDeliver={onDeliver} at={at} />
   const word = statusWord(n)
   const { ins, outs } = neighbours(g, n.id)
   const link = (node: IntelNode) => <button className="linkish" onClick={() => onSelect(node.id)}>{node.kind === 'file' ? node.file!.path : labelOf(node)}</button>
-  return <div className="insp" key={n.id}>
+  return <div className="insp" key={n.id} ref={top}>
     <header className="insp-head">
       <div className="spread">
         <p className="eyebrow">{KIND_NAME[n.kind]}{n.actor ? ` · ${ROLE_NAME[n.actor]}` : ''}</p>
         {n.kind !== 'mission' && <Button size="sm" variant="ghost" aria-pressed={focused === n.id} onClick={() => onFocus(n.id)}>{focused === n.id ? 'Leave focus' : 'Focus'} <kbd>{focused === n.id ? 'Esc' : 'F'}</kbd></Button>}
       </div>
-      <h2 className="insp-title">{n.kind === 'file' ? n.file!.path : n.label}</h2>
+      <h2 className="insp-title">{n.kind === 'file' ? n.file!.path : n.kind === 'finding' ? shortTitle(n.label) : n.label}</h2>
       <div className="insp-tags">
         {word && <span className={`tag s-${n.status}`}>{word}</span>}
         <span className={`tag b-${n.basis}`} title={BASIS_HELP[n.basis]}>{BASIS_TEXT[n.basis]}</span>
@@ -62,6 +84,8 @@ export function EvidenceInspector({ graph: g, node: n, focused, onSelect, onFocu
       </div>
     </header>
     <div className="insp-body">
+      <AiExplanation node={n} graph={g} projectId={g.task?.projectId ?? null} replaying={Boolean(at)} />
+      <PlainEnglish x={explainNode(n, g)} />
       {n.kind === 'agent' && (() => {
         const a = n.agent!
         const runs = a.runs.map((id) => g.byId.get(id)).filter((r): r is IntelNode => Boolean(r))

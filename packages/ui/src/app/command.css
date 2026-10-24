@@ -492,3 +492,30 @@
 .delivery .decision-reasons { flex-basis: 100%; margin-top: 2px; flex-direction: row; flex-wrap: wrap; column-gap: 12px; align-items: baseline; }
 .delivery .decision-reasons details[open] { flex-basis: 100%; }
 .net__bar { padding: 8px 14px; }
+
+/* ── In plain English: what the selected thing is and what it did ── */
+.insp-plain { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: var(--deck-2); border-radius: var(--radius-md); box-shadow: inset 2px 0 0 var(--engine); font-size: 13px; line-height: 1.55; color: var(--ink-2); }
+.insp-body .insp-plain h3 { margin-top: 0; color: var(--engine); }
+.insp-plain p { margin: 0; overflow-wrap: anywhere; }
+.insp-plain__what { color: var(--ink); }
+.insp-plain__next { color: var(--ink-3); border-top: 1px solid var(--rule); padding-top: 6px; margin-top: 2px; }
+.map-sel { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.map-sel__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.map-sel__title { font-size: 15px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.map-sel .insp-plain h3 { font: 500 11px/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--engine); }
+.map-sel__hint { font-size: 12px; margin-top: 10px; }
+.net__overlay { position: absolute; left: 12px; bottom: 12px; z-index: 3; width: min(440px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow: auto; pointer-events: none; }
+.net__overlay > * { pointer-events: auto; }
+.net__overlay .map-sel { margin: 0; padding: 12px; background: var(--deck); border: 1px solid var(--rule-2); border-radius: var(--radius-md); box-shadow: 0 8px 28px rgb(0 0 0 / .28); }
+.net__overlay .map-sel__hint { display: inline-block; margin: 0; padding: 4px 8px; background: var(--deck); border: 1px solid var(--rule); border-radius: 999px; }
+
+/* ── In your project: written on request by the user's own provider CLI ── */
+.insp-ai { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--rule-2); border-radius: var(--radius-md); font-size: 13.5px; line-height: 1.6; color: var(--ink); }
+.insp-body .insp-ai h3, .map-sel .insp-ai h3 { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--ink-2); font: 500 11px/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.insp-ai p { margin: 0; overflow-wrap: anywhere; }
+.insp-ai__foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 10px; border-top: 1px solid var(--rule); padding-top: 8px; font-size: 11.5px; line-height: 1.4; }
+.insp-ai__auto { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ink-3); cursor: pointer; }
+.insp-ai__busy { display: flex; align-items: center; gap: 10px; color: var(--ink-2); }
+.insp-ai__dots { width: 28px; height: 8px; background: radial-gradient(circle, var(--ink-2) 3px, transparent 3.5px) 0 50% / 10px 8px repeat-x; animation: insp-ai-dots 1s steps(3) infinite; }
+@keyframes insp-ai-dots { from { clip-path: inset(0 100% 0 0) } to { clip-path: inset(0 0 0 0) } }
+@media (prefers-reduced-motion: reduce) { .insp-ai__dots { animation: none; } }

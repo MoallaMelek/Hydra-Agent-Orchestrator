@@ -1,4 +1,4 @@
-import type { CommandAck, EngineSnapshot, EventEnvelope, TaskDetail, TaskDiff } from '@hydra/protocol'
+import type { CommandAck, EngineSnapshot, EventEnvelope, ExplainRequest, ExplainResult, TaskDetail, TaskDiff } from '@hydra/protocol'
 import type { TaskHistoryQuery, TaskHistoryPage } from '@hydra/protocol'
 
 /**
@@ -12,6 +12,8 @@ export interface Transport {
   taskHistory?(query: TaskHistoryQuery): Promise<TaskHistoryPage>
   taskDiff(taskId: string): Promise<TaskDiff>
   evidenceLog(evidenceId: string): Promise<string>
+  /** Desktop only: a plain-English explanation of one record, written by the user's own provider CLI. */
+  explain?(request: ExplainRequest, signal?: AbortSignal): Promise<ExplainResult>
   execute(command: Record<string, unknown>): Promise<CommandAck>
   /** Streams events after `after`; calls onStatus as the connection changes. Returns a stop function. */
   stream(after: number, onEvent: (envelope: EventEnvelope) => void, onStatus: (status: ConnectionStatus) => void): () => void
@@ -44,6 +46,8 @@ export class HttpTransport implements Transport {
   execute(command: Record<string, unknown>) { return this.request<CommandAck>('/api/commands', { method: 'POST', body: JSON.stringify(command) }) }
   /** Desktop only: writes a database backup or a JSON export next to the daily backups. */
   saveData(kind: 'backup' | 'export') { return this.request<{ file: string }>(`/api/${kind}`, { method: 'POST' }) }
+
+  explain(request: ExplainRequest, signal?: AbortSignal) { return this.request<ExplainResult>('/api/explain', { method: 'POST', body: JSON.stringify(request), signal }) }
 
   async evidenceLog(evidenceId: string): Promise<string> {
     const response = await fetch(`${this.baseUrl}/api/evidence/${evidenceId}/log`, { headers: { Authorization: `Bearer ${this.token}` } })

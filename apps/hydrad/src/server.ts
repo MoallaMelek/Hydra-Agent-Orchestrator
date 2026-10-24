@@ -4,7 +4,7 @@ import { extname, join, normalize, resolve, sep } from 'node:path'
 import { WebSocketServer, type WebSocket } from 'ws'
 import type { Engine } from '@hydra/engine'
 import type { EventEnvelope } from '@hydra/protocol'
-import { TaskHistoryQuery } from '@hydra/protocol'
+import { ExplainRequest, TaskHistoryQuery } from '@hydra/protocol'
 import { bearerMatches, hostAllowed, originAllowed, safePath, SECURITY_HEADERS } from './security.js'
 
 const MAX_BODY = 1024 * 1024
@@ -83,6 +83,19 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
     if (method === 'POST' && path === '/api/commands') {
       const ack = await engine.execute(await readJson(req), { kind: 'desktop' })
       return send(res, ack.ok ? 200 : ack.error.code === 'not_found' ? 404 : ack.error.code === 'internal' ? 500 : 400, ack)
+    }
+    if (method === 'POST' && path === '/api/explain') {
+      const parsed = ExplainRequest.safeParse(await readJson(req))
+      if (!parsed.success) throw new HttpError(400, 'Invalid explain request')
+      // Closing the request (another selection, or the window) stops the agent run.
+      const abort = new AbortController()
+      res.on('close', () => { if (!res.writableFinished) abort.abort() })
+      try { return send(res, 200, await engine.explain(parsed.data, abort.signal)) }
+      catch (error) {
+        const code = (error as { code?: string }).code
+        if (code === 'not_found' || code === 'invalid' || code === 'conflict' || code === 'unavailable') throw new HttpError(code === 'not_found' ? 404 : code === 'invalid' ? 400 : code === 'conflict' ? 409 : 503, (error as Error).message)
+        throw error
+      }
     }
     if (method === 'POST' && path === '/api/backup') return send(res, 200, { file: engine.backup() })
     if (method === 'POST' && path === '/api/export') return send(res, 200, { file: engine.exportData() })

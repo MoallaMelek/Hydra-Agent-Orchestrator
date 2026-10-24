@@ -2,9 +2,10 @@ import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:
 import { basename, join } from 'node:path'
 import {
   Budget, Command, emptyUsage, PROTOCOL_VERSION, REMOTE_COMMAND_SCOPE, routeRequest, type Route,
-  type CommandAck, type DeviceScope, type EngineSnapshot, type EventEnvelope, type Project, type Task, type TaskDetail, type TaskDiff
+  type CommandAck, type DeviceScope, type EngineSnapshot, type EventEnvelope, type ExplainRequest, type ExplainResult, type Project, type Task, type TaskDetail, type TaskDiff
 } from '@hydra/protocol'
 import { AdapterRegistry } from './agents/registry.js'
+import { Explainer } from './explain.js'
 import { headSha, isRepository } from './isolation/git.js'
 import { validateProjectRoot } from './isolation/roots.js'
 import { WorkspaceManager } from './isolation/workspace.js'
@@ -146,6 +147,13 @@ export class Engine {
     if (task.workspace.removed) throw conflict('The workspace was removed after the task finished')
     const { files, truncated } = await this.ctx.workspaces.diff(task.workspace)
     return { baseSha: task.workspace.baseSha, headSha: task.workspace.headSha ?? task.workspace.baseSha, files, truncated }
+  }
+
+  private explainer: Explainer | null = null
+  /** A plain-English explanation of one record, written by the user's own provider CLI (read-only, not stored). */
+  explain(request: ExplainRequest, signal: AbortSignal): Promise<ExplainResult> {
+    this.explainer ??= new Explainer(this.ctx.registry, this.store)
+    return this.explainer.explain(request, signal)
   }
 
   evidenceLogPath(evidenceId: string): string | null {

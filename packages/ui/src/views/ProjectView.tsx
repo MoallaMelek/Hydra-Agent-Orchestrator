@@ -8,6 +8,7 @@ import { ChecksPanel } from './ChecksPanel'
 import { ago, statusLabel } from '../lib/format'
 import { IntelNetwork } from '../ops/intel/IntelNetwork'
 import { useProjectNetwork } from '../ops/intel/project'
+import { MapSelection } from '../ops/intel/MapSelection'
 
 export function ProjectView({ projectId }: { projectId: string }) {
   const { go, run, store, isRemote } = useApp()
@@ -41,7 +42,8 @@ export function ProjectView({ projectId }: { projectId: string }) {
     <section className="request-sheet" aria-label="Start a conversation"><NewTaskForm projectId={projectId} isGit={project.isGit} /></section>
     {network.missions > 0 && <section className="home__map" aria-label="Mission network">
       <div className="home__map-head"><h2 className="home__h">Mission network</h2><p className="faint">Missions linked only through files they recorded touching or planned to touch{network.missions > network.withRuns ? ` · ${network.missions - network.withRuns} of ${network.missions} show planned files only` : ''}{network.truncated ? ' · latest 24' : ''}.</p></div>
-      <IntelNetwork compact graph={network.graph} layout={network.layout} lens="project" label={`Missions in ${project.name}`} selected={selected} onSelect={setSelected} onActivate={(id) => { if (id.startsWith('task:')) go({ view: 'task', taskId: id.slice(5) }); else setSelected(id) }} />
+      <IntelNetwork compact graph={network.graph} layout={network.layout} lens="project" label={`Missions in ${project.name}`} selected={selected} onSelect={setSelected} onActivate={(id) => { if (id.startsWith('task:')) go({ view: 'task', taskId: id.slice(5) }); else setSelected(id) }}
+              overlay={<MapSelection graph={network.graph} selected={selected} projectId={projectId} onOpen={(taskId) => go({ view: 'task', taskId })} onClose={() => setSelected(null)} />} />
     </section>}
     {!isRemote && <details className="disclosure"><summary>Project checks <span>Commands Hydra runs to gather evidence</span></summary><ChecksPanel projectId={projectId} isGit={project.isGit} /></details>}
     <Panel title={archived ? 'Archive' : 'History'} actions={<>

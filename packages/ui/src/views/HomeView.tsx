@@ -10,6 +10,7 @@ import { ago, statusLabel } from '../lib/format'
 import { NewTaskForm } from './NewTaskForm'
 import { IntelNetwork } from '../ops/intel/IntelNetwork'
 import { useProjectNetwork } from '../ops/intel/project'
+import { MapSelection } from '../ops/intel/MapSelection'
 
 function MissionRow({ task, project, onOpen }: { task: Task; project: string; onOpen: () => void }) {
   const s = statusLabel(task)
@@ -39,7 +40,6 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
   const recent = sorted.filter((t) => !['running', 'queued', 'paused', 'failed', 'waiting_input'].includes(t.status)).slice(0, 6)
   const nameOf = (id: string) => projects.find((p) => p.id === id)?.name ?? 'Unknown project'
   const network = useProjectNetwork(writingIn?.id)
-  const fileSel = selected?.startsWith('file:') ? network.graph.byId.get(selected) : undefined
 
   if (!ready) return <div className="page" aria-busy="true"><h1>Hydra</h1><p role="status" className="muted">Connecting to the engine…</p></div>
   if (!projects.length) return <div className="page first-run">
@@ -80,8 +80,8 @@ export function HomeView({ onAddProject }: { onAddProject: () => void }) {
         {network.missions === 0
           ? <p className="home__empty">No change missions in {writingIn!.name} yet. Describe one above and Hydra plans it in an isolated worktree.</p>
           : <IntelNetwork compact graph={network.graph} layout={network.layout} lens="project" label={`Missions in ${writingIn!.name}`} selected={selected} onSelect={setSelected}
-              onActivate={(id) => { if (id.startsWith('task:')) go({ view: 'task', taskId: id.slice(5) }); else setSelected(id) }} />}
-        {fileSel && <p className="home__file" role="status"><code>{fileSel.file!.path}</code> <span className="faint">· {fileSel.file!.edits} mission{fileSel.file!.edits === 1 ? '' : 's'} edited · {fileSel.file!.reads} read{fileSel.basis === 'planned' ? ' · planned only' : ''}</span></p>}
+              onActivate={(id) => { if (id.startsWith('task:')) go({ view: 'task', taskId: id.slice(5) }); else setSelected(id) }}
+              overlay={<MapSelection graph={network.graph} selected={selected} projectId={writingIn!.id} onOpen={(taskId) => go({ view: 'task', taskId })} onClose={() => setSelected(null)} />} />}
       </section>
       <aside className="home__side">
         {needsYou.length > 0 && <section className="home__you" aria-label="Waiting for your decision">

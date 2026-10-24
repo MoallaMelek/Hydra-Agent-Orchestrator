@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Crosshair, List, Maximize2, Search, TriangleAlert } from 'lucide-react'
 import type { IntelGraph, IntelKind, IntelNode } from './graph'
 import { egoLayout, type Positions } from './layout'
@@ -43,6 +43,8 @@ export interface IntelNetworkProps {
   /** Extra controls rendered at the right end of the toolbar. */
   tools?: React.ReactNode
   compact?: boolean
+  /** Drawn over the map's lower-left corner (e.g. what the selection is, in plain English). */
+  overlay?: ReactNode
 }
 
 /**
@@ -50,7 +52,7 @@ export interface IntelNetworkProps {
  * filters, search, list alternative, live region). The canvas never holds information that
  * the list and the inspector do not also hold.
  */
-export function IntelNetwork({ graph, layout, lens, label, selected, onSelect, onActivate, focus = null, onFocus, cursor = null, tools, compact }: IntelNetworkProps) {
+export function IntelNetwork({ graph, layout, lens, label, selected, onSelect, onActivate, focus = null, onFocus, cursor = null, tools, compact, overlay }: IntelNetworkProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<NetworkRenderer | null>(null)
   const reduced = useReducedMotion()
@@ -182,6 +184,7 @@ export function IntelNetwork({ graph, layout, lens, label, selected, onSelect, o
     </div>
     {focusNode && <div className="net__focus" role="status"><Crosshair size={14} aria-hidden /><span><b>Focus</b> {labelOf(focusNode)} <span className="faint">· inputs left, outputs right</span></span><button className="linkish" onClick={() => onFocus?.(null)}>Leave focus <kbd>Esc</kbd></button></div>}
     <div className="net__body">
+      {overlay && !listMode && <div className="net__overlay">{overlay}</div>}
       <canvas ref={canvasRef} className="net__canvas" hidden={listMode} tabIndex={0} role="application"
         aria-label={`${label}. Arrow keys move between records, Enter inspects, F focuses, Escape steps back.`} aria-describedby={liveId}
         onKeyDown={onKey}
@@ -193,9 +196,9 @@ export function IntelNetwork({ graph, layout, lens, label, selected, onSelect, o
           const h = r.hit(p.x, p.y)
           if (h !== r.view.hover) { r.setView({ hover: h }); e.currentTarget.style.cursor = h ? 'pointer' : 'grab' }
         }}
-        onPointerUp={(e) => { const d = drag.current; drag.current = null; if (d && !d.moved) { const h = rendererRef.current?.hit(local(e).x, local(e).y) ?? null; if (h) { activate(h); say(graph.byId.get(h)) } else onSelect(null) } }}
+        onPointerUp={(e) => { const d = drag.current; drag.current = null; if (d && !d.moved) { const h = rendererRef.current?.hit(local(e).x, local(e).y) ?? null; if (h) { onSelect(h); say(graph.byId.get(h)) } else onSelect(null) } }}
         onPointerLeave={() => rendererRef.current?.setView({ hover: null })}
-        onDoubleClick={(e) => { const h = rendererRef.current?.hit(local(e).x, local(e).y); if (h && onFocus) onFocus(focus === h ? null : h) }}
+        onDoubleClick={(e) => { const h = rendererRef.current?.hit(local(e).x, local(e).y); if (!h) return; if (onActivate) onActivate(h); else if (onFocus) onFocus(focus === h ? null : h) }}
       />
       {listMode && <div className="net__list">
         {LIST_ORDER.map((k) => {
