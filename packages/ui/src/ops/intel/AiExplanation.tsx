@@ -3,12 +3,12 @@ import { RefreshCw, Sparkles } from 'lucide-react'
 import type { ExplainRequest, ExplainResult } from '@hydra/protocol'
 import { useApp } from '../../app/context'
 import { Button } from '../../design/components'
-import { factsFor, fileFor, type ExplainLens } from './explain'
+import { factsFor, fileFor, leadSentence, type ExplainLens } from './explain'
 import type { IntelGraph, IntelNode } from './graph'
 import { providerName } from './text'
 
 const AUTO_KEY = 'hydra.explain.auto'
-const CACHE_PREFIX = 'hydra.explain.v1.'
+const CACHE_PREFIX = 'hydra.explain.v2.'
 const memory = new Map<string, ExplainResult>()
 
 const readAuto = () => { try { return localStorage.getItem(AUTO_KEY) !== 'off' } catch { return true } }
@@ -21,6 +21,14 @@ function cached(key: string): ExplainResult | null {
 function remember(key: string, value: ExplainResult): void {
   memory.set(key, value)
   try { localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value)) } catch { /* storage full or unavailable */ }
+}
+
+function Prose({ text }: { text: string }) {
+  const [lead, rest] = leadSentence(text)
+  return <>
+    <p className="insp-ai__lead">{lead}</p>
+    {rest.split(/\n{2,}/).filter(Boolean).map((p, i) => <p key={i}>{p}</p>)}
+  </>
 }
 
 type State = { kind: 'idle' } | { kind: 'busy' } | { kind: 'done'; result: ExplainResult; fresh: boolean } | { kind: 'error'; message: string }
@@ -66,7 +74,7 @@ export function AiExplanation({ node: n, graph: g, projectId, lens = 'mission', 
   return <section className="insp-ai" aria-label="Explained for this project" aria-busy={state.kind === 'busy'}>
     <h3><Sparkles size={13} aria-hidden /> In your project</h3>
     {state.kind === 'busy' && <div className="insp-ai__busy" role="status"><span className="insp-ai__dots" aria-hidden /><span>Reading your project to explain this…</span></div>}
-    {state.kind === 'done' && <>{state.result.text.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</>}
+    {state.kind === 'done' && <Prose text={state.result.text} />}
     {state.kind === 'error' && <p className="insp-warn" role="alert">{state.message}</p>}
     {state.kind === 'idle' && <p className="faint">{replaying ? 'Explanations wait while you replay, because the record changes at every moment.' : 'Not explained yet.'}</p>}
     <div className="insp-ai__foot">

@@ -39,10 +39,10 @@ export function explainPrompt(req: ExplainRequest, file: string | null): string 
     req.facts,
     'RECORD>>>',
     '',
-    'Write 3 to 5 short sentences in plain English, specific to THIS project and THIS item:',
-    '- what it is and what it does in this project (for a file: what the code in it is for; for a check: what this command tests or builds here);',
-    '- what happened to it in this mission and what the result means (for a failure: what exactly failed and the most likely cause, from the output);',
-    '- if useful, one concrete thing the developer could look at next.',
+    'Answer in plain English, specific to THIS project and THIS item, in at most 4 short sentences and under 90 words:',
+    '1. First sentence: what it is in this project, in everyday words (for a file: what the code in it is for; for a check: what this command tests or builds here).',
+    '2. Then what happened to it in this mission and what that means (for a failure: exactly what failed and the most likely cause, from the output).',
+    '3. Only if useful, one concrete thing the developer could look at next.',
     'Name the real functions, tests, modules or behaviours involved. Do not repeat the raw record back. Do not invent facts: if the files and record do not show something, say you cannot tell.',
     'Plain prose only: no headings, no lists, no code blocks. Read files if you need to, but do not change anything.'
   ].filter((line, i, all) => line !== '' || all[i - 1] !== '').join('\n')

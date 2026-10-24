@@ -323,3 +323,10 @@ export function fileFor(n: IntelNode): string | null {
   if (n.kind === 'finding') return n.finding!.file ?? null
   return null
 }
+
+/** The first sentence says what the thing is; it leads, the rest follows as normal text. */
+export function leadSentence(text: string): [string, string] {
+  const t = text.trim()
+  const m = /^([\s\S]*?[.!?])(\s+)(?=[A-Z`"'(])/.exec(t)
+  return m && m[1]!.length >= 20 ? [m[1]!, t.slice(m[0].length)] : [t, '']
+}

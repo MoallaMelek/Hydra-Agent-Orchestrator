@@ -519,3 +519,4 @@
 .insp-ai__dots { width: 28px; height: 8px; background: radial-gradient(circle, var(--ink-2) 3px, transparent 3.5px) 0 50% / 10px 8px repeat-x; animation: insp-ai-dots 1s steps(3) infinite; }
 @keyframes insp-ai-dots { from { clip-path: inset(0 100% 0 0) } to { clip-path: inset(0 0 0 0) } }
 @media (prefers-reduced-motion: reduce) { .insp-ai__dots { animation: none; } }
+.insp-ai__lead { font-weight: 550; color: var(--ink); }

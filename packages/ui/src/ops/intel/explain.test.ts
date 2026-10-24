@@ -72,3 +72,17 @@ describe('plain-English explanations', () => {
     expect(all(explainNode(g.byId.get('file:docs/plan.md')!, g, 'project'))).toMatch(/only appears in a plan/)
   })
 })
+
+describe('agent-written explanations', () => {
+  it('lead with their first sentence, without splitting file names or versions', async () => {
+    const { leadSentence } = await import('./explain')
+    const [a, b] = leadSentence('manipulation.py is the interaction core of telekinisis. It holds objects cut out of real camera frames as `Sprite`s.')
+    expect(a).toBe('manipulation.py is the interaction core of telekinisis.')
+    expect(b).toMatch(/^It holds/)
+    const [c, d] = leadSentence('pytest runs the whole Vector test suite, and this run failed on a single test out of about 170. The failing test is `test_move_only_keeps_size`.')
+    expect(c).toMatch(/about 170\.$/)
+    expect(d).toMatch(/^The failing test/)
+    expect(leadSentence('Short.')).toEqual(['Short.', ''])
+    expect(leadSentence('No full stop at all')).toEqual(['No full stop at all', ''])
+  })
+})
