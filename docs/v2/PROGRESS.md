@@ -150,3 +150,6 @@ Design system locked (`design/DESIGN-SYSTEM.md`, `design/VOICE.md`; alpha.6 doc 
 ## 2026-10-23 — Living network iteration
 Agents (a role on a provider) are drawn around the mission clock and linked to their runs; handoffs are drawn only where a recorded artifact (plan, reviewed revision, findings, failed checks) links consecutive runs; read-only files stay quiet; replay moves continuously through recorded time with quiet gaps shortened, and each newly recorded link or state change gets one pulse or flash (none under reduced motion). The default inspector is now a mission briefing computed from the records. Validated in the packaged app at the owner's content size and on his PC with his real mission; a Windows-only replay bug found there was fixed (per-mark tweens). UI only.
 
+## 2026-10-25 — Explanations on click
+Anything selected on a mission map or a project map now explains itself: 'In your project' is written on the spot by the user's own Claude Code or Codex from that project's files and the record (read-only, cached per record, labelled AI-written, can be switched off), and 'From Hydra's records' states the recorded facts in plain sentences. Project maps select on click; double-click or Enter opens a mission. Verified on the owner's PC with his own projects.
+
