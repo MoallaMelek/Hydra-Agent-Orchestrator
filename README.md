@@ -28,17 +28,17 @@ Hydra is a desktop app that runs Claude Code and Codex CLI as a team: one plans,
 
 ```mermaid
 flowchart LR
-    you([You describe a change]) --> plan[Plan<br/><sub>planner agent</sub>]
-    plan --> impl[Implement<br/><sub>own git worktree</sub>]
-    impl --> review[Review<br/><sub>a second agent</sub>]
-    review -- findings --> fix[Fix<br/><sub>bounded rounds</sub>]
+    you(["You describe a change"]) --> plan["Plan<br/>planner agent"]
+    plan --> impl["Implement<br/>own git worktree"]
+    impl --> review["Review<br/>a second agent"]
+    review -->|findings| fix["Fix<br/>bounded rounds"]
     fix --> review
-    review -- approved --> verify[Verify<br/><sub>Hydra runs your checks</sub>]
-    verify --> demo[Demo<br/><sub>before vs after</sub>]
-    demo --> decide{Your decision}
-    decide -- Accept --> apply([Applied to your branch])
-    decide -- Request changes --> fix
-    decide -- Reject or keep branch --> safe([Your tree untouched])
+    review -->|approved| verify["Verify<br/>Hydra runs your checks"]
+    verify --> demo["Demo<br/>before vs after"]
+    demo --> decide{"Your decision"}
+    decide -->|Accept| apply(["Applied to your branch"])
+    decide -->|Request changes| fix
+    decide -->|Reject or keep branch| safe(["Your tree untouched"])
 ```
 
 - **Isolated changes.** Every change runs in its own git worktree on a `hydra/*` branch. Hydra delivers a revision only after your approval. Recorded applies offer revert-based rollback, subject to branch state and conflict resolution. Project checks still run as your user, so use repositories you trust.
@@ -111,24 +111,24 @@ Every mission opens on an **evidence map**, drawn only from what Hydra recorded.
 ```mermaid
 flowchart TB
     subgraph desktop["Desktop app (Electron)"]
-        ui["React UI<br/><sub>evidence map · replay · decisions</sub>"]
+        ui["React UI<br/>evidence map, replay, decisions"]
     end
     subgraph hydrad["hydrad (local engine)"]
-        api["HTTP + WebSocket API<br/><sub>typed, zod-validated</sub>"]
-        orch["Orchestrator<br/><sub>workflow · stages · budgets · policy</sub>"]
-        agents["Agent adapters<br/><sub>Claude Code · Codex CLI</sub>"]
-        iso["Isolation<br/><sub>git worktrees</sub>"]
-        verify["Verification<br/><sub>check detectors + runner</sub>"]
-        store[("SQLite journal<br/><sub>tasks · runs · evidence · events</sub>")]
+        api["HTTP + WebSocket API<br/>typed, zod-validated"]
+        orch["Orchestrator<br/>workflow, stages, budgets, policy"]
+        agents["Agent adapters<br/>Claude Code, Codex CLI"]
+        iso["Isolation<br/>git worktrees"]
+        verify["Verification<br/>check detectors and runner"]
+        store[("SQLite journal<br/>tasks, runs, evidence, events")]
     end
-    phone["Paired phone<br/><sub>same UI, remote</sub>"]
+    phone["Paired phone<br/>same UI, remote"]
     ui <--> api
     api --> orch
     orch --> agents
     orch --> iso
     orch --> verify
     orch --> store
-    phone <-. "encrypted channel (X25519 / Ed25519)" .-> api
+    phone -.->|"encrypted channel"| api
 ```
 
 | Package | What it does |
