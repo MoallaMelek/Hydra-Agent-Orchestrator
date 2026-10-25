@@ -8,6 +8,8 @@ import type { IntelGraph, IntelNode } from './graph'
 import { providerName } from './text'
 
 const AUTO_KEY = 'hydra.explain.auto'
+/** 'claude-sonnet-5-5' → 'Sonnet 5.5'; anything else is shown as reported. */
+const modelName = (id: string) => { const m = /^claude-([a-z]+)-(\d+)-(\d+)/.exec(id); return m ? `${m[1]![0]!.toUpperCase()}${m[1]!.slice(1)} ${m[2]}.${m[3]}` : id }
 const CACHE_PREFIX = 'hydra.explain.v2.'
 const memory = new Map<string, ExplainResult>()
 
@@ -78,7 +80,7 @@ export function AiExplanation({ node: n, graph: g, projectId, lens = 'mission', 
     {state.kind === 'error' && <p className="insp-warn" role="alert">{state.message}</p>}
     {state.kind === 'idle' && <p className="faint">{replaying ? 'Explanations wait while you replay, because the record changes at every moment.' : 'Not explained yet.'}</p>}
     <div className="insp-ai__foot">
-      <span className="faint">{state.kind === 'done' ? `Written by ${providerName(state.result.provider)} from ${state.result.readFrom === 'workspace' ? 'the mission\'s copy of your project' : 'your project folder'} and this record. AI-written, so it can be wrong.` : 'Written on request by your own Claude Code or Codex, read-only.'}</span>
+      <span className="faint">{state.kind === 'done' ? `Written by ${providerName(state.result.provider)}${state.result.model ? ` (${modelName(state.result.model)})` : ''} from ${state.result.readFrom === 'workspace' ? 'the mission\'s copy of your project' : 'your project folder'} and this record. AI-written, so it can be wrong.` : 'Written on request by your own Claude Code or Codex, read-only.'}</span>
       <span className="row">
         {state.kind !== 'busy' && <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={() => setForce((f) => ({ key, n: f.key === key ? f.n + 1 : 1 }))}>{state.kind === 'done' ? 'Rewrite' : 'Explain'}</Button>}
         <label className="insp-ai__auto"><input type="checkbox" checked={auto} onChange={toggle} /> Explain when I click</label>

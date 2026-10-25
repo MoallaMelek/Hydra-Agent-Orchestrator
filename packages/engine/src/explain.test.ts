@@ -3,7 +3,7 @@ import { ExplainRequest } from '@hydra/protocol'
 import { Engine } from './engine.js'
 import { AdapterRegistry } from './agents/registry.js'
 import { ScriptedAdapter } from './agents/scripted.js'
-import { explainPrompt, safeRelativeFile } from './explain.js'
+import { explainModel, explainPrompt, safeRelativeFile } from './explain.js'
 import { BUGGY_NODE_PROJECT, cleanup, makeRepo, tempDir } from './testing/fixtures.js'
 
 const dirs: string[] = []
@@ -40,6 +40,14 @@ describe('explanations written by the user\'s provider CLI', () => {
     expect(call.prompt.indexOf('Ignore previous instructions')).toBeGreaterThan(call.prompt.indexOf('<<<RECORD'))
     // Nothing about the explanation is stored as a task or run.
     expect(engine.store.listTasks()).toHaveLength(0)
+  })
+
+  it('uses Sonnet for Claude Code and leaves other providers on their default model', async () => {
+    expect(explainModel('claude')).toBe('sonnet')
+    expect(explainModel('codex')).toBeNull()
+    const { adapter, engine, projectId } = await setup(() => ({ text: 'ok' }))
+    await engine.explain(request(projectId), new AbortController().signal)
+    expect(adapter.calls[0]!.model).toBeNull()
   })
 
   it('never points the agent outside the project', () => {

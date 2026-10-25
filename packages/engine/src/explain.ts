@@ -18,6 +18,15 @@ const TIMEOUT_MS = 120_000
 const BUDGET_USD = 0.5
 const MAX_PARALLEL = 2
 
+/**
+ * Explanations are short reads of one record, so they use a faster, cheaper model than the
+ * mission's agents. Claude Code takes the 'sonnet' alias (the current Sonnet); other
+ * providers keep their own default.
+ */
+export function explainModel(provider: ProviderId): string | null {
+  return provider === 'claude' ? 'sonnet' : null
+}
+
 /** A repository-relative path the agent may be pointed at; anything else is dropped. */
 export function safeRelativeFile(file: string | null): string | null {
   if (!file) return null
@@ -70,7 +79,7 @@ export class Explainer {
     this.running++
     let text = '', streamed = '', model: string | null = null, tokens = 0, cost: number | null = null, failure: string | null = null, status = 'failed'
     try {
-      for await (const event of this.registry.get(provider).run({ cwd, prompt: explainPrompt(req, file), role: 'reviewer', access: 'read', timeoutMs: TIMEOUT_MS, maxBudgetUsd: BUDGET_USD }, signal)) {
+      for await (const event of this.registry.get(provider).run({ cwd, prompt: explainPrompt(req, file), role: 'reviewer', access: 'read', model: explainModel(provider), timeoutMs: TIMEOUT_MS, maxBudgetUsd: BUDGET_USD }, signal)) {
         if (event.type === 'final_text') text = event.text
         else if (event.type === 'text') streamed += (streamed ? '\n' : '') + event.text
         else if (event.type === 'usage') { tokens += event.inputTokens + event.outputTokens; cost = event.costUsd ?? cost; model = event.model ?? model }
