@@ -152,6 +152,7 @@ Agents (a role on a provider) are drawn around the mission clock and linked to t
 
 ## 2026-10-25 — Explanations on click
 Anything selected on a mission map or a project map now explains itself: 'In your project' is written on the spot by the user's own Claude Code or Codex from that project's files and the record (read-only, cached per record, labelled AI-written, can be switched off), and 'From Hydra's records' states the recorded facts in plain sentences. Project maps select on click; double-click or Enter opens a mission. Verified on the owner's PC with his own projects.
+Explanations now run on Sonnet when Claude Code writes them (cheaper and faster for a four-sentence read; verified on the owner's PC), and the footer names the model.
 
 ## 2026-10-21 — honest outcome costs
 fix(outcomes): distinguish measured free work from unpriced usage. Full checks passed; see TEST_EVIDENCE.md.

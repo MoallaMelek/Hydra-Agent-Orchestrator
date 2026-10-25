@@ -324,6 +324,16 @@ export function fileFor(n: IntelNode): string | null {
   return null
 }
 
+/**
+ * A model id as people say it: 'claude-sonnet-5' → 'Sonnet 5', 'claude-opus-5-5' → 'Opus 5.5',
+ * 'claude-sonnet-4-5-20250929' → 'Sonnet 4.5'. Anything else is shown as reported.
+ */
+export function modelName(id: string): string {
+  const m = /^claude-([a-z]+)-(\d+)(?:-(\d{1,2}))?(?:-\d{8})?$/.exec(id)
+  if (!m) return id
+  return `${m[1]![0]!.toUpperCase()}${m[1]!.slice(1)} ${m[2]}${m[3] ? `.${m[3]}` : ''}`
+}
+
 /** The first sentence says what the thing is; it leads, the rest follows as normal text. */
 export function leadSentence(text: string): [string, string] {
   const t = text.trim()
