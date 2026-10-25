@@ -1,70 +1,104 @@
-import { ShieldCheck, GitBranch, FlaskConical } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ArrowRight, Plus } from 'lucide-react'
+import type { Task } from '@hydra/protocol'
 import { HydraMark } from '../brand/HydraMark'
-import { Badge, Button, Callout, Panel } from '../design/components'
-import { useApp } from '../app/context'
-import { StagePipeline } from './StagePipeline'
+import { Badge, Button, Callout } from '../design/components'
+import { shallow } from '../api/store'
+import { useApp, useAppState } from '../app/context'
 import { providerReady, SetupChecklist } from './SetupChecklist'
 import { ago, statusLabel } from '../lib/format'
+import { NewTaskForm } from './NewTaskForm'
+import { IntelNetwork } from '../ops/intel/IntelNetwork'
+import { useProjectNetwork } from '../ops/intel/project'
+import { MapSelection } from '../ops/intel/MapSelection'
+
+function MissionRow({ task, project, onOpen }: { task: Task; project: string; onOpen: () => void }) {
+  const s = statusLabel(task)
+  const waiting = task.status === 'waiting_input'
+  return <button className={`mrow ${waiting ? 'mrow--you' : ''}`} onClick={onOpen}>
+    <span className="mrow__main">
+      <b className="truncate">{task.title}</b>
+      <small className="faint">{project} · {waiting ? (task.waitReason === 'plan_approval' ? 'Plan ready · nothing written yet' : task.waitReason === 'final_approval' ? `Revision ${task.workspace?.headSha?.slice(0, 7) ?? ''} waits for you` : 'Input needed') : `${task.intent === 'analyze' ? 'Question' : 'Change'} · ${ago(task.updatedAt)}`}</small>
+    </span>
+    <Badge tone={s.tone} live={s.live}>{s.label}</Badge>
+    <ArrowRight size={14} aria-hidden />
+  </button>
+}
 
 export function HomeView({ onAddProject }: { onAddProject: () => void }) {
-  const { state, go } = useApp()
-  const anyReady = state.providers.some(providerReady)
-  const tasks = Object.values(state.tasks).filter((t) => !t.archivedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-  const needsYou = tasks.filter((t) => t.status === 'waiting_input')
-  const running = tasks.filter((t) => t.status === 'running' || t.status === 'queued')
-  const projectName = (id: string) => state.projects.find((p) => p.id === id)?.name ?? 'Unknown project'
+  const { go, isRemote } = useApp()
+  const ready = useAppState((s) => s.ready)
+  const projects = useAppState((s) => s.projects)
+  const providers = useAppState((s) => s.providers)
+  const tasks = useAppState((s) => Object.values(s.tasks).filter((t) => !t.archivedAt), shallow)
+  const [projectId, setProjectId] = useState('')
+  const [selected, setSelected] = useState<string | null>(null)
+  const writingIn = projects.find((p) => p.id === projectId) ?? projects[0]
+  const sorted = useMemo(() => [...tasks].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [tasks])
+  const needsYou = sorted.filter((t) => t.status === 'waiting_input')
+  const underway = sorted.filter((t) => ['running', 'queued', 'paused', 'failed'].includes(t.status))
+  const recent = sorted.filter((t) => !['running', 'queued', 'paused', 'failed', 'waiting_input'].includes(t.status)).slice(0, 6)
+  const nameOf = (id: string) => projects.find((p) => p.id === id)?.name ?? 'Unknown project'
+  const network = useProjectNetwork(writingIn?.id)
 
-  if (!state.projects.length) {
-    return (
-      <div className="page" style={{ maxWidth: 760, paddingTop: 72 }}>
-        <div className="col" style={{ alignItems: 'center', textAlign: 'center', gap: 16 }}>
-          <span style={{ color: 'var(--text)' }}><HydraMark size={56} /></span>
-          <h1>Supervised AI development, isolated by default</h1>
-          <p className="muted" style={{ maxWidth: 560 }}>
-            Hydra plans, implements, reviews and verifies changes with Claude Code and Codex in an isolated git worktree. Nothing touches your branch until you accept a verified result.
-          </p>
-        </div>
-        <div style={{ marginTop: 32, textAlign: 'left' }}><SetupChecklist onAddProject={onAddProject} /></div>
-        <div className="stats" style={{ justifyContent: 'center', marginTop: 32 }}>
-          {[
-            [<GitBranch key="g" size={18} />, 'Isolated worktree per task'],
-            [<FlaskConical key="f" size={18} />, 'Tests run by Hydra, not claimed by agents'],
-            [<ShieldCheck key="s" size={18} />, 'You approve every change']
-          ].map(([icon, text], i) => <div key={i} className="row muted" style={{ fontSize: 13 }}>{icon}{text}</div>)}
+  if (!ready) return <div className="page" aria-busy="true"><h1>Hydra</h1><p role="status" className="muted">Connecting to the engine…</p></div>
+  if (!projects.length) return <div className="page first-run">
+    <div className="first-run__intro">
+      <HydraMark size={44} />
+      <h1>Your request. Their runs. Your decision.</h1>
+      <p className="muted">Hydra plans a change with the AI accounts you already use, builds it in an isolated Git worktree, runs your own checks on the exact revision, and waits for you before anything reaches your branch.</p>
+      <ul className="first-run__facts">
+        <li><span className="glyph g-revision" aria-hidden />An isolated branch for every mission</li>
+        <li><span className="glyph g-check" aria-hidden />Hydra runs your checks itself</li>
+        <li><span className="glyph g-decision" aria-hidden />Nothing applies without you</li>
+      </ul>
+    </div>
+    <div>{isRemote ? <p className="muted">Add a project on your desktop to start a mission.</p> : <SetupChecklist onAddProject={onAddProject} />}</div>
+  </div>
+
+  return <div className="page home">
+    <section className="home__compose" aria-label="New mission">
+      <div className="home__compose-head">
+        <h1>Describe a change.</h1>
+        <div className="row">
+          <label className="eyebrow" htmlFor="home-project">In</label>
+          <select id="home-project" className="hx-select home__project" value={writingIn!.id} onChange={(e) => { setProjectId(e.target.value); setSelected(null) }}>{projects.map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}</select>
+          <span className="mono faint">{writingIn!.isGit ? 'isolated worktree' : 'questions only · not a Git repository'}</span>
+          {!isRemote && <Button size="sm" variant="ghost" icon={<Plus size={14} />} onClick={onAddProject}>Add project</Button>}
         </div>
       </div>
-    )
-  }
+      <NewTaskForm key={writingIn!.id} projectId={writingIn!.id} isGit={writingIn!.isGit} />
+      {!providers.some(providerReady) && <Callout tone="warn">No AI account is ready. Open AI accounts to install or sign in to a CLI.</Callout>}
+    </section>
 
-  const row = (t: typeof tasks[number]) => {
-    const s = statusLabel(t)
-    return (
-      <button key={t.id} className="task-card" onClick={() => go({ view: 'task', taskId: t.id })}>
-        <div style={{ minWidth: 0 }}>
-          <div className="task-card__title truncate">{t.title}</div>
-          <div className="task-card__meta"><span>{projectName(t.projectId)}</span><span>{ago(t.updatedAt)}</span></div>
+    <div className="home__grid">
+      <section className="home__map" aria-label={`${writingIn!.name} project network`}>
+        <div className="home__map-head">
+          <h2 className="home__h">{writingIn!.name}</h2>
+          <p className="faint">Missions linked only through files they recorded touching or planned to touch{network.missions > network.withRuns ? ` · ${network.missions - network.withRuns} of ${network.missions} show planned files only until opened` : ''}{network.truncated ? ' · latest 24' : ''}.</p>
         </div>
-        <StagePipeline task={t} compact />
-        <Badge tone={s.tone} live={s.live}>{s.label}</Badge>
-      </button>
-    )
-  }
+        {network.missions === 0
+          ? <p className="home__empty">No change missions in {writingIn!.name} yet. Describe one above and Hydra plans it in an isolated worktree.</p>
+          : <IntelNetwork compact graph={network.graph} layout={network.layout} lens="project" label={`Missions in ${writingIn!.name}`} selected={selected} onSelect={setSelected}
+              onActivate={(id) => { if (id.startsWith('task:')) go({ view: 'task', taskId: id.slice(5) }); else setSelected(id) }}
+              overlay={<MapSelection graph={network.graph} selected={selected} projectId={writingIn!.id} onOpen={(taskId) => go({ view: 'task', taskId })} onClose={() => setSelected(null)} />} />}
+      </section>
+      <aside className="home__side">
+        {needsYou.length > 0 && <section className="home__you" aria-label="Waiting for your decision">
+          <h2 className="home__h">Waiting for you <span className="mono faint">{needsYou.length}</span></h2>
+          <div className="mrows">{needsYou.slice(0, 5).map((t) => <MissionRow key={t.id} task={t} project={nameOf(t.projectId)} onOpen={() => go({ view: 'task', taskId: t.id })} />)}</div>
+        </section>}
 
-  return (
-    <div className="page">
-      <div className="page__head"><div className="page__title"><h1>Overview</h1><p className="muted">{running.length} running · {needsYou.length} waiting for you</p></div></div>
-      {state.providers.length > 0 && !anyReady && (
-        <Callout tone="warn">
-          No agent is ready, so new tasks cannot run. Install Claude Code or Codex and sign in with your own account.{' '}
-          <Button size="sm" variant="ghost" onClick={() => go({ view: 'providers' })}>Open Agents &amp; providers</Button>
-        </Callout>
-      )}
-      <Panel title="Needs your decision">
-        {needsYou.length ? <div className="task-list">{needsYou.map(row)}</div> : <p className="muted">Nothing is waiting for you.</p>}
-      </Panel>
-      <Panel title="Recent tasks">
-        {tasks.length ? <div className="task-list">{tasks.slice(0, 12).map(row)}</div> : <p className="muted">No tasks yet. Open a project to start one.</p>}
-      </Panel>
+        <section aria-label="Underway">
+          <h2 className="home__h">Underway <span className="mono faint">{underway.length}</span></h2>
+          {underway.length ? <div className="mrows">{underway.slice(0, 5).map((t) => <MissionRow key={t.id} task={t} project={nameOf(t.projectId)} onOpen={() => go({ view: 'task', taskId: t.id })} />)}</div> : <p className="faint">No mission is running.</p>}
+        </section>
+        <section aria-label="Recent">
+          <h2 className="home__h">Recent</h2>
+          {recent.length ? <div className="mrows">{recent.map((t) => <MissionRow key={t.id} task={t} project={nameOf(t.projectId)} onOpen={() => go({ view: 'task', taskId: t.id })} />)}</div> : <p className="faint">Recorded outcomes appear here.</p>}
+          <button className="linkish" onClick={() => go({ view: 'project', projectId: writingIn!.id })}>Full history of {writingIn!.name}</button>
+        </section>
+      </aside>
     </div>
-  )
+  </div>
 }

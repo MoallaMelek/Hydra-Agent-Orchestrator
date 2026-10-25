@@ -1,8 +1,10 @@
+import { useDraft, composeRequest } from '../app/preferences'
+import { DraftAttachments } from './DraftAttachments'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, ShieldAlert, Sparkles } from 'lucide-react'
+import { ChevronDown, ChevronRight, ShieldAlert } from 'lucide-react'
 import { routeRequest, type AutonomyMode, type DepthChoice, type ProviderId, type Task } from '@hydra/protocol'
 import { Button, Callout, Field, Segmented } from '../design/components'
-import { useApp } from '../app/context'
+import { useApp, useAppState } from '../app/context'
 import { MODE_INFO } from '../lib/format'
 
 const DEFAULT_BUDGET = { safe: { cost: 2, minutes: 30 }, developer: { cost: 5, minutes: 60 }, autonomous: { cost: 15, minutes: 120 } }
@@ -16,11 +18,18 @@ const DEPTH_HINT = {
 
 /** One box for questions and changes. Hydra picks how to handle it (Auto) unless you choose. */
 export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: boolean }) {
-  const { state, run, go, store } = useApp()
-  const ready = state.providers.filter((p) => p.installed && p.problems.length === 0).map((p) => p.id)
-  const [prompt, setPrompt] = useState('')
-  const [choice, setChoice] = useState<DepthChoice>('auto')
-  const [mode, setMode] = useState<AutonomyMode>('safe')
+  const { run, go, store } = useApp()
+  const providers = useAppState((s) => s.providers)
+  const ready = providers.filter((p) => p.installed && p.problems.length === 0).map((p) => p.id)
+  const draft = useDraft(`project:${projectId}`)
+  const prompt = draft.text
+  const setPrompt = (text: string) => draft.set({ text, routing: choice, mode })
+  const [submitError, setSubmitError] = useState('')
+  const submitting = useRef(false)
+  const [choice, setChoiceValue] = useState<DepthChoice>(draft.routing ?? 'auto')
+  const setChoice = (value: DepthChoice) => { setChoiceValue(value); draft.set({ routing: value }) }
+  const [mode, setModeValue] = useState<AutonomyMode>(draft.mode ?? 'safe')
+  const setMode = (value: AutonomyMode) => { setModeValue(value); draft.set({ mode: value }) }
   const defaults = useMemo(() => ({
     planner: (ready.includes('claude') ? 'claude' : ready[0] ?? 'claude') as ProviderId,
     implementer: (ready.includes('codex') ? 'codex' : ready[0] ?? 'codex') as ProviderId,
@@ -34,7 +43,6 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
   const [minutes, setMinutes] = useState<number | ''>('')
   const [busy, setBusy] = useState(false)
   const [advanced, setAdvanced] = useState(false)
-  const warmed = useRef(0)
 
   const route = routeRequest(prompt, choice)
   // Mirrors the engine: without git, Auto answers instead of changing code.
@@ -42,11 +50,11 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
   const isChange = depth === 'deep'
   const effectiveMode: AutonomyMode = isChange && route.risk === 'high' ? 'safe' : mode
 
-  const label = (id: string) => state.providers.find((p) => p.id === id)?.displayName ?? id
+  const label = (id: string) => providers.find((p) => p.id === id)?.displayName ?? id
   const select = (role: keyof typeof assignment, hint: string) => (
     <Field label={role === 'planner' ? (isChange ? 'Planner' : 'Answers with') : role === 'implementer' ? 'Implementer' : 'Reviewer'} hint={hint} htmlFor={`role-${role}`}>
       <select id={`role-${role}`} className="hx-select" value={assignment[role]} onChange={(e) => { setPicked(true); setAssignment({ ...assignment, [role]: e.target.value as ProviderId }) }}>
-        {state.providers.map((p) => <option key={p.id} value={p.id} disabled={!ready.includes(p.id)}>{p.displayName}{ready.includes(p.id) ? '' : ' (not ready)'}</option>)}
+        {providers.map((p) => <option key={p.id} value={p.id} disabled={!ready.includes(p.id)}>{p.displayName}{ready.includes(p.id) ? '' : ' (not ready)'}</option>)}
       </select>
     </Field>
   )
@@ -63,30 +71,36 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
     return () => clearTimeout(timer)
   }, [prompt, choice, picked, store])
 
-  // Start an answering agent while the user types, so the reply begins sooner.
-  const prewarm = () => {
-    if (Date.now() - warmed.current < 60_000 || !ready.includes('claude')) return
-    warmed.current = Date.now()
-    void run({ type: 'agent.prewarm', projectId })
-  }
-
   const submit = async () => {
+    if (submitting.current || !prompt.trim() || !ready.length || (choice === 'deep' && !isGit)) return
+    let content: string
+    try { content = composeRequest(prompt, draft.attachments) } catch (e) { setSubmitError((e as Error).message); return }
+    submitting.current = true
     setBusy(true)
     const budget: Record<string, number> = {}
     if (cost !== '') budget.maxCostUsd = Number(cost)
     if (minutes !== '') budget.maxWallMinutes = Number(minutes)
-    const ack = await run({ type: 'task.create', projectId, prompt, depth: choice, mode, assignment, ...(Object.keys(budget).length ? { budget } : {}) })
+    const ack = await run({ type: 'task.create', projectId, prompt: content, depth: choice, mode, assignment, ...(Object.keys(budget).length ? { budget } : {}) })
     setBusy(false)
-    if (ack.ok) { setPrompt(''); setChoice('auto'); go({ view: 'task', taskId: (ack.result as Task).id }) }
+    submitting.current = false
+    if (ack.ok) { draft.set({ text: '', attachments: [] }); setChoice('auto'); go({ view: 'task', taskId: (ack.result as Task).id }) }
   }
 
   return (
-    <div className="composer">
-      <Field label="Ask a question or describe a change" htmlFor="task-prompt">
-        <textarea id="task-prompt" className="hx-textarea" rows={4} value={prompt} onChange={(e) => setPrompt(e.target.value)} onFocus={prewarm}
-          placeholder='e.g. "How is authentication wired?" or "Cart totals ignore quantity. Fix total() and add a test."'
-          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && prompt.trim()) void submit() }} />
+    <div className={`composer ${prompt || draft.attachments.length ? '' : 'composer--empty'}`}>
+      <Field label="Request" htmlFor="task-prompt" hint="Ctrl+Enter sends. Questions get an answer; changes become a mission you approve.">
+        <textarea id="task-prompt" className="hx-textarea" rows={2} maxLength={50000} disabled={busy} value={prompt} onChange={(e) => setPrompt(e.target.value)}
+          placeholder='Add rate limiting to the login route, with tests. Or ask how the auth flow works.'
+          onKeyDown={(e) => { if (!e.nativeEvent.isComposing && e.key === 'Enter' && (e.metaKey || e.ctrlKey) && prompt.trim()) void submit() }} />
       </Field>
+      <div className="composer__tools">
+        {!prompt && <div className="mission-starters" aria-label="Mission starters">{[['Explain the structure','Explain how this project is structured and where the main entry points are.'],['Investigate a bug','Investigate a bug in this project: '],['Make a change','Implement this change with regression coverage: ']].map(([label,text])=><button type="button" key={label} onClick={()=>{setPrompt(text!);document.getElementById('task-prompt')?.focus()}}>{label}</button>)}</div>}
+        <DraftAttachments files={draft.attachments} onChange={attachments => draft.set({ attachments })} disabled={busy} />
+      </div>
+      {(draft.error || submitError) && <p role="alert">{draft.error || submitError}</p>}
+      {prompt.trim()&&<p className="mission-route" role="status">{DEPTH_LABEL[depth]} · {DEPTH_HINT[depth]}</p>}
+      <details className="composer-setup"><summary>Mission setup <span>{choice === 'auto' ? 'Auto' : DEPTH_LABEL[choice]} · {MODE_INFO[effectiveMode].label} · agents and limits</span></summary>
+      <div className="composer-options">
       <div className="spread" style={{ flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <Field label="How Hydra handles it">
           <Segmented label="Handling" value={choice} onChange={setChoice} options={[
@@ -98,6 +112,7 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
             <Segmented label="Autonomy mode" value={effectiveMode} onChange={setMode} options={(['safe', 'developer', 'autonomous'] as const).map((m) => ({ value: m, label: MODE_INFO[m].label }))} />
           </Field>
         )}
+      </div>
       </div>
       {prompt.trim() && (
         <p className="route-preview" role="status">
@@ -129,21 +144,23 @@ export function NewTaskForm({ projectId, isGit }: { projectId: string; isGit: bo
         </p>
       )}
       {advanced && <div className="composer__row">
-        <Field label="Cost limit (USD)" htmlFor="budget-cost" hint={`Default $${DEFAULT_BUDGET[effectiveMode].cost}. Codex usage is limited by tokens (its CLI reports no price).`}>
+        <Field label="Reported cost budget (USD)" htmlFor="budget-cost" hint={`Default $${DEFAULT_BUDGET[effectiveMode].cost}. Codex reports tokens, not a price. Token guardrails include cached input. Usage may arrive at turn completion and exceed a budget before Hydra can stop further work; this is not a hard billing cap.`}>
           <input id="budget-cost" className="hx-input" type="number" min={0.1} step={0.5} placeholder={String(DEFAULT_BUDGET[effectiveMode].cost)} value={cost} onChange={(e) => setCost(e.target.value === '' ? '' : Number(e.target.value))} />
         </Field>
         <Field label="Active time limit (min)" htmlFor="budget-min" hint={`Default ${DEFAULT_BUDGET[effectiveMode].minutes}. Waiting for you does not count.`}>
           <input id="budget-min" className="hx-input" type="number" min={1} step={5} placeholder={String(DEFAULT_BUDGET[effectiveMode].minutes)} value={minutes} onChange={(e) => setMinutes(e.target.value === '' ? '' : Number(e.target.value))} />
         </Field>
       </div>}
+      </details>
       <div className="composer__row" style={{ justifyContent: 'flex-end' }}>
+        <p className="composer-trust faint">{label(assignment.planner)} receives your request and selected project context. Project checks run as your user. Use trusted repositories.</p>
         <div className="col" style={{ justifyContent: 'flex-end' }}>
-          <Button variant="primary" size="lg" icon={<Sparkles size={16} />} busy={busy} disabled={!prompt.trim() || (choice === 'deep' && !isGit) || !ready.length} onClick={() => void submit()}>
-            {isChange ? 'Start change' : 'Ask'}
+          <Button variant="primary" size="lg" busy={busy} disabled={!prompt.trim() || (choice === 'deep' && !isGit) || !ready.length} onClick={() => void submit()}>
+            {!prompt.trim() || isChange ? 'Start mission' : 'Ask'}
           </Button>
         </div>
       </div>
-      {!ready.length && <Callout tone="bad">No agent is ready. Open <b>Agents &amp; providers</b> to see what to install or sign in to ({label('claude')}, {label('codex')}).</Callout>}
+      {!ready.length && <Callout tone="bad">No agent is ready. Open <b>AI accounts</b> to see what to install or sign in to ({label('claude')}, {label('codex')}).</Callout>}
     </div>
   )
 }

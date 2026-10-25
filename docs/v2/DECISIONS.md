@@ -1,5 +1,7 @@
 # Decisions (ADR log)
 
+Current clarification (2026-10-18): historical entries below describe their decision dates. The container profile is not implemented; trusted repositories are required. Since alpha.4, the engine refuses ordinary acceptance with failed, missing, stale or untrusted checks or blocking reviewer objections in every mode/client. No exception-to-apply workflow is supported. Codex tokens can be unpriced and turn-end reporting can overshoot a reported usage budget. Desktop update installation is always explicit. Alpha.5 adds metadata expiry, task-content purge, backup read-back and bounded provider/replay handling. These corrections supersede contrary historical wording below. See APPROVAL_POLICY.md and PRODUCTION_PREPARATION.md for current capabilities and release gates.
+
 Format: ID · date · decision · alternatives considered · why · consequences. Newest last.
 
 ### D-001 · 2026-10-13 · New codebase on branch `v2-rebuild`

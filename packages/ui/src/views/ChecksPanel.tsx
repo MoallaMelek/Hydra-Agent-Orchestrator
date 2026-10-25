@@ -73,7 +73,7 @@ export function ChecksPanel({ projectId, isGit }: { projectId: string; isGit: bo
       </p>
       {info?.problem && <Callout tone="bad">{info.problem}</Callout>}
       {!rows.length && <Callout tone="warn">No checks: Hydra cannot verify changes in this project. Add the command you use to run your tests.</Callout>}
-      <div className="checks-list">
+      <div className="checks-list" data-unsaved={dirty ? 'true' : undefined}>
         {rows.map((row, i) => (
           <div key={i} className="checks-row">
             <div className="checks-row__fields">

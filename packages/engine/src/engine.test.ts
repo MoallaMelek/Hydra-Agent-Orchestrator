@@ -1,3 +1,7 @@
+import { approvalContext } from '@hydra/protocol'
+import { randomUUID } from 'node:crypto'
+import { DatabaseSync } from 'node:sqlite'
+import type { KeyedMutex } from './orchestrator/orchestrator.js'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
@@ -37,8 +41,10 @@ async function setup(adapter: ScriptedAdapter, dataDir = tempDir('hydra-engine-'
   cleanupDirs.push(repo, dataDir)
   const engine = await Engine.open({ dataDir, registry: new AdapterRegistry([adapter]), skipProbe: true })
   engines.push(engine)
-  const project = (await engine.execute({ type: 'project.add', root: repo })) as { ok: true; result: { id: string } }
-  return { engine, repo, dataDir, projectId: project.result.id }
+  const project = (await engine.execute({ type: 'project.add', root: repo })) as { ok: true; result: { id: string; root: string } }
+  // Use the engine's canonical root: macOS /var temp paths resolve to /private/var.
+  // Lock fault injection must hold the exact same repository key as actual apply.
+  return { engine, repo: project.result.root, dataDir, projectId: project.result.id }
 }
 
 async function create(engine: Engine, projectId: string, over: Record<string, unknown> = {}): Promise<Task> {
@@ -46,6 +52,28 @@ async function create(engine: Engine, projectId: string, over: Record<string, un
   if (!ack.ok) throw new Error(ack.error.message)
   return ack.result as Task
 }
+
+describe('desktop update maintenance barrier', () => {
+  it('backs up data and blocks new work until released; remote devices cannot acquire it', async () => {
+    const { engine, projectId } = await setup(script())
+    const remote = await engine.execute({ type: 'update.prepare' }, { kind: 'remote', deviceId: 'test-device', scopes: ['control', 'approve'] })
+    expect(remote.ok).toBe(false)
+    const ready = await engine.execute({ type: 'update.prepare' })
+    expect(ready.ok).toBe(true)
+    if (ready.ok) expect(readFileSync((ready.result as { backup: string }).backup).length).toBeGreaterThan(0)
+    const refused = await engine.execute({ type: 'task.create', projectId, prompt: 'Explain the code', mode: 'safe', assignment: ALL })
+    expect(refused.ok).toBe(false)
+    const lease = ready.ok ? (ready.result as { lease: string }).lease : ''
+    expect(await engine.execute({ type: 'update.confirm', lease })).toMatchObject({ ok: true })
+    expect(await engine.execute({ type: 'update.release', lease })).toMatchObject({ ok: true })
+    expect(await engine.execute({ type: 'agents.recommend', prompt: 'Explain' })).toMatchObject({ ok: true })
+  })
+  it('refuses maintenance while a task is queued or executing', async () => {
+    const { engine, projectId } = await setup(script())
+    await create(engine, projectId)
+    expect(await engine.execute({ type: 'update.prepare' })).toMatchObject({ ok: false, error: { code: 'conflict' } })
+  })
+})
 
 async function until(engine: Engine, taskId: string, predicate: (t: Task) => boolean, ms = 120_000): Promise<Task> {
   const deadline = Date.now() + ms
@@ -59,25 +87,117 @@ async function until(engine: Engine, taskId: string, predicate: (t: Task) => boo
 
 const waiting = (t: Task) => t.status === 'waiting_input'
 
+describe('engine enforced acceptance policy', () => {
+  it.each(['evidence changed', 'receipt missing'])('revalidates under the repository lock when %s before apply', async fault => {
+    const { engine, projectId, dataDir, repo } = await setup(script())
+    const task = await create(engine, projectId)
+    const ready = await until(engine, task.id, waiting)
+    const before = gitIn(repo, 'rev-parse', 'HEAD')
+    const mutex = (engine.orchestrator as unknown as { repoLock: KeyedMutex }).repoLock
+    let release!: () => void
+    const blocker = mutex.run(repo, () => new Promise<void>(resolve => { release = resolve }))
+    await new Promise(resolve => setImmediate(resolve))
+    try {
+      expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: ready.workspace!.headSha!, acceptance: acceptance(engine, task.id) })).toMatchObject({ ok: true })
+      if (fault === 'receipt missing') engine.store.putTask({ ...engine.store.getTask(task.id)!, acceptance: undefined })
+      else {
+        const result = engine.store.listEvidence(task.id).find(e => e.phase === 'verify')!
+        const db = new DatabaseSync(join(dataDir, 'hydra.db'))
+        try { db.prepare('UPDATE evidence SET doc=? WHERE id=?').run(JSON.stringify({ ...result, exitCode: 1 }), result.id) } finally { db.close() }
+      }
+    } finally { release(); await blocker }
+    await engine.orchestrator.settled(task.id)
+    expect(engine.store.getTask(task.id)).toMatchObject({ status: 'waiting_input', outcome: null, applied: null })
+    expect(gitIn(repo, 'rev-parse', 'HEAD')).toBe(before)
+  })
+  it('refuses unresolved evidence/reviews in every mode and every client; persists a single structured acceptance', async () => {
+    const { engine, projectId, dataDir } = await setup(script())
+    const task = await create(engine, projectId)
+    const ready = await until(engine, task.id, waiting)
+    const original = structuredClone(ready)
+    const finalEvidence = engine.store.listEvidence(task.id).find(e => e.phase === 'verify')!
+    // Fault injection only in this disposable test database. Production evidence is immutable.
+    const replaceEvidence = (e: typeof finalEvidence) => {
+      const db = new DatabaseSync(join(dataDir, 'hydra.db'))
+      try { db.prepare('UPDATE evidence SET task_id=?, doc=? WHERE id=?').run(e.taskId, JSON.stringify(e), e.id) } finally { db.close() }
+    }
+    const remote = { kind: 'remote' as const, deviceId: 'approval-test-device', scopes: ['approve'] as const }
+    const decide = (actor = { kind: 'desktop' } as Parameters<Engine['execute']>[1], extra: Record<string, unknown> = {}) => engine.execute({
+      type: 'task.decide', taskId: task.id, decision: 'accept', headSha: ready.workspace!.headSha,
+      acceptance: acceptance(engine, task.id), ...extra
+    }, actor)
+    const cases: Array<(t: Task) => void> = [
+      t => { t.checks = [] },
+      t => { t.review = null },
+      t => { t.reviewedSha = null },
+      t => { t.review = { ...t.review!, verdict: 'changes_requested' } },
+      t => { t.review!.findings = [{ severity: 'major', file: 'math.js', issue: 'Blocking', suggestion: 'Fix it' }] },
+      t => { t.review!.acceptanceCriteriaMet[0]!.met = false },
+      t => { t.stages.filter(s => s.stage === 'verify').at(-1)!.status = 'interrupted' },
+      t => { t.checks[0]!.argv = ['node', 'different.js'] }
+    ]
+    for (const mode of ['safe', 'developer', 'autonomous'] as const) {
+      for (const change of cases) {
+        const candidate = structuredClone(original); candidate.mode = mode; candidate.checksApproved = true; change(candidate); engine.store.putTask(candidate)
+        for (const actor of [{ kind: 'desktop' as const }, remote]) expect(await decide(actor)).toMatchObject({ ok: false, error: { code: 'conflict' } })
+      }
+    }
+    engine.store.putTask(original)
+    expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept_exception', headSha: ready.workspace!.headSha, reason: 'test override' })).toMatchObject({ ok: false, error: { code: 'invalid' } })
+    for (const change of [
+      { exitCode: 1 }, { timedOut: true }, { treeMutated: true }, { spawnError: 'failed' }, { definitionsChanged: true },
+      { commitSha: 'b'.repeat(40) }, { checkSpec: 'stale definition' }, { phase: 'pre_review' as const },
+      { taskId: '0'.repeat(26) }, { startedAt: '2000-01-01T00:00:00.000Z' }
+    ]) {
+      replaceEvidence({ ...finalEvidence, ...change })
+      expect(await decide()).toMatchObject({ ok: false })
+      expect(await decide(remote)).toMatchObject({ ok: false })
+      replaceEvidence(finalEvidence)
+    }
+    expect(await decide(undefined, { acceptance: undefined, feedback: 'I accept all risks' })).toMatchObject({ ok: false, error: { code: 'invalid' } })
+    const stale = acceptance(engine, task.id)
+    replaceEvidence({ ...finalEvidence, durationMs: finalEvidence.durationMs + 1 })
+    expect(await decide(undefined, { acceptance: stale })).toMatchObject({ ok: false, error: { code: 'conflict' } })
+    replaceEvidence(finalEvidence)
+    const command = { type: 'task.decide', taskId: task.id, decision: 'accept', headSha: ready.workspace!.headSha, acceptance: acceptance(engine, task.id) }
+    const results = await Promise.all([engine.execute(command, remote), engine.execute(command, remote)])
+    expect(results.map(r => r.ok)).toEqual([true, false])
+    const applied = await until(engine, task.id, t => t.outcome === 'applied')
+    expect(applied.acceptance).toMatchObject({ actor: 'device:approval-test-device', source: 'remote', revision: ready.workspace!.headSha, unresolved: [], exceptionReason: null })
+    expect(engine.store.hasAcceptanceDecision(command.acceptance.decisionId)).toBe(true)
+    expect(await engine.execute(command)).toMatchObject({ ok: false })
+    await engine.close(); engines.splice(engines.indexOf(engine), 1)
+    const reopened = await Engine.open({ dataDir, registry: new AdapterRegistry([script()]), skipProbe: true })
+    engines.push(reopened)
+    expect(reopened.store.getTask(task.id)!.acceptance).toEqual(applied.acceptance)
+    // Even if another approval round exists, an old recorded decision ID is consumed.
+    reopened.store.putTask({ ...original, acceptance: undefined })
+    expect(await reopened.execute(command)).toMatchObject({ ok: false, error: { code: 'conflict' } })
+  })
+})
+
 describe('engine lifecycle', () => {
   it('refuses a stale accept and re-asks after integrating a moved branch', async () => {
     const { engine, repo, projectId } = await setup(script())
     const task = await create(engine, projectId)
     const ready = await until(engine, task.id, waiting)
     const reviewed = ready.workspace!.headSha!
-    expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: 'b'.repeat(40) })).toMatchObject({ ok: false, error: { code: 'conflict' } })
+    expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', acceptance: acceptance(engine, task.id), headSha: 'b'.repeat(40) })).toMatchObject({ ok: false, error: { code: 'conflict' } })
 
     // The user commits something unrelated before accepting.
     writeFileSync(join(repo, 'NOTES.md'), 'user notes\n')
     gitIn(repo, 'add', 'NOTES.md')
     gitIn(repo, 'commit', '-qm', 'user notes')
-    await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: reviewed })
+    await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', acceptance: acceptance(engine, task.id), headSha: reviewed })
     const again = await until(engine, task.id, (t) => waiting(t) && t.workspace!.headSha !== reviewed)
     expect(again.error).toMatch(/integrated them and all checks pass/)
     expect(readFileSync(join(repo, 'math.js'), 'utf8')).toContain('a - b') // still nothing applied
     expect(engine.store.listEvidence(task.id).filter((e) => e.phase === 'verify' && e.commitSha === again.workspace!.headSha).at(-1)!.exitCode).toBe(0)
 
-    await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: again.workspace!.headSha! })
+    expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', acceptance: acceptance(engine, task.id), headSha: again.workspace!.headSha! })).toMatchObject({ ok: false })
+    await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'request_changes', feedback: 'Review the integrated revision before acceptance.' })
+    const rereviewed = await until(engine, task.id, t => waiting(t) && t.reviewedSha === t.workspace?.headSha)
+    expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', acceptance: acceptance(engine, task.id), headSha: rereviewed.workspace!.headSha! })).toMatchObject({ ok: true })
     const done = await until(engine, task.id, (t) => t.status === 'completed')
     expect(done.applied!.method).toBe('fast_forward')
     expect(readFileSync(join(repo, 'math.js'), 'utf8')).toContain('a + b')
@@ -130,7 +250,7 @@ describe('engine lifecycle', () => {
     expect(diff.files.map((f) => f.path)).toEqual(['math.js'])
 
     expect(await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept' })).toMatchObject({ ok: false, error: { code: 'invalid' } })
-    expect((await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', headSha: ready.workspace!.headSha! })).ok).toBe(true)
+    expect((await engine.execute({ type: 'task.decide', taskId: task.id, decision: 'accept', acceptance: acceptance(engine, task.id), headSha: ready.workspace!.headSha! })).ok).toBe(true)
     const applied = await until(engine, task.id, (t) => t.status === 'completed')
     expect(applied.outcome).toBe('applied')
     expect(readFileSync(join(repo, 'math.js'), 'utf8')).toContain('a + b')
@@ -243,7 +363,10 @@ describe('engine lifecycle', () => {
     const first = await setup(hang, dataDir)
     const task = await create(first.engine, first.projectId)
     await until(first.engine, task.id, (t) => t.stage === 'implement' && t.status === 'running')
-    // Simulate a crash: a second process opens the same database while the first never finishes.
+    // Simulate OS resource loss at crash, retaining the running task projection.
+    // A live owner must never be bypassed, even by the same process in a test.
+    first.engine.store.close()
+    ;(first.engine as unknown as { lock: { release(): void } }).lock.release()
     engines.splice(engines.indexOf(first.engine), 1)
     const second = await Engine.open({ dataDir, registry: new AdapterRegistry([script()]), skipProbe: true })
     engines.push(second)
@@ -267,7 +390,7 @@ describe('engine lifecycle', () => {
     expect(created.ok).toBe(true)
     const id = (created as { result: Task }).result.id
     await until(engine, id, waiting)
-    expect(await engine.execute({ type: 'task.decide', taskId: id, decision: 'accept', headSha: 'a'.repeat(40) }, control)).toMatchObject({ ok: false, error: { code: 'forbidden' } })
+    expect(await engine.execute({ type: 'task.decide', taskId: id, decision: 'accept', acceptance: acceptance(engine, id), headSha: 'a'.repeat(40) }, control)).toMatchObject({ ok: false, error: { code: 'forbidden' } })
   })
 
   it('rejects invalid commands and analysis-only tasks never create a workspace', async () => {
@@ -292,3 +415,21 @@ describe('engine lifecycle', () => {
     }
   })
 })
+
+describe('stage outcome notes (operations view)', () => {
+  it('records what each round produced, so earlier rounds stay visible', async () => {
+    const { engine, projectId } = await setup(script({ reviewer: (_request, call) => ({ structured: call <= 3 ? REJECT : APPROVE }) }))
+    const task = await create(engine, projectId)
+    const done = await until(engine, task.id, waiting)
+    const notes = done.stages.map((s) => `${s.stage}#${s.attempt}: ${s.note ?? ''}`)
+    expect(notes[0]).toBe('plan#1: Plan: 1 step')
+    expect(notes[1]).toMatch(/^implement#1: Commit [0-9a-f]{10}$/)
+    expect(notes[2]).toBe('review#1: Changes requested: 1 finding')
+    expect(notes[3]).toMatch(/^fix#1: Commit [0-9a-f]{10}$/)
+    expect(notes[4]).toBe('review#2: Approved')
+    expect(notes).toContain('verify#1: Required checks passed')
+    expect(notes.find((n) => n.startsWith('demo#1'))).toMatch(/Before → after: \d+\/\d+ pass/)
+  })
+})
+
+function acceptance(engine: Engine, taskId: string) { return { decisionId: randomUUID(), snapshot: approvalContext(engine.store.getTask(taskId)!, engine.store.listEvidence(taskId)).snapshot } }

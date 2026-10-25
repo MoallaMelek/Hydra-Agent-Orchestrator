@@ -1,3 +1,4 @@
+import { initializePreferences, draftCount, flushPreferences } from './app/preferences'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './design/tokens.css'
@@ -36,6 +37,8 @@ function connection(): { apiUrl: string; token: string } | null {
   return { apiUrl: (fragment.get('api') ?? saved.api ?? window.location.origin).replace(/\/$/, ''), token }
 }
 
+await initializePreferences(window.hydraHost ?? {})
+Object.assign(window, { hydraUi: { unsaved: draftCount, flush: flushPreferences } })
 const root = createRoot(document.getElementById('root')!)
 const conn = window.location.pathname.startsWith('/remote') ? null : connection()
 if (window.location.pathname.startsWith('/remote')) {

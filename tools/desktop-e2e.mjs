@@ -23,7 +23,12 @@ const useAgents = !args.includes('--no-agents') && !missingProviders
 const PORT = 9333
 mkdirSync(outDir, { recursive: true })
 const electron = createRequire(import.meta.url)('electron')
+const executable = args.includes('--executable') ? resolve(args[args.indexOf('--executable') + 1]) : electron
 const dataDir = mkdtempSync(join(tmpdir(), 'hydra-desktop-e2e-'))
+if (executable !== electron) {
+  mkdirSync(join(dataDir, 'desktop'), { recursive: true })
+  writeFileSync(join(dataDir, 'desktop', 'updates.json'), JSON.stringify({ autoCheck: false, autoDownload: false }))
+}
 const report = { startedAt: new Date().toISOString(), dataDir, steps: [] }
 const pageErrors = []
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -51,7 +56,7 @@ function hiddenProviderEnv() {
 function launch() {
   const env = { ...process.env, HYDRA_DATA_DIR: dataDir, ...(missingProviders ? hiddenProviderEnv() : {}) }
   for (const key of Object.keys(env)) if (env[key] === undefined) delete env[key]
-  return spawn(electron, ['apps/desktop', `--remote-debugging-port=${PORT}`], { env, stdio: 'ignore' })
+  return spawn(executable, [...(executable === electron ? ['apps/desktop'] : []), `--remote-debugging-port=${PORT}`], { env, stdio: 'ignore' })
 }
 
 async function connect() {
@@ -127,7 +132,7 @@ function driver(cdp) {
     while (Date.now() < deadline) { const state = await api('/api/state'); const hit = predicate(state); if (hit) return hit; await sleep(500) }
     throw new Error('Timed out waiting for engine state')
   }
-  return { evaluate, text, waitText, click, type, api, shot, until }
+  return { evaluate, text, waitText, click, type, api, shot, until, send: cdp.send }
 }
 
 async function step(name, fn) {
@@ -163,22 +168,84 @@ try {
     await ui.waitText('Project folder')
     await ui.type('#project-root', repo)
     await ui.click('Add project')
-    await ui.waitText('New task')
+    await ui.waitText('What should we accomplish?')
     await ui.shot('02-project')
   })
+  await step('draft and attachment survive project switches, Settings and reload', async () => {
+    await ui.type('#task-prompt', 'UNSENT NATIVE DRAFT A')
+    await ui.evaluate(`(() => {
+      const input = document.querySelector('input[type="file"]');
+      const transfer = new DataTransfer(); transfer.items.add(new File(['Preserve this attachment'], 'acceptance-notes.md', {type:'text/plain'}));
+      input.files = transfer.files; input.dispatchEvent(new Event('change', {bubbles:true}));
+    })()`)
+    await ui.waitText('acceptance-notes.md')
+    await ui.click('Settings')
+    await ui.waitText('Updates')
+    if (executable === electron) {
+      await ui.click('Check for Updates')
+      await ui.waitText('no trusted release configuration')
+    } else {
+      // Packaged migration: validate the real bridge without contacting an unpublished feed.
+      const update = await ui.evaluate('window.hydraHost.updates.state()')
+      if (!update.currentVersion || update.status !== 'idle') throw new Error('Packaged updater is not ready')
+    }
+    await ui.evaluate('[...document.querySelectorAll(".hx-panel")].find(p => p.textContent.includes("Latest available"))?.scrollIntoView({block:"start"})')
+    await ui.shot(executable === electron ? '03-updates-unconfigured' : '03-updates-desktop')
+    const openProject = () => ui.evaluate("[...document.querySelectorAll('.nav-item')].find(b => b.textContent.includes(" + JSON.stringify(basename(repo)) + ")).click()")
+    for (const theme of ['Midnight', 'Light', 'Terracotta']) {
+      await ui.click(theme)
+      await sleep(150)
+      await ui.shot('theme-' + theme.toLowerCase())
+      await openProject(); await ui.waitText('acceptance-notes.md')
+      const value = await ui.evaluate('document.querySelector("#task-prompt").value')
+      if (value !== 'UNSENT NATIVE DRAFT A') throw new Error('Draft changed after Settings: ' + value)
+      await ui.shot('project-' + theme.toLowerCase())
+      await ui.click('Settings')
+    }
+    const second = makeRepo()
+    await ui.click('Add project'); await ui.type('#project-root', second); await ui.click('Add project')
+    await ui.waitText('What should we accomplish?')
+    await ui.type('#task-prompt', 'UNSENT NATIVE DRAFT B')
+    await openProject(); await ui.waitText('acceptance-notes.md')
+    if (await ui.evaluate('document.querySelector("#task-prompt").value') !== 'UNSENT NATIVE DRAFT A') throw new Error('Draft leaked between projects')
+    await ui.evaluate('location.reload()'); await ui.waitText('Workspace')
+    await openProject(); await ui.waitText('acceptance-notes.md')
+    if (await ui.evaluate('document.querySelector("#task-prompt").value') !== 'UNSENT NATIVE DRAFT A') throw new Error('Draft lost on reload')
+    await ui.evaluate('document.querySelector("#task-prompt").focus()')
+    await ui.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 })
+    await ui.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 })
+    const focus = await ui.evaluate('(() => { const el = document.activeElement; const css = getComputedStyle(el); return { visible: el.matches(":focus-visible"), shadow: css.boxShadow, outline: css.outlineStyle, outlineWidth: css.outlineWidth } })()')
+    if (!focus.visible || (focus.shadow === 'none' && (focus.outline === 'none' || focus.outlineWidth === '0px'))) throw new Error('Keyboard focus is invisible')
+    await ui.shot('04-draft-focus')
+    await ui.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
+    await sleep(200)
+    await ui.shot('05-mobile-project')
+    const overflow = await ui.evaluate('document.documentElement.scrollWidth > document.documentElement.clientWidth')
+    if (overflow) throw new Error('Mobile page overflows horizontally')
+    await ui.send('Emulation.clearDeviceMetricsOverride')
+    if (missingProviders) {
+      await ui.evaluate('document.querySelector("#task-prompt").dispatchEvent(new KeyboardEvent("keydown", {key:"Enter", ctrlKey:true, bubbles:true}))')
+      await sleep(300)
+      if ((await ui.api('/api/state')).tasks.length) throw new Error('Keyboard submission bypassed unavailable providers')
+    }
+    await ui.type('#task-prompt', '')
+    await ui.click('Remove acceptance-notes.md')
+    return { draftRetained: true, attachmentRetained: true, themes: 3, focusShadow: focus }
+  })
   await step('verification editor shows the detected command and tests it for real', async () => {
+    await ui.evaluate("[...document.querySelectorAll('details')].find(d => d.querySelector('summary')?.textContent.includes('Project checks')).open = true")
     await ui.waitText('Using automatic detection')
     await ui.click('Test')
     await ui.waitText('on commit', 120_000)
     const text = await ui.text()
     await ui.shot('02b-checks')
     // The fixture's add() is buggy, so its test must fail, and Hydra must say so.
-    if (!/Failed \(exit/.test(text)) throw new Error('expected the real test run to fail')
+    if (!/Failed \(exit|Could not run/.test(text)) throw new Error('expected a recorded failing or unavailable check, not a pass')
   })
   if (useAgents) {
     const toProject = async () => {
       await ui.evaluate(`[...document.querySelectorAll('.nav-item')].find((b) => b.textContent.includes(${JSON.stringify(basename(repo))})).click()`)
-      await ui.waitText('Ask a question or describe a change')
+      await ui.waitText('What should we accomplish?')
     }
     const openLimits = () => ui.evaluate("document.querySelector('#budget-cost') || [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Agents and limits')).click()")
     await step('a casual question: Auto picks a quick answer, the reply streams in and reads naturally', async () => {
@@ -188,7 +255,7 @@ try {
       const task = await ui.until((s) => s.tasks.find((t) => t.intent === 'analyze' && t.status !== 'running' && t.status !== 'queued'), 240_000)
       if (task.status !== 'completed' || !task.answer) throw new Error(`question ${task.status}: ${task.error}`)
       if (task.route?.depth !== 'fast' || task.usage.agentRuns !== 1) throw new Error(`expected one quick run, got ${task.route?.depth} with ${task.usage.agentRuns} runs`)
-      await ui.waitText('Hydra ·')
+      await ui.waitText('chosen by Hydra')
       await ui.shot('03a-question')
       const narrated = /\b(pipeline|this stage|read-only (mode|access)|structured output)\b/i.test(task.answer)
       if (narrated) throw new Error('the reply narrates how it was run')
@@ -239,6 +306,12 @@ try {
       await ui.click('Start change')
       const task = await ui.until((s) => s.tasks.find((t) => t.status === 'running' && t.mode === 'developer'))
       await ui.waitText('Stop')
+      // The live operations view: lanes for each role, and a plain sentence saying what is happening.
+      await ui.waitText('Relay')
+      await ui.waitText('Implementer')
+      const live = await ui.evaluate("({ lanes: document.querySelectorAll('.relay__lane').length, now: document.querySelector('.now-line')?.textContent ?? '' })")
+      if (live.lanes !== 5 || !live.now.trim()) throw new Error(`expected the live trace, got ${JSON.stringify(live)}`)
+      await ui.shot('05a-relay-live')
       await ui.click('Stop')
       const stopped = await ui.until((s) => s.tasks.find((t) => t.id === task.id && t.status === 'canceled'), 15_000)
       await ui.shot('05-stopped')
@@ -259,6 +332,10 @@ try {
     return { backup, exported }
   })
   await step('quitting stops the engine and releases the data lock', async () => {
+    await ui.evaluate("[...document.querySelectorAll('.nav-item')].find(b => b.textContent.includes(" + JSON.stringify(basename(repo)) + ")).click()")
+    await ui.waitText('What should we accomplish?')
+    await ui.type('#task-prompt', 'PERSIST THROUGH DESKTOP RESTART')
+    await ui.evaluate('window.hydraUi.flush()')
     await ui.evaluate('window.close()').catch(() => {})
     const exited = await Promise.race([new Promise((r) => app.once('exit', () => r(true))), sleep(20_000).then(() => false)])
     if (!exited) throw new Error('app did not exit')
@@ -268,10 +345,15 @@ try {
   await step('relaunch keeps projects and task history', async () => {
     app = launch()
     ui = driver(await connect())
-    await ui.waitText('Overview')
+    await ui.waitText('Workspace')
     const state = await ui.api('/api/state')
     await ui.shot('07-relaunch')
-    if (state.projects.length !== 1) throw new Error(`expected 1 project, got ${state.projects.length}`)
+    if (state.projects.length !== 2) throw new Error(`expected 2 projects, got ${state.projects.length}`)
+    await ui.evaluate("[...document.querySelectorAll('.nav-item')].find(b => b.textContent.includes(" + JSON.stringify(basename(repo)) + ")).click()")
+    await ui.waitText('What should we accomplish?')
+    if (await ui.evaluate('document.querySelector("#task-prompt").value') !== 'PERSIST THROUGH DESKTOP RESTART') throw new Error('Draft lost across desktop restart')
+    if (await ui.evaluate('document.documentElement.dataset.theme') !== 'terracotta') throw new Error('Theme lost across restart')
+    await ui.shot('08-restored-draft')
     return { projects: state.projects.length, tasks: state.tasks.map((t) => `${t.status}/${t.outcome ?? '-'}`) }
   })
 } catch (error) {

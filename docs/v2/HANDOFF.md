@@ -1,5 +1,31 @@
 # Handoff — Hydra v2 (read this first)
 
+## Current — 21 October spatial mission study
+
+Branch feat/spatial-mission-canvas-20261021 from f227439. Main chat sole writer/integrator/tester; bounded read-only Codex consultant reviewed semantics and final source/screens, parent corrected anchoring/chronology/caption defects. Flow and Network over typed operation/call graph; search, roving focus, pan/zoom/fit, current inspector and historical isolation. Final378pass/1skip,47files; types/lint/provenance/UI-shell-lab build; packaged11checks;202node/190call labeled density and six-stage simulated live fixture pass. Separate alpha.6 development-study executable/profile: Hydra-Spatial-Study-20261021 / LocalAppData/HydraPreviews/Hydra-Spatial-Study-Data. Existing installation, prior preview, projects/data/auth/Telekinesis untouched. No provider/CI/main/publication/license actions. Details SPATIAL_CANVAS.md. Original production gates remain. Source frozen; commit/push delivery on this branch only.
+
+## Current — alpha.6 Experience Revolution (20 October 2026)
+
+Coherent Windows experience-preview milestone complete on `feat/experience-revolution-20261020`, from verified alpha.5 `d189b2d`. Current system/design/evidence: EXPERIENCE_REVOLUTION.md, PRODUCT.md, DESIGN.md and TEST_EVIDENCE.md. Three interactive studies -> Mission Control with bounded truthful canvas, stable operation inspector and recorded replay. Main chat sole writer/integrator/tester; bounded read-only Codex reviewer found historical-review/replay/narrow-focus defects, fixed centrally. Final373pass/1skip,46files; types/lint/provenance/build, packaged15+7+4+5, theme/reflow/contrast/keyboard/reduced-motion, default-profile smoke and actual Windows visible launch pass. Separate unsignedalpha.6 ZIP/exe/shortcut uses LocalAppData/HydraPreviews/Hydra-Experience-Revolution-Data; no original installation, Telekinesis, personal projects/data/auth modifications. No fresh provider/CI calls or Docker. Source/UI frozen for delivery. Large local evidence/output lives with this Codex chat; code/docs/tools pushed on the feature branch, not main.
+
+Still an unsigned trusted-repository personal preview. Signing/notarization, failed-installer/update recovery, hostile-code containment, remote HTTP bootstrap, hard billing caps, alpha.6 macOS/Linux qualification and commercial/legal/Agensi gates remain. Historical paragraphs below are not current alpha.6 qualification. Do not reopen paid evaluations or Actions without fresh explicit approval. Do not merge, publish, replace installation or change license without approval.
+
+## Current production preparation — alpha.5
+
+Final qualification complete: owner-approved CI39177167557 at448db2a passes all6check/installer jobs (Windowsx64/macOS26ARM64/Ubuntu24x64;6package smokes). Current local368tests/1skip; final13product/7onboarding/default-local-profile/4restart assertions pass. Binary is an unsigned separate preview with embedded Local AppData profile. Runtime source448db2a; subsequent changes record documentation/evidence only. Earlier failed runs/uncached-only usage figures below are historical; total Codex trial227,721includingcache is the correct reconciliation. No more provider/CI runs needed. Commercial gates remain; no release/main merge/license/outreach authorized.
+
+19October final local candidate:368tests passed/1skip; final13product/7onboarding/default-profile smoke/4restart assertions pass. Engine now counts cached tokens in maxTokens/unpriced totals and retries only SQLite BUSY/LOCKED on cold lease initialization;20cold races and owner-process death covered. Actual Codex trial total227,721 including cached input exceeded50k; earlier57,097-only summary was incomplete. No further provider calls. Embedded preview default is Local AppData/HydraPreviews/Hydra-Production-Preparation-Data (not redirected OneDrive Documents); explicit data overrides preserved. Two CI attempts failed; next corrected-source run requires explicit approval. See current TEST_EVIDENCE.md/RELEASE_QUALIFICATION.md; historical paragraphs below retain earlier figures/scope.
+
+Branch `feat/production-preparation-20261018` from alpha.4 `0ed37a1`. Main chat is sole writer/integrator/tester; bounded read-only security/product/distribution consultants. Source and packaged local checks passed (348tests/1skip,13product/7onboarding/4restart assertions). Existing installed alpha.3 and personal projects/data remain untouched; separate fresh preview only. Docker remains stopped. Live provider trial exceeded Codex50k reported-token target by7,097; disclosed, stopped, no further provider calls. Cross-platform existing Actions run authorized, record actual result. Current capability/release gates: PRODUCTION_AUDIT.md, PRODUCTION_PREPARATION.md, COMMERCIAL_PREPARATION.md and TEST_EVIDENCE.md. No main merge, release/publication, license choice, paid signing/account changes or outreach authorized.
+
+## Active safety continuation — 18 October 2026
+
+Branch `feat/engine-enforced-approval-20261018` starts at verified Mission Desk `fc1dccb`; fetched remote main remains `d18a690`. Alpha.4 enforces structured acceptance in the engine across clients. No exception-to-apply workflow exists. See APPROVAL_POLICY.md. Historical notes below describe earlier policy. Existing installed Hydra and personal project data must remain untouched; package/launch a separate preview. No main merge or public release authorized.
+
+## Current milestone — 2026-10-17
+
+See PRODUCT_MILESTONE.md and AGENSI_FULL_PRODUCT.md before the historical notes below. Active branch: feat/hydra-product-milestone-20261017, integrating assessed alpha.3 / 4d2a48b with remote main d18a690. No main merge or public release in this milestone. Final results are recorded in TEST_EVIDENCE.md. The following session-5 table and next-action list are retained historical context and are not current qualification claims. Job objects and desktop signed-manifest update foundations exist; container containment, trusted phone bootstrap, production signing/feed and failure recovery remain open. Current UI uses Workspace, AI accounts and Phone access.
+
 **Branch:** `v2-rebuild` (worktree `C:\Users\moall\hydra-v2`), merged into `main` with the owner's approval on 2026-10-13.
 
 ## Where things stand (2026-10-14, pre-beta hardening, session 5)

@@ -18,6 +18,8 @@ export function approvalWarnings(task: Task, evidence: readonly Evidence[], diff
   const failing = [...latest.values()].filter((e) => e.required && !passed(e))
 
   if (!task.checks.length) out.push({ tone: 'bad', text: 'No checks were detected, so behaviour was not verified by Hydra. Review the diff line by line or add .hydra/checks.json.' })
+  const missing = task.checks.filter(c => c.required && !latest.has(c.id))
+  if (missing.length) out.push({ tone: 'bad', text: `Required checks have no final result at this revision: ${missing.map(c => c.label).join(', ')}.` })
   if (failing.length) out.push({ tone: 'bad', text: `${failing.length} required check(s) are not passing at this commit: ${failing.map((e) => e.label).join(', ')}.` })
   if ([...latest.values()].some((e) => e.treeMutated)) out.push({ tone: 'bad', text: 'A check modified tracked files while running; its result is not trustworthy.' })
   if (evidence.some((e) => e.spawnError?.includes('definitions changed'))) out.push({ tone: 'bad', text: 'The agent changed how checks run (scripts or build files) after you approved them. Those checks were not executed.' })

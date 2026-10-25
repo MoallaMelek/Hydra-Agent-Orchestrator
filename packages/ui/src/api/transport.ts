@@ -1,4 +1,5 @@
-import type { CommandAck, EngineSnapshot, EventEnvelope, TaskDetail, TaskDiff } from '@hydra/protocol'
+import type { CommandAck, EngineSnapshot, EventEnvelope, ExplainRequest, ExplainResult, TaskDetail, TaskDiff } from '@hydra/protocol'
+import type { TaskHistoryQuery, TaskHistoryPage } from '@hydra/protocol'
 
 /**
  * Everything the UI needs from an engine. The desktop uses a direct HTTP/WS
@@ -8,8 +9,11 @@ export interface Transport {
   readonly kind: 'local' | 'remote'
   snapshot(): Promise<EngineSnapshot>
   taskDetail(taskId: string): Promise<TaskDetail>
+  taskHistory?(query: TaskHistoryQuery): Promise<TaskHistoryPage>
   taskDiff(taskId: string): Promise<TaskDiff>
   evidenceLog(evidenceId: string): Promise<string>
+  /** Desktop only: a plain-English explanation of one record, written by the user's own provider CLI. */
+  explain?(request: ExplainRequest, signal?: AbortSignal): Promise<ExplainResult>
   execute(command: Record<string, unknown>): Promise<CommandAck>
   /** Streams events after `after`; calls onStatus as the connection changes. Returns a stop function. */
   stream(after: number, onEvent: (envelope: EventEnvelope) => void, onStatus: (status: ConnectionStatus) => void): () => void
@@ -36,11 +40,14 @@ export class HttpTransport implements Transport {
   }
 
   snapshot() { return this.request<EngineSnapshot>('/api/state') }
+  taskHistory(query: TaskHistoryQuery) { return this.request<TaskHistoryPage>('/api/history', { method: 'POST', body: JSON.stringify(query) }) }
   taskDetail(taskId: string) { return this.request<TaskDetail>(`/api/tasks/${taskId}`) }
   taskDiff(taskId: string) { return this.request<TaskDiff>(`/api/tasks/${taskId}/diff`) }
   execute(command: Record<string, unknown>) { return this.request<CommandAck>('/api/commands', { method: 'POST', body: JSON.stringify(command) }) }
   /** Desktop only: writes a database backup or a JSON export next to the daily backups. */
   saveData(kind: 'backup' | 'export') { return this.request<{ file: string }>(`/api/${kind}`, { method: 'POST' }) }
+
+  explain(request: ExplainRequest, signal?: AbortSignal) { return this.request<ExplainResult>('/api/explain', { method: 'POST', body: JSON.stringify(request), signal }) }
 
   async evidenceLog(evidenceId: string): Promise<string> {
     const response = await fetch(`${this.baseUrl}/api/evidence/${evidenceId}/log`, { headers: { Authorization: `Bearer ${this.token}` } })
@@ -63,8 +70,8 @@ export class HttpTransport implements Transport {
         const frame = JSON.parse(String(message.data)) as { type: string; envelope?: EventEnvelope }
         if (frame.type === 'ready') { attempt = 0; onStatus('live') }
         if (frame.type === 'event' && frame.envelope) {
-          if (frame.envelope.event.type !== 'run.output' && frame.envelope.event.type !== 'providers.updated') cursor = Math.max(cursor, frame.envelope.seq)
           onEvent(frame.envelope)
+          if (frame.envelope.event.type !== 'run.output' && frame.envelope.event.type !== 'providers.updated') cursor = Math.max(cursor, frame.envelope.seq)
         }
       }
       socket.onclose = () => {

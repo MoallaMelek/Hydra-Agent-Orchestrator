@@ -29,7 +29,7 @@ Add a project (any folder; changes need a git repository with at least one commi
 | **Code question** | Questions about this repository | One agent reads the files it needs (read-only), then replies. |
 | **Full change** | Requests to change code ("fix…", "add…", a bug report) | Plan → isolated edit → independent review → Hydra runs your tests → you approve. |
 
-You can override Auto with the buttons under the box. Requests that look **risky** (deleting data, secrets, production, force-push) always stop for you to approve the plan first, whatever you choose. If you send a question as a change, Hydra simply answers it.
+Workspace opens with a project-aware request box. **Handling & approvals** reveals routing and autonomy choices. Requests that look **risky** (deleting data, secrets, production, force-push) always stop for plan approval. The classifier is heuristic; review the route before sending. If you send a question as a change, the planner may answer it.
 
 For changes, choose how much freedom the agents get:
 - *Safe*: you approve the plan and the exact check commands before any code is written.
@@ -41,29 +41,31 @@ Every mode needs your final approval. *Agents and limits* (folded by default) se
 ## 4. Conversations and history
 - Under an answer, **Ask a follow-up** continues the conversation; the agent sees the earlier questions and answers.
 - **Make this change** turns a question into a full change.
-- The project page lists your history as conversations, with **search** (questions, answers and changes) and paging.
-- **Archive** hides a conversation without deleting it; *Archived* shows and restores them. **Delete** asks first and removes the task and its logs (changes you accepted stay in your repository).
+- The project page lists saved tasks and follow-up messages, 25 summaries per page. **Search history** searches saved titles, prompts and answers in that project. Open a message to read its earlier conversation. Workspace is a recent loaded view, not a complete history count.
+- **Archive** hides a conversation without deleting it; *Archived* shows and restores it. **Delete** asks first and removes current task records and logs. Journal entries, backups and existing exports can retain content; this is not secure erasure. Accepted repository changes remain.
 - *Settings → Export as JSON* saves everything; *Back up now* saves a copy of the database.
 
 ## 5. Reviewing a change
 When a change says **Review result**:
+- The **Mission receipt** names the revision, review outcome and observed final checks. Failed, missing, stale or untrusted results are not called verified. Passing commands do not establish complete requirements coverage.
 - **Overview:** the plan, the review findings, and **Before → after**. Hydra ran your project's tests on the original commit and on the result.
 - **Changes:** the exact diff. **Checks:** every command Hydra ran itself, with exit codes, the commit and the full log.
 - **Warnings** appear above all of this, for example failing or missing checks, modified tests, changed build files or a same-provider review.
 
 Then choose:
 - **Accept** fast-forwards your branch to exactly the commit you reviewed. If your branch moved meanwhile, Hydra merges your changes into the task, re-runs the checks and asks you again.
+- **Accept** is enforced by the engine: current passing checks and revision-bound reviewer approval are required in every mode. Failed, missing, stale or untrusted evidence and blocking reviewer objections refuse acceptance. No exception-to-apply action is supported. Request changes for another reviewed repair, keep the isolated branch for manual work, or reject. Older clients without structured decisions must be upgraded. See APPROVAL_POLICY.md.
 - **Request changes** sends your note to the implementer; the change is reviewed and verified again.
 - **Reject** discards the isolated copy. **Keep branch** leaves a `hydra/…` branch for you to merge yourself.
 
-**Roll back** an applied change at any time. Hydra adds a revert commit; your history is never rewritten.
+**Roll back** offers a revert commit for a recorded applied change. Conflicts or a changed project can require manual recovery; this is not an unconditional undo guarantee. Installation recovery is separate from Git rollback.
 
 ## 6. Your phone
-**Phone access is off until you turn it on** (Remote devices → Phone access: 1 hour, 8 hours or until Hydra closes; showing a pairing code also turns it on for an hour). It turns itself off when the time is up and is always off when Hydra starts.
+**Phone access is off until you turn it on** (Phone access → Phone access: 1 hour, 8 hours or until Hydra closes; showing a pairing code also turns it on for an hour). It turns itself off when the time is up and is always off when Hydra starts.
 
-*Remote devices → Pair a phone.* Choose what the phone may do (view; start/cancel; approve/reject) and, if your computer has several networks, pick the one your phone is on (usually Wi-Fi). Scan the QR code with the phone **on the same Wi-Fi**, or through your own VPN such as Tailscale. Check that the code on the phone matches the desktop's.
+*Phone access → Pair a phone.* Choose what the phone may do (view; start/cancel; approve/reject) and, if your computer has several networks, pick the one your phone is on (usually Wi-Fi). Scan the QR code with the phone **on the same Wi-Fi**, or through your own VPN such as Tailscale. Check that the code on the phone matches the desktop's.
 
-- Everything between phone and computer is end-to-end encrypted; no cloud service is involved.
+- Commands are encrypted after pairing, but the HTTP phone page can be replaced by an active network attacker before it runs. Use trusted networks only. HTTPS/native client qualification and wider remote infrastructure remain unavailable.
 - The phone works while Hydra is running on the computer. If it disconnects, it reconnects and catches up on what it missed.
 - Revoke a phone at any time; it is cut off immediately. Pairings expire after 30 days.
 
@@ -74,7 +76,7 @@ Everything is local: `%LOCALAPPDATA%\Hydra\v2` on Windows, `~/Library/Applicatio
 On the project page, **Verification** lists the commands Hydra runs on every change and where they come from (your list, `.hydra/checks.json`, or automatic detection). You can add, edit, reorder and remove commands, mark them required, **Test** one on a copy of your last commit, or restore automatic detection. Your list is kept in Hydra, not in your repository. Commands that plainly delete files, change permissions, publish or use the network are refused. This is a safety net, not a sandbox: a check runs with your permissions, and Hydra cannot see what a program or script does once it runs (a renamed program or a script file can do anything you can). Only add commands you trust; **Test** runs one right away.
 
 ## 9. Updates
-Settings → Updates → *Check for updates* asks the release server only when you press it. Updates must be signed by the Hydra publisher and match their checksum, and nothing is installed without you. (Signed releases are not set up yet.)
+Settings → Updates controls checks and optional background downloads. Desktop preferences can schedule checks; installation always requires your explicit action. Metadata signatures and downloaded bytes are validated. Production signing, a published feed and the full signed upgrade/failure-recovery journey remain release gates. Keep a known-good installer and versioned backup; no automatic restoration of a partially overwritten install is promised.
 
 ## 10. Troubleshooting
 | Symptom | What to do |

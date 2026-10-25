@@ -1,4 +1,5 @@
-import type { Task, TaskStage } from '@hydra/protocol'
+import type { Command, Task, TaskStage } from '@hydra/protocol'
+import { approvalContext, verificationReceipt } from '@hydra/protocol'
 import { currentBranch, headSha, isAncestor } from '../isolation/git.js'
 import { killOrphanAgent } from '../process/instance.js'
 import { afterFinalDecision, afterPlanDecision, nextStep, type FinalDecision, type StageResult, type Step } from '../workflow/machine.js'
@@ -23,6 +24,28 @@ export class KeyedMutex {
       release()
       if (this.tails.get(normalized) === tail) this.tails.delete(normalized)
     }
+  }
+}
+
+/**
+ * A short, factual record of what a successful stage produced, kept on its stage record so
+ * every round stays visible after later rounds replace the task's plan or review. Purely
+ * descriptive: decisions are made from the StageResult, never from this text.
+ */
+export function outcomeNote(task: Task, result: StageResult): string | null {
+  if (!result.ok) return null
+  switch (result.stage) {
+    case 'plan': return task.intent === 'analyze' ? 'Answered' : task.plan ? `Plan: ${task.plan.steps.length} step${task.plan.steps.length === 1 ? '' : 's'}` : null
+    case 'implement':
+    case 'fix': return task.workspace?.headSha ? `Commit ${task.workspace.headSha.slice(0, 10)}` : null
+    case 'review': {
+      const findings = task.review?.findings.length ?? 0
+      return result.approved ? `Approved${findings ? ` with ${findings} note${findings === 1 ? '' : 's'}` : ''}` : `Changes requested: ${findings} finding${findings === 1 ? '' : 's'}`
+    }
+    // verifyStage skips verification when the project has no checks: that is "unverified", never "passed".
+    case 'verify': return !task.checks.length ? 'No checks: result unverified' : result.requiredFailures ? `${result.requiredFailures} required check${result.requiredFailures === 1 ? '' : 's'} failed` : 'Required checks passed'
+    case 'demo': return task.demo ? `Before → after: ${task.demo.deltas.filter((d) => d.after === 'pass').length}/${task.demo.deltas.length} pass` : null
+    case 'apply': return task.applied ? `Applied ${task.applied.afterSha.slice(0, 10)}` : null
   }
 }
 
@@ -97,17 +120,29 @@ export class Orchestrator {
     this.continueWith(taskId, afterPlanDecision(approve))
   }
 
-  decide(taskId: string, decision: FinalDecision, feedback: string | undefined, headShaSeen: string | undefined, source: 'desktop' | 'remote'): void {
+  decide(taskId: string, decision: FinalDecision, feedback: string | undefined, headShaSeen: string | undefined, source: 'desktop' | 'remote', acceptance: Extract<Command, { type: 'task.decide' }>['acceptance'], actor: string): void {
     const task = this.ctx.store.getTask(taskId)!
     if (this.running.has(taskId) || task.status !== 'waiting_input' || task.waitReason !== 'final_approval') throw conflict('This task is not waiting for a final decision')
     const current = task.workspace?.headSha ?? null
     if (decision === 'accept') {
       if (!headShaSeen) throw invalid('Accept must name the commit you reviewed (headSha)')
       if (headShaSeen !== current) throw conflict('The result changed since you reviewed it. Review the latest version and accept again.')
+      const context = approvalContext(task, this.ctx.store.listEvidence(taskId))
+      if (!context.allowed) throw conflict(`Acceptance blocked: ${context.unresolved.join(' ')} Request changes, keep the branch, or reject. Exceptions are not supported.`)
+      if (!acceptance) throw invalid('Accept requires a structured decision bound to current evidence and review.')
+      if (acceptance.snapshot !== context.snapshot) throw conflict('Evidence or review changed. Reload and review the current result before accepting.')
+      if (this.ctx.store.hasAcceptanceDecision(acceptance.decisionId)) throw conflict('This decision was already submitted. Review the current task state.')
+      this.ctx.store.transaction(() => {
+        const record = { decisionId: acceptance.decisionId, at: isoNow(), actor, source, decision: 'accept' as const,
+          revision: current!, snapshot: context.snapshot, evidenceIds: context.evidenceIds, unresolved: context.unresolved, exceptionReason: null }
+        updateTask(this.ctx, taskId, t => { t.acceptance = record })
+        this.ctx.store.audit(actor, 'task.acceptance', { taskId, ...record })
+      })
     }
     if (decision === 'request_changes' && !feedback) throw invalid('Describe the changes you want')
     if (feedback) updateTask(this.ctx, taskId, (t) => { t.feedback.push({ at: isoNow(), text: feedback, source }); t.error = null })
-    this.ctx.store.audit(source, `task.${decision}`, { taskId, headSha: current })
+    const receipt = verificationReceipt(task, this.ctx.store.listEvidence(taskId))
+    this.ctx.store.audit(actor, `task.${decision}`, { taskId, source, headSha: current, evidenceState: receipt.state, failedChecks: receipt.failed.map(c => c.spec.id), missingChecks: receipt.missing.map(c => c.spec.id) })
     this.continueWith(taskId, afterFinalDecision(decision))
   }
 
@@ -132,6 +167,7 @@ export class Orchestrator {
     let count = 0
     for (const run of this.ctx.store.runsWithStatus('running')) {
       if (run.pid && await killOrphanAgent(run.pid)) logTask(this.ctx, run.taskId, 'warn', `Stopped agent process ${run.pid} left running by a previous session`)
+      else if (run.pid) logTask(this.ctx, run.taskId, 'warn', 'Previous CLI process ownership cannot be proven after restart. Hydra did not terminate a historical PID; inspect any surviving CLI session manually.')
       this.ctx.store.putRun({ ...run, status: 'interrupted', endedAt: isoNow(), error: 'Hydra stopped while this run was active' })
     }
     for (const task of this.ctx.store.tasksWithStatus(['queued', 'running'])) {
@@ -222,7 +258,7 @@ export class Orchestrator {
         result = { stage, ok: false, error: budget ? `Budget limit reached: ${error.message}` : errorMessage(error) }
       }
       if (signal.aborted && stage !== 'apply') return this.markCanceled(taskId, stage, attempt)
-      this.endStage(taskId, stage, attempt, result.ok ? 'succeeded' : 'failed', result.ok ? null : result.error)
+      this.endStage(taskId, stage, attempt, result.ok ? 'succeeded' : 'failed', result.ok ? outcomeNote(this.ctx.store.getTask(taskId)!, result) : result.error)
       const fresh = this.ctx.store.getTask(taskId)!
       step = nextStep(fresh, result, policyFor(fresh.mode))
     }

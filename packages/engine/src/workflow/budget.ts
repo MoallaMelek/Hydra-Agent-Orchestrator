@@ -14,11 +14,12 @@ export function addUsage(total: UsageTotals, delta: UsageDelta): UsageTotals {
     outputTokens: total.outputTokens + delta.outputTokens,
     cachedTokens: total.cachedTokens + delta.cachedTokens,
     costUsd: total.costUsd + (delta.costUsd ?? 0),
-    unpricedTokens: total.unpricedTokens + (delta.costUsd === null ? delta.inputTokens + delta.outputTokens : 0)
+    unpricedTokens: total.unpricedTokens + (delta.costUsd === null ? delta.inputTokens + delta.outputTokens + delta.cachedTokens : 0)
   }
 }
 
-export const billableTokens = (usage: UsageTotals): number => usage.inputTokens + usage.outputTokens
+/** All reported tokens, including cached input. This count is not a price estimate. */
+export const billableTokens = (usage: UsageTotals): number => usage.inputTokens + usage.outputTokens + usage.cachedTokens
 
 /** Throws if starting another agent run would violate the task budget (limits are inclusive). */
 export function assertCanStartRun(task: Task, now: number = Date.now()): void {

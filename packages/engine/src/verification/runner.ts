@@ -2,11 +2,12 @@ import { createHash } from 'node:crypto'
 import { createWriteStream, mkdirSync, realpathSync } from 'node:fs'
 import { isAbsolute, join, resolve } from 'node:path'
 import type { CheckSpec, Evidence } from '@hydra/protocol'
+import { checkSpecBinding } from '@hydra/protocol'
 import { verificationEnv } from '../process/env.js'
 import { findOnPath, killTree, reapGroup, spawnArgv } from '../process/spawn.js'
 import { isInside } from '../isolation/roots.js'
 import { newId, isoNow } from '../util/ids.js'
-import { redact } from '../util/redact.js'
+import { LogRedactor } from '../util/log-redactor.js'
 import { SCRATCH } from './detect.js'
 
 const TAIL_BYTES = 20_000
@@ -54,6 +55,7 @@ async function runOne(spec: CheckSpec, options: RunChecksOptions): Promise<Evide
   const cwd = resolve(options.workspacePath, spec.cwd)
   const argv = spec.argv.map((part) => part.split(SCRATCH).join(options.scratchDir))
   const base = {
+    checkSpec: checkSpecBinding(spec),
     id, taskId: options.taskId, checkId: spec.id, label: spec.label, phase: options.phase, commitSha: options.commitSha,
     argv, cwd: spec.cwd, startedAt, required: spec.required, treeMutated: false, outputTruncated: false
   }
@@ -78,16 +80,19 @@ async function runOne(spec: CheckSpec, options: RunChecksOptions): Promise<Evide
   let logged = 0
   let truncated = false
   let timedOut = false
-  const record = (chunk: Buffer) => {
+  const writeSafe = (text: string) => {
+    tail = (tail + text).slice(-TAIL_BYTES)
+    const size = Buffer.byteLength(text)
+    if (logged + size <= LOG_QUOTA_BYTES && log.writableLength < 1024 * 1024) {
+      if (!logError) log.write(text)
+      logged += size
+    } else truncated = true
+  }
+  const stdout = new LogRedactor(), stderr = new LogRedactor()
+  const record = (redactor: LogRedactor) => (chunk: Buffer) => {
     hash.update(chunk)
     bytes += chunk.length
-    tail = (tail + chunk.toString('utf8')).slice(-TAIL_BYTES * 2)
-    if (logged + chunk.length <= LOG_QUOTA_BYTES) {
-      if (!logError) log.write(redact(chunk.toString('utf8')))
-      logged += chunk.length
-    } else {
-      truncated = true
-    }
+    writeSafe(redactor.push(chunk))
   }
 
   let child
@@ -101,8 +106,8 @@ async function runOne(spec: CheckSpec, options: RunChecksOptions): Promise<Evide
   const timer = setTimeout(() => { timedOut = true; stopping ??= killTree(child) }, spec.timeoutSec * 1000)
   const onAbort = () => { stopping ??= killTree(child) }
   options.signal.addEventListener('abort', onAbort, { once: true })
-  child.stdout?.on('data', record)
-  child.stderr?.on('data', record)
+  child.stdout?.on('data', record(stdout))
+  child.stderr?.on('data', record(stderr))
   const outcome = await new Promise<{ code: number | null; error: string | null }>((done) => {
     child.on('error', (error) => done({ code: null, error: error.message }))
     child.on('close', (code) => done({ code, error: null }))
@@ -111,6 +116,8 @@ async function runOne(spec: CheckSpec, options: RunChecksOptions): Promise<Evide
   options.signal.removeEventListener('abort', onAbort)
   reapGroup(child) // reap any descendants left in the process group (POSIX)
   const leftovers = stopping && !(await stopping) ? 'Stopped, but some processes it started may still be running; end them in your task manager.' : null
+  writeSafe(stdout.end())
+  writeSafe(stderr.end())
   await new Promise<void>((done) => log.end(done))
 
   return {
@@ -119,7 +126,7 @@ async function runOne(spec: CheckSpec, options: RunChecksOptions): Promise<Evide
     exitCode: timedOut || options.signal.aborted ? null : outcome.code,
     timedOut,
     spawnError: outcome.error ?? leftovers ?? (logError ? `Log write failed: ${logError}` : null),
-    outputTail: redact(tail).slice(-TAIL_BYTES),
+    outputTail: tail,
     outputBytes: bytes,
     outputSha256: hash.digest('hex'),
     outputTruncated: truncated

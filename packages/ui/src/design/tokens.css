@@ -1,66 +1,75 @@
-/* Hydra v2 design tokens. Dark is the primary theme; light mirrors it. */
-:root {
-  --font-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", "Cascadia Code", "SF Mono", ui-monospace, Consolas, monospace;
+/*
+ * Hydra "Command Network" tokens (design/DESIGN-SYSTEM.md).
+ * Light means now, hue means who, red means stop; no other colour carries meaning.
+ * Night is the default; Day is a token swap, never a component swap. A saved "terracotta"
+ * preference from alpha.6 renders Night. The second block keeps the alpha.6 token names as
+ * aliases so every existing surface follows the new palette without a parallel stylesheet.
+ */
+@font-face { font-family: "Archivo"; src: url("./fonts/archivo-latin-standard-normal.woff2") format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
+@font-face { font-family: "Azeret Mono"; src: url("./fonts/azeret-mono-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
 
-  --text-xs: 11px; --text-sm: 12.5px; --text-md: 13.5px; --text-lg: 15px; --text-xl: 19px; --text-2xl: 24px;
+:root {
+  --void: #07090c; --deck: #0d1117; --deck-2: #121821; --rule: #18202a; --rule-2: #26303c;
+  --ink: #e8ecf1; --ink-2: #9ba6b4; --ink-3: #7b8696;
+  --planner: #74b9ff; --builder: #ffb24a; --reviewer: #3fd0c4; --engine: #a9b6c6; --you: #f4efe3; --stop: #ff5b52;
+  --float: 0 16px 40px rgba(0, 0, 0, .5);
+  --tint: rgba(232, 236, 241, .06); --tint-2: rgba(232, 236, 241, .1);
+  --you-tint: rgba(244, 239, 227, .08); --stop-tint: rgba(255, 91, 82, .1);
+
+  --font-sans: "Archivo", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: "Azeret Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --text-xs: 11px; --text-sm: 12px; --text-md: 13px; --text-lg: 14px; --text-xl: 16px; --text-2xl: 19px; --text-3xl: 22px; --text-4xl: 28px; --text-5xl: 36px;
   --lh: 1.5;
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px;
-  --radius-sm: 5px; --radius-md: 8px; --radius-lg: 12px;
-  --ease: cubic-bezier(.2, .7, .2, 1);
-  --dur-fast: 120ms; --dur: 200ms;
+  --radius-sm: 3px; --radius-md: 4px; --radius-lg: 4px;
+  --frame: 52px;
 
-  /* Dark (default) — deep ink with a cool cyan signal colour */
-  --bg: #0b0d12;
-  --bg-raised: #11141b;
-  --bg-sunken: #080a0e;
-  --surface: #151923;
-  --surface-hover: #1b2030;
-  --border: #232a39;
-  --border-strong: #2f3850;
-  --text: #e6e9f0;
-  --text-2: #a4acbe;
-  --text-3: #6f7890;
-  --accent: #39c6d6;
-  --accent-strong: #5ee0ee;
-  --accent-ink: #062a2f;
-  --accent-soft: rgba(57, 198, 214, .12);
-  --ok: #3ccf8e; --ok-soft: rgba(60, 207, 142, .12);
-  --warn: #f2b84b; --warn-soft: rgba(242, 184, 75, .13);
-  --bad: #f2617a; --bad-soft: rgba(242, 97, 122, .13);
-  --info: #8f9cff; --info-soft: rgba(143, 156, 255, .13);
-  --diff-add-bg: rgba(60, 207, 142, .10); --diff-add-fg: #9be8c4;
-  --diff-del-bg: rgba(242, 97, 122, .10); --diff-del-fg: #f6a9b6;
-  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.35);
-  --focus: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  /* Motion: named moves only (FORM, HANDOFF, ISOLATE, EGO, BREATHE, REVEAL); all ≤ 420 ms. */
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --ease: var(--ease-out);
+  --dur-fast: 120ms; --dur: 160ms; --dur-slow: 240ms;
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --bg: #f6f7f9;
-  --bg-raised: #ffffff;
-  --bg-sunken: #eef0f4;
-  --surface: #ffffff;
-  --surface-hover: #f1f3f7;
-  --border: #e1e5ec;
-  --border-strong: #cbd2de;
-  --text: #141821;
-  --text-2: #4c5468;
-  --text-3: #7c869c;
-  --accent: #0e8f9e;
-  --accent-strong: #0a7581;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(14, 143, 158, .10);
-  --ok: #138a59; --ok-soft: rgba(19, 138, 89, .10);
-  --warn: #a96b00; --warn-soft: rgba(169, 107, 0, .10);
-  --bad: #c62848; --bad-soft: rgba(198, 40, 72, .09);
-  --info: #4c5bd4; --info-soft: rgba(76, 91, 212, .09);
-  --diff-add-bg: rgba(19, 138, 89, .09); --diff-add-fg: #0d6b45;
-  --diff-del-bg: rgba(198, 40, 72, .08); --diff-del-fg: #9c1f39;
-  --shadow: 0 1px 2px rgba(20,24,33,.06), 0 8px 24px rgba(20,24,33,.06);
+  --void: #f4f6f8; --deck: #ffffff; --deck-2: #eef1f4; --rule: #dde2e8; --rule-2: #c8cfd8;
+  --ink: #0e1217; --ink-2: #48525f; --ink-3: #59626e;
+  --planner: #1d63b0; --builder: #9a5800; --reviewer: #0b7a71; --engine: #566373; --you: #0e1217; --stop: #c62a24;
+  --float: 0 16px 40px rgba(14, 18, 23, .16);
+  --tint: rgba(14, 18, 23, .04); --tint-2: rgba(14, 18, 23, .07);
+  --you-tint: rgba(14, 18, 23, .05); --stop-tint: rgba(198, 42, 36, .08);
   color-scheme: light;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  :root { --dur-fast: 0ms; --dur: 0ms; }
+/* alpha.6 names, mapped onto the system. */
+:root, [data-theme] {
+  --bg: var(--void); --bg-sunken: var(--void); --rail: var(--deck);
+  --surface: var(--deck); --surface-2: var(--deck-2); --surface-3: var(--rule-2); --surface-hover: var(--deck-2); --bg-raised: var(--deck-2);
+  --border: var(--rule); --border-strong: var(--rule-2);
+  --text: var(--ink); --text-2: var(--ink-2); --text-3: var(--ink-3);
+  --accent: var(--ink); --accent-strong: var(--ink); --accent-ink: var(--void); --accent-soft: var(--tint-2);
+  --you-soft: var(--you-tint); --you-ink: var(--void);
+  --ok: var(--engine); --ok-soft: var(--tint); --ok-ink: var(--void);
+  --bad: var(--stop); --bad-soft: var(--stop-tint); --bad-ink: var(--void);
+  --warn: var(--you); --warn-soft: var(--you-tint);
+  --info: var(--ink-2); --info-soft: var(--tint);
+  --lane: var(--deck); --lane-alt: var(--deck-2); --seg: var(--rule-2); --seg-done: var(--ink-3);
+  /* Diffs: additions are ink, deletions ink-3. Red is reserved for stop. */
+  --diff-add-bg: var(--tint-2); --diff-add-fg: var(--ink);
+  --diff-del-bg: transparent; --diff-del-fg: var(--ink-3);
+  --float-shadow: var(--float); --shadow: var(--float);
+  --focus: 0 0 0 2px var(--void), 0 0 0 4px var(--ink);
 }
+
+/* Adaptive quality (Settings → Display). Reduced: fades only. Minimal: nothing moves. */
+[data-quality="reduced"] { --dur-fast: 80ms; --dur: 120ms; --dur-slow: 120ms; }
+[data-quality="minimal"] { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-quality="full"]) { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }
+}
+
+.draft-files { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+.saved-draft { padding: 16px 0; border-bottom: 1px solid var(--rule); overflow-wrap: anywhere; }
+.update-error { margin-top: 16px; padding: 12px; background: var(--stop-tint); border-radius: var(--radius-sm); color: var(--ink); }

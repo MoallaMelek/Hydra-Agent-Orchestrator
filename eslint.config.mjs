@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint'
 import globals from 'globals'
 
 export default tseslint.config(
-  { ignores: ['.hydra-dev/**', '**/dist/**', '**/out/**', '**/release/**', '**/node_modules/**', '**/coverage/**'] },
+  { ignores: ['.hydra-dev/**', '**/dist/**', '**/out/**', '**/release/**', '**/node_modules/**', '**/coverage/**', '**/.lab-dist/**', '**/.review-dist/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -14,5 +14,10 @@ export default tseslint.config(
       'no-restricted-imports': ['error', { patterns: [{ group: ['**/legacy/**'], message: 'Do not import archived code.' }] }],
       'max-lines': ['warn', { max: 450, skipBlankLines: true, skipComments: true }]
     }
+  },
+  {
+    // Design prototypes read raw fixture JSON; they are research artifacts, not product code.
+    files: ['design/prototypes/**/*.ts'],
+    rules: { '@typescript-eslint/no-explicit-any': 'off', 'max-lines': 'off' }
   }
 )

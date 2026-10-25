@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { approvalContext } from '@hydra/protocol'
 // Live acceptance: drives the real engine with the locally signed-in Claude Code and
 // Codex CLIs against throwaway git fixtures in the OS temp directory. Uses the
 // operator's own provider accounts (and their usage). Never touches real projects.
@@ -96,7 +97,7 @@ for (const name of scenarios) {
       if (t.status === 'waiting_input' && t.waitReason === 'final_approval') {
         const diff = await engine.taskDiff(id)
         record.diff = diff.files.map((f) => ({ path: f.path, status: f.status, add: f.additions, del: f.deletions }))
-        const accept = await engine.execute({ type: 'task.decide', taskId: id, decision: 'accept', headSha: t.workspace.headSha })
+        const accept = await engine.execute({ type: 'task.decide', taskId: id, decision: 'accept', headSha: t.workspace.headSha, acceptance: { decisionId: crypto.randomUUID(), snapshot: approvalContext(t, engine.store.listEvidence(id)).snapshot } })
         const done = await until(id, (x) => x.status !== 'running' && x.status !== 'queued' && x.stage === 'apply' || x.status === 'completed' || x.error, 120_000)
         const testCmd = name === 'node' ? ['node', ['--test']] : ['python', ['-m', 'unittest', '-q']]
         let independentTest

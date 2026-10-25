@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { isHighRisk, Plan, Review, type DemoReport, type Evidence, type Task, type TaskStage } from '@hydra/protocol'
+import { approvalContext, isHighRisk, Plan, Review, type DemoReport, type Evidence, type Task, type TaskStage } from '@hydra/protocol'
 import { isAncestor } from '../isolation/git.js'
 import { answerPrompt, fixPrompt, implementPrompt, planPrompt, reviewPrompt, type Turn } from '../prompts/prompts.js'
 import { IMPLEMENT_SCHEMA, PLAN_SCHEMA, REVIEW_SCHEMA } from '../prompts/schemas.js'
@@ -63,12 +63,15 @@ function conversation(ctx: EngineContext, t: Task): Turn[] {
 export async function planStage({ ctx, taskId, signal }: StageInput): Promise<StageResult> {
   let t = task(ctx, taskId)
   if (t.intent === 'analyze') {
+    const sourceContext = { projectRoot: projectRoot(ctx, t), runtimeVersion: ctx.runtimeVersion ?? 'unknown' }
     // One streamed, read-only reply: no plan, no worktree, no review.
     const { text } = await callAgentText(ctx, {
       taskId, stage: 'plan', role: 'planner', provider: t.assignment.planner, access: 'read', cwd: projectRoot(ctx, t),
-      prompt: answerPrompt(t, conversation(ctx, t)), stream: true, signal
+      prompt: answerPrompt(t, conversation(ctx, t), sourceContext), stream: true, signal
     })
-    updateTask(ctx, taskId, (draft) => { draft.answer = text })
+    // Replace the answer and its provenance atomically. A failed retry must not
+    // relabel a retained historical answer as having come from this attempt.
+    updateTask(ctx, taskId, (draft) => { draft.answer = text; draft.sourceContext = sourceContext })
     return { stage: 'plan', ok: true }
   }
   if (!t.workspace) {
@@ -160,7 +163,7 @@ export async function reviewStage({ ctx, taskId, signal }: StageInput): Promise<
     prompt: reviewPrompt(t, diff, evidence), jsonSchema: REVIEW_SCHEMA, parse: Review, signal
   })
   const blocking = value.findings.filter((f) => f.severity === 'blocker' || f.severity === 'major').length
-  updateTask(ctx, taskId, (draft) => { draft.review = value })
+  updateTask(ctx, taskId, (draft) => { draft.review = value; draft.reviewedSha = ws.headSha ?? ws.baseSha })
   return { stage: 'review', ok: true, approved: value.verdict === 'approve' && blocking === 0 }
 }
 
@@ -226,6 +229,10 @@ export async function applyStage({ ctx, taskId }: StageInput): Promise<StageResu
   let ws = workspaceOf(t)
   const root = projectRoot(ctx, t)
   const approved = ws.headSha ?? ws.baseSha
+  const approval = approvalContext(t, ctx.store.listEvidence(taskId))
+  if (!t.acceptance || !approval.allowed || t.acceptance.revision !== approved || t.acceptance.snapshot !== approval.snapshot) {
+    throw new ReapprovalNeeded('Acceptance is absent or no longer matches passing evidence and reviewer approval. Request changes for a fresh review, then accept again.')
+  }
   const target = await ctx.workspaces.target(root)
 
   if (target.head !== ws.baseSha && !(await isAncestor(root, target.head, approved))) {

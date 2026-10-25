@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { Badge, Button, Callout, Panel } from '../design/components'
-import { useApp } from '../app/context'
+import { useApp, useAppState } from '../app/context'
+import { ProviderStep } from './SetupChecklist'
 
 const CAPABILITY_LABEL: Record<string, string> = {
   structuredOutput: 'Structured output',
@@ -13,22 +14,25 @@ const CAPABILITY_LABEL: Record<string, string> = {
 
 /** Which agent CLIs are installed and signed in. Hydra never sees the credentials. */
 export function ProvidersView() {
-  const { state, run } = useApp()
+  const { run } = useApp()
+  const providers = useAppState((s) => s.providers)
   const [busy, setBusy] = useState(false)
   const refresh = async () => { setBusy(true); await run({ type: 'providers.refresh' }); setBusy(false) }
   return (
-    <div className="page">
+    <div className="page providers-workspace">
       <div className="page__head">
-        <div className="page__title"><h1>Agents &amp; providers</h1><p className="muted">Hydra drives the Claude Code and Codex CLIs installed on this computer, signed in with your own accounts.</p></div>
+        <div className="page__title"><h1>AI accounts</h1><p className="muted">Hydra drives the Claude Code and Codex CLIs installed on this computer, signed in with your own accounts.</p></div>
         <Button icon={<RefreshCw size={14} />} busy={busy} onClick={() => void refresh()}>Re-check</Button>
       </div>
       <Callout tone="info">Your provider logins stay in each CLI's own credential store. Hydra only asks each CLI whether it is signed in; it never reads, stores or transmits keys, tokens or account details. Usage is billed to your own provider account.</Callout>
       <div className="grid-2">
-        {state.providers.map((p) => {
+        {providers.map((p) => {
           const ready = p.installed && p.problems.length === 0
           return (
             <Panel key={p.id} title={p.displayName} actions={<Badge tone={ready ? 'ok' : p.installed ? 'warn' : 'bad'}>{ready ? 'Ready' : p.installed ? 'Needs attention' : 'Not installed'}</Badge>}>
               <div className="provider-card">
+                <div><p className="provider-duty">{p.id==='claude'?'Plan, explain and review':'Build, inspect and repair'}</p>{ready?<p className="muted">Ready to assign to your next mission. No agent starts until you submit work.</p>:<ul className="account-setup"><ProviderStep p={p} /></ul>}<p className="faint provider-billing">{p.capabilities.reportsCost?'Reports usage and cost when supplied by the CLI.':'Reports tokens; monetary cost is unavailable.'} Usage can arrive after a turn completes. Guardrails are not a hard spending cap.</p></div>
+                <details className="disclosure"><summary>Connection details <span>Version, location and restrictions</span></summary>
                 <dl className="hx-kv">
                   <dt>Version</dt><dd className="mono">{p.version ?? '—'}</dd>
                   <dt>Signed in</dt><dd>{p.authenticated === null ? 'Unknown' : p.authenticated ? `Yes${p.authMethod ? ` (${p.authMethod})` : ''}` : 'No'}</dd>
@@ -40,6 +44,7 @@ export function ProvidersView() {
                 {p.problems.map((problem, i) => <Callout key={i} tone="warn">{problem}</Callout>)}
                 {p.id === 'claude' && <p className="faint" style={{ fontSize: 12 }}>Claude never gets a shell in Hydra: its file tools are restricted to the task worktree by Claude Code's own permission system.</p>}
                 {p.id === 'codex' && <p className="faint" style={{ fontSize: 12 }}>Codex runs in its OS sandbox with network access off. Its CLI reports tokens but not prices, so Codex usage is limited by the token budget.</p>}
+                </details>
               </div>
             </Panel>
           )

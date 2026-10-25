@@ -2,14 +2,16 @@
 
 > Engine-first. One durable orchestration engine; every surface (desktop, phone, CLI, tests) is a client of the same typed API.
 
+Current alpha.5 clarification (18 October 2026): engine ownership uses an OS-held SQLite lease, not only a PID marker. Recovery pauses interrupted tasks and does not kill historical PIDs whose creation identity cannot be proved. Live cancellation still uses owned handles/process groups/Windows jobs. Task purge deliberately removes selected journal content; the journal is append-oriented, not immutable under explicit retention operations. Boot/history/replay and provider queues are bounded; see PRODUCTION_AUDIT.md for limits and evidence. No public relay or hostile-code containment is qualified.
+
 ## 1. Goals that shape the design
 
 1. **Nothing reaches the user's working tree without explicit approval.** All agent work happens in a dedicated git worktree on a task branch.
 2. **Evidence over claims.** Hydra itself runs tests and builds and records exit codes, output digests and the exact commit they ran against. An agent saying "tests pass" is never evidence.
-3. **Durable by default.** Every state change is an append-only event in SQLite. A crash loses at most the in-flight agent run, and the task resumes from its last completed stage.
+3. **Durable task state.** Task/stage/run transitions are journaled with their projections in SQLite. Live output is not all retained. Recovery reconciles interrupted work and pauses it for deliberate resume; it does not silently repeat side effects. WAL/NORMAL is not a zero-data-loss promise under power failure.
 4. **Provider-neutral orchestration.** The workflow never branches on "Claude" or "Codex". It asks adapters for *capabilities*.
 5. **Honest safety.** Each restriction is labelled as enforced by the OS, by the provider CLI, or by a prompt only. See THREAT_MODEL.md.
-6. **Owned remote access.** The phone talks to the engine end-to-end encrypted through a relay the owner controls. The relay never sees plaintext.
+6. **Optional LAN preview.** Phone access is off by default and uses an encrypted session after pairing. The HTTP-delivered client does not protect against active network replacement. No production relay deployment or qualified HTTPS/native client is established.
 
 ## 2. System overview
 
@@ -44,7 +46,7 @@
 | `packages/ui` | React SPA: design system plus app views. Talks to an `ApiClient` (local) or a `RemoteClient` (encrypted). |
 | `apps/hydrad` | Engine host: HTTP/WS API, static UI hosting, remote bridge, CLI entry (`hydrad serve`, `hydrad doctor`). |
 | `apps/desktop` | Electron shell: starts hydrad, opens a window, provides native dialogs. |
-| `apps/relay` | Zero-knowledge WebSocket relay plus static PWA hosting. Dockerfile included. |
+| `apps/relay` | Reserved/proposed relay workspace; not evidence of deployed remote infrastructure. Shipped phone behavior is the hydrad LAN path. |
 | `skills/` | Standalone Agensi-compatible SKILL.md skills derived from Hydra's methods. |
 | `tools/` | Originality check, licence report, release and test helpers. |
 
@@ -81,8 +83,8 @@ The transition function `nextStep(task, outcome)` is **pure**. It takes the pers
 | FIX (≤ N rounds) | open findings, failing checks, human feedback | new commits | Implementer | Bounded by `maxFixRounds` and budget; exhausted → `waiting_input` with reasons (never a silent pass) |
 | VERIFY | final commit SHA | Evidence[] against that SHA | **Engine** | Any required check failing → back to FIX if rounds remain, else `waiting_input` |
 | DEMO | base SHA and final SHA | `Demo` {checkDelta (base vs final), customDemo outputs} | **Engine** | Best-effort; failure is recorded, not fatal |
-| APPROVAL | everything above | decision: accept · request_changes · reject · keep_branch | Human (desktop, or phone with `approve` scope) | — |
-| APPLY | final SHA | merge commit or fast-forward in the user's repository plus a rollback record | Engine (git) | Conflict → nothing applied, branch kept, user informed |
+| APPROVAL | everything above | structured revision/evidence-bound accept · request_changes · reject · keep_branch | Human (desktop, or phone with `approve` scope) | Engine refuses unresolved checks/review in every mode; no exception apply; see APPROVAL_POLICY.md |
+| APPLY | accepted SHA and durable decision receipt | fast-forward in the user's repository plus a rollback record | Engine (git) | Revalidates receipt under repository lock; integration needs fresh review and acceptance; conflict leaves target untouched |
 
 ### 4.2 Why verification is engine-run
 
@@ -91,7 +93,7 @@ Agents can lie, misreport, or run a different command than claimed. In v2 the en
 ### 4.3 Checkpointing and recovery
 
 - Each stage completion appends `stage.completed` with its outputs **in the same SQLite transaction** that updates the task projection.
-- On engine start, `Recovery.reconcile()` finds tasks that were running. The interrupted `AgentRun` is marked `interrupted`, its process tree is killed if still alive (PID plus start-time check), and the task becomes `paused` at the stage that was running. **Resume** re-runs only that stage; completed stages are not repeated. The worktree persists across restarts.
+- On engine start, recovery finds tasks that were running, marks interrupted runs and pauses work for explicit resume. Historical PIDs are not terminated because ownership/creation identity is not durably proved; an unrelated reused PID must survive. Live engine-owned cancellation remains separate. Resume re-runs the interrupted stage; the worktree persists. Historical descendants may require manual cleanup.
 - Idempotency: stage runners key their outputs by `(taskId, stage, attempt)`.
 
 ### 4.4 Concurrency
@@ -116,7 +118,7 @@ Not every message needs the pipeline. `routeRequest()` in `packages/protocol/src
 
 **Streaming.** Answers are plain text (`--include-partial-messages` for Claude), published as `run.output` events with `stream: 'answer'`. Text is redacted before it is published; an unfinished run of token-like characters is held back until it ends, so a secret split across chunks is never shown. The stored answer is redacted as a whole. Codex replies arrive at the end (its CLI does not stream text).
 
-**Pre-started agents.** Starting the Claude CLI takes seconds. The Claude adapter can start an answering process ahead of time (`--input-format stream-json`, same restricted read-only flags as any answer, spend cap $2). It is used only for plain-text read-only answers in the same directory whose own budget is at least that cap. At most two exist; each expires after 5 minutes idle; all are stopped when the engine closes. The composer pre-starts one when you focus it, and each answer pre-starts the next.
+**Pre-started agents.** The adapter retains a bounded warm-process capability for eligible answering requests. Composer focus no longer starts a provider process; typing/focusing edits a local draft. An explicit authorized API prewarm remains possible. Provider flags are defense in depth, not proof of hostile-code confinement; usage budgets are reported-cost/token guardrails and may overshoot at turn completion.
 
 Measured (TEST_EVIDENCE, real Claude): "hi" went from 5.1 s to 3.4 s total (median), with the first words after 2.5 s once warm. Hydra's own overhead is about 10 ms; the rest is the provider.
 
@@ -142,7 +144,7 @@ type AgentEvent = { type: 'started', pid } | { type: 'text', text } | { type: 't
 | Write roles | `--tools Read,Glob,Grep,Edit,Write --permission-mode acceptEdits`; `--restricted` confines file tools to cwd = worktree | `-s workspace-write` (OS sandbox on macOS/Linux; Windows sandbox per Codex) |
 | Shell for the agent | **never** (no Bash; Claude has no OS sandbox) | inside the Codex sandbox only, network off |
 | Structured output | `--json-schema` | `--output-schema <file>` |
-| Usage and cost | `result.usage`, `total_cost_usd` | `turn.completed.usage`; cost estimated from a configurable price table (labelled *estimate*) |
+| Usage and cost | `result.usage`, `total_cost_usd` | `turn.completed.usage`; unpriced tokens recorded separately, not a complete dollar bill |
 | Budget cap | `--max-budget-usd` + engine-side abort | engine-side abort |
 | Prompt delivery | stdin (never argv, never a shell) | stdin (`-`) |
 
@@ -175,7 +177,7 @@ Detectors (`packages/engine/src/verification/detectors/*`) each inspect a projec
 
 The runner spawns with `shell:false`. On Windows, `.cmd`/`.bat` shims are run through `cmd.exe /d /s /c` only after every argument passes a strict character allowlist. Runs have per-check timeouts, process-tree kill, a scrubbed environment (allowlist: PATH, HOME, temp, locale, toolchain variables), output capped in memory, and full logs on disk with a SHA-256 digest.
 
-Execution profiles: `host` (default) and `container` (optional: `docker run --network none` with the worktree mounted; used when Docker is available and the user selects it). The host profile runs project test code with the user's privileges; this is stated in the UI and in THREAT_MODEL.md.
+Execution profile: host checks run project code with the user's privileges. A container profile is proposed but NOT IMPLEMENTED or selectable. Worktree isolation and a scrubbed environment do not contain arbitrary filesystem or network access. Use trusted repositories only.
 
 ## 8. Autonomy modes (enforced by `Policy`, not by prompts)
 

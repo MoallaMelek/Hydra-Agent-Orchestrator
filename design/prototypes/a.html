@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hydra Concept A · Neural Command Network</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="proto.css">
+<style>
+/* A · Neural Command Network. Night instrument: near-black with a blue bias, light as data.
+   Hue = who acted (planner ice, implementer ember, reviewer jade, engine steel, you ivory).
+   Red = stop, and nothing else. Brightness = now. */
+:root{
+  --bg:#07090c; --panel:#0d1117; --panel-2:#121821; --banner:#0a0d11; --code:#0a0e13;
+  --rule:#18202a; --rule-2:#26303c; --ink:#e8ecf1; --ink-2:#9ba6b4; --ink-3:#5f6a79;
+  --planner:#74b9ff; --implementer:#ffb24a; --reviewer:#3fd0c4; --engine:#a9b6c6; --human:#f4efe3; --stop:#ff5b52;
+  --add:rgba(232,236,241,.08); --del:rgba(255,91,82,.10); --focus:#f4efe3;
+  --sans:"Archivo","Segoe UI",system-ui,sans-serif; --display:"Archivo","Segoe UI",system-ui,sans-serif; --mono:"Azeret Mono","Cascadia Mono",Consolas,monospace;
+  --radius:4px; --radius-s:3px; color-scheme:dark;
+}
+body{display:flex;flex-direction:column;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100%;min-height:0}
+.top{display:flex;align-items:center;gap:20px;padding:10px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-stretch:112%}
+.brand b{font:700 17px/1 var(--display);letter-spacing:.01em}
+.mark{width:18px;height:18px;border:1.5px solid var(--human);border-radius:50%;position:relative}
+.mark::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--human)}
+.picker{display:flex;gap:10px;align-items:center;flex:1;min-width:0;flex-wrap:wrap}
+select{background:var(--panel-2);border:1px solid var(--rule-2);border-radius:var(--radius);padding:6px 8px;max-width:420px;min-width:0}
+.lens{display:flex;border:1px solid var(--rule-2);border-radius:var(--radius);overflow:hidden}
+.lens button{background:transparent;border:0;padding:6px 12px;cursor:pointer;color:var(--ink-2);font-stretch:90%}
+.lens button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+.find{position:relative}
+.find input{background:var(--panel-2);border:1px solid var(--rule-2);border-radius:var(--radius);padding:6px 10px;width:260px;max-width:60vw}
+.results{position:absolute;z-index:5;right:0;top:calc(100% + 4px);width:340px;max-width:90vw;list-style:none;margin:0;padding:4px;background:var(--panel);border:1px solid var(--rule-2);border-radius:var(--radius);box-shadow:0 16px 40px rgba(0,0,0,.5)}
+.results button{display:flex;gap:8px;align-items:center;width:100%;text-align:left;background:none;border:0;padding:7px 8px;cursor:pointer;border-radius:3px}
+.results button:hover,.results button:focus-visible{background:var(--panel-2)}
+.stage{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 380px}
+.mapwrap{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--rule)}
+.maphead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:14px 18px 6px}
+.m-title{margin:0;font:600 22px/1.15 var(--display);font-stretch:94%;letter-spacing:-.005em;text-wrap:balance}
+.m-sub{margin:4px 0 0;color:var(--ink-3);font:400 12px/1.4 var(--mono)}
+.is-sim .m-title,.is-sim .m-sub{color:var(--implementer)}
+.tools{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.channels{display:flex;flex-wrap:wrap;gap:6px;padding:6px 18px 10px;align-items:center}
+.chan{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--rule-2);background:transparent;border-radius:999px;padding:4px 10px 4px 8px;cursor:pointer;font-size:12.5px;font-stretch:92%;color:var(--ink-2)}
+.chan[aria-pressed="false"]{opacity:.38;text-decoration:line-through}
+.chan .num{color:var(--ink);font-size:11px}
+.glyph{display:inline-block;width:10px;height:10px;flex:none}
+.g-run{border-radius:50%;background:linear-gradient(90deg,var(--planner) 33%,var(--implementer) 33% 66%,var(--reviewer) 66%)}
+.g-file{background:var(--ink)}
+.g-revision{background:var(--human);transform:rotate(45deg) scale(.8)}
+.g-check{background:var(--engine);clip-path:polygon(25% 5%,75% 5%,100% 50%,75% 95%,25% 95%,0 50%)}
+.g-finding{background:var(--stop);clip-path:polygon(50% 0,100% 90%,0 90%)}
+.g-decision{border:1.5px solid var(--human);border-radius:50%}
+.g-stage{height:3px;background:var(--ink-2);border-radius:2px}
+.g-mission{border:1.5px double var(--human);border-radius:50%}
+.basis-key{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font:400 11px var(--mono);color:var(--ink-3)}
+.basis-key i{display:inline-block;width:18px;height:0;border-top:1.5px solid var(--ink-2);margin-left:6px}
+.basis-key .k-der{border-top-style:dashed}
+.basis-key .k-pla{border-top-style:dotted}
+.focusbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 18px 6px;padding:6px 10px;border:1px solid var(--rule-2);border-radius:var(--radius);font-size:13px}
+.net{flex:1;min-height:0;width:100%;display:block;cursor:grab;touch-action:none}
+.listview{flex:1;overflow:auto;padding:4px 18px 18px}
+.listview h3{font:600 12px var(--sans);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:16px 0 6px}
+.listview ul{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+.replay{display:flex;align-items:center;gap:12px;padding:10px 18px 14px;border-top:1px solid var(--rule)}
+.scrubwrap{position:relative;flex:1;height:34px}
+.ticks{position:absolute;inset:0 0 14px 0;width:100%;height:20px}
+#scrub{position:absolute;left:0;right:0;bottom:0;width:100%;accent-color:var(--human)}
+.scrub-text{font-size:11.5px;color:var(--ink-2);min-width:170px;text-align:right}
+.inspector{overflow:auto;padding:18px 20px 28px;background:var(--panel);min-height:0}
+@media (max-width: 600px){
+  .picker{flex:1 1 100%} .picker select{max-width:none;width:100%;flex:1 1 100%}
+  .lens{flex:1 1 100%} .lens button{flex:1}
+  .maphead{flex-direction:column}
+}
+@media (max-width: 960px){
+  body{overflow:auto}
+  .stage{grid-template-columns:1fr;grid-template-rows:minmax(520px,70vh) auto}
+  .mapwrap{border-right:0;border-bottom:1px solid var(--rule)}
+  .find input{width:100%}
+  .find{flex:1 1 100%}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="data/missions.js"></script>
+<script src="dist/a-network.js"></script>
+</body>
+</html>

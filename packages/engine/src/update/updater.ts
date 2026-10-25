@@ -7,9 +7,9 @@ import { z } from 'zod'
 
 /**
  * Update foundation. A release is described by a manifest signed with the owner's
- * Ed25519 key; the app embeds only the public key. Nothing is checked unless the
- * person asks (no background network calls), nothing is installed without their
- * click, and every download is checked against the signed size and SHA-256.
+ * Ed25519 key; the app embeds only the public key. The desktop may schedule
+ * checks according to preferences. Installation always requires an explicit
+ * decision; every download is checked against the signed size and SHA-256.
  *
  * Blocked on the owner: a signing key pair (tools/release-sign.mjs creates one),
  * a place to host the manifest and installers, and OS code signing.
@@ -28,6 +28,8 @@ export const UpdateManifest = z.object({
   schema: z.literal(1),
   version: z.string().regex(/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/),
   releasedAt: z.string(),
+  issuedAt: z.string().datetime(),
+  expiresAt: z.string().datetime(),
   notes: z.string().max(10_000),
   files: z.array(UpdateFile).min(1).max(20)
 })
@@ -53,6 +55,8 @@ export function verifyManifest(signed: unknown, publicKeyHex: string): UpdateMan
   if (!parsed.success) throw new Error('The update description is malformed.')
   const ok = ed25519.verify(unhex(parsed.data.signature), new TextEncoder().encode(canonical(parsed.data.manifest)), unhex(publicKeyHex))
   if (!ok) throw new Error('The update is not signed by the Hydra publisher. It was ignored.')
+  const issued = Date.parse(parsed.data.manifest.issuedAt), expires = Date.parse(parsed.data.manifest.expiresAt), now = Date.now()
+  if (issued > now + 5 * 60_000 || expires <= issued || expires - issued > 31 * 24 * 60 * 60_000 || expires <= now) throw new Error('The signed update description is expired or has an invalid freshness window. Ask the publisher for current metadata.')
   return parsed.data.manifest
 }
 
@@ -88,8 +92,8 @@ export function compareVersions(a: string, b: string): number {
   return 0
 }
 
-export interface UpdateConfig { manifestUrl: string | null; publicKeyHex: string | null; currentVersion: string; platform: string }
-export type Fetcher = (url: string) => Promise<{ ok: boolean; status: number; json(): Promise<unknown>; body: ReadableStream<Uint8Array> | null }>
+export interface UpdateConfig { manifestUrl: string | null; publicKeyHex: string | null; currentVersion: string; platform: string; channel?: 'stable' | 'preview' }
+export type Fetcher = (url: string, options?: { signal?: AbortSignal }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown>; body: ReadableStream<Uint8Array> | null }>
 
 export type UpdateCheck =
   | { state: 'not_configured'; reason: string }
@@ -103,9 +107,10 @@ export async function checkForUpdate(config: UpdateConfig, fetcher: Fetcher = fe
   const response = await withDeadline(fetcher(config.manifestUrl), timeoutMs, 'The update server did not answer.')
   if (!response.ok) throw new Error(`The update server answered ${response.status}.`)
   const manifest = verifyManifest(await withDeadline(response.json(), timeoutMs, 'The update description stalled.'), config.publicKeyHex)
+  if (config.channel && (manifest.version.includes('-') ? 'preview' : 'stable') !== config.channel) throw new Error('The signed update belongs to a different release channel.')
   if (compareVersions(manifest.version, config.currentVersion) <= 0) return { state: 'up_to_date', version: config.currentVersion }
   const file = manifest.files.find((f) => f.platform === config.platform)
-  if (!file) return { state: 'up_to_date', version: config.currentVersion }
+  if (!file) return { state: 'not_configured', reason: 'No compatible package is available for this platform.' }
   if (!/^https:\/\//.test(file.url)) throw new Error('Updates are only downloaded over HTTPS.')
   return { state: 'available', version: manifest.version, notes: manifest.notes, file }
 }
@@ -119,38 +124,45 @@ export async function checkForUpdate(config: UpdateConfig, fetcher: Fetcher = fe
  * verified, closed file is renamed into place, which replaces a link at the final name
  * instead of following it. A stalled server or a failing disk ends the download.
  */
-export async function downloadUpdate(file: z.infer<typeof UpdateFile>, dir: string, fetcher: Fetcher = fetch as unknown as Fetcher, stallMs = 60_000): Promise<string> {
+export async function downloadUpdate(file: z.infer<typeof UpdateFile>, dir: string, fetcher: Fetcher = fetch as unknown as Fetcher, stallMs = 60_000, options: { signal?: AbortSignal; onProgress?: (bytes: number) => void } = {}): Promise<string> {
   if (!/^https:\/\//.test(file.url)) throw new Error('Updates are only downloaded over HTTPS.')
   mkdirSync(dir, { recursive: true })
   const target = join(dir, file.name)
-  const response = await withDeadline(fetcher(file.url), stallMs, 'The update server did not answer.')
+  const response = await withDeadline(fetcher(file.url, { signal: options.signal }), stallMs, 'The update server did not answer.')
   if (!response.ok || !response.body) throw new Error(`The download failed (${response.status}).`)
   const temp = join(dir, `.${file.name}.${randomBytes(8).toString('hex')}.part`)
   const reader = response.body.getReader()
+  const abort = () => { void reader.cancel().catch(() => {}) }
+  options.signal?.addEventListener('abort', abort, { once: true })
   let handle: FileHandle | null = null
   try {
     handle = await open(temp, 'wx', 0o600)
     const hash = createHash('sha256')
     let size = 0
+    let lastProgress = 0
     for (;;) {
+      if (options.signal?.aborted) throw new Error('Download canceled. Retry when ready.')
       const { done, value } = await withDeadline(reader.read(), stallMs, 'The download stalled.')
+      if (options.signal?.aborted) throw new Error('Download canceled. Retry when ready.')
       if (done) break
       size += value.byteLength
       if (size > file.size) throw new Error('The download is larger than the signed size.')
       hash.update(value)
-      await handle.writeFile(value) // completes partial filesystem writes or rejects on a disk error
+      await handle.writeFile(value) // Handles partial writes; rejects on disk errors.
+      if (Date.now() - lastProgress >= 100) { options.onProgress?.(size); lastProgress = Date.now() }
     }
     await handle.close()
     handle = null
     if (size !== file.size || hash.digest('hex') !== file.sha256) throw new Error('The download does not match the signed checksum. It was deleted.')
     await rename(temp, target)
+    options.onProgress?.(size)
     return target
   } catch (error) {
     void reader.cancel().catch(() => { /* already finished */ })
     await handle?.close().catch(() => { /* already failing */ })
     await rm(temp, { force: true })
     throw error
-  }
+  } finally { options.signal?.removeEventListener('abort', abort) }
 }
 
 function withDeadline<T>(work: Promise<T>, ms: number, message: string): Promise<T> {

@@ -1,17 +1,25 @@
+import { DesktopUpdatesPanel } from './DesktopUpdatesPanel'
+import { SavedDraftsPanel } from './SavedDraftsPanel'
+import { useTheme, setTheme, type Theme } from '../app/preferences'
+import { revealInWorkspace } from '../lib/reveal'
 import { Fragment, useEffect, useState } from 'react'
-import { Button, Panel } from '../design/components'
-import { useApp } from '../app/context'
+import { Button, Panel, Segmented } from '../design/components'
+import { setChoice, useQuality, type QualityChoice } from '../app/quality'
+import { useApp, useAppState } from '../app/context'
 import { HttpTransport } from '../api/transport'
 import { MODE_INFO } from '../lib/format'
 
 export function SettingsView() {
-  const { state, store, isRemote, run } = useApp()
+  const { store, isRemote, run } = useApp()
+  const engineVersion = useAppState((s) => s.engineVersion)
   const [history, setHistory] = useState<{ count: number } | null>(null)
   const loadHistory = () => void store.transport.execute({ type: 'outcomes.get' }).then((ack) => { if (ack.ok) setHistory(ack.result as { count: number }) }).catch(() => {})
   useEffect(loadHistory, [store])
   const [busy, setBusy] = useState<'backup' | 'export' | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [dataStatus, setDataStatus] = useState<Record<string, unknown> | null>(null)
+  const [backupProof, setBackupProof] = useState('')
   const transport = store.transport
 
   const save = async (kind: 'backup' | 'export') => {
@@ -21,29 +29,39 @@ export function SettingsView() {
   }
 
   return (
-    <div className="page">
-      <div className="page__head"><div className="page__title"><h1>Settings</h1><p className="muted">Engine v{state.engineVersion}</p></div></div>
+    <div className="page settings-workspace">
+      <div className="page__head"><div className="page__title"><h1>Settings</h1><p className="muted">Engine v{engineVersion}</p></div></div>
+      <nav className="settings-index" aria-label="Settings sections" onClick={e=>{const link=(e.target as HTMLElement).closest('a');if(link){e.preventDefault();revealInWorkspace(document.getElementById(link.hash.slice(1)))}}}><a href="#display-settings">Appearance</a><a href="#draft-settings">Drafts</a><a href="#autonomy-settings">Approvals</a><a href="#data-settings">Data</a></nav>
+      <div id="display-settings"><DisplayPanel /></div>
+      <div id="draft-settings"><SavedDraftsPanel /></div>
+      <div id="autonomy-settings" />
       <Panel title="Autonomy modes">
         <dl className="hx-kv">
           {(['safe', 'developer', 'autonomous'] as const).map((m) => <Fragment key={m}><dt>{MODE_INFO[m].label}</dt><dd>{MODE_INFO[m].detail}</dd></Fragment>)}
         </dl>
-        <p className="faint" style={{ marginTop: 12, fontSize: 12 }}>Every mode keeps agents inside the task worktree and requires your final approval. These are enforced by the engine, not by instructions to the agents.</p>
+        <p className="faint" style={{ marginTop: 12, fontSize: 12 }}>Every mode requires your final approval. Git worktrees separate changes; they are not security containers. Provider restrictions differ by CLI and platform. Project checks execute with your user permissions.</p>
       </Panel>
+      <div id="data-settings" />
       <Panel title="Your data">
         <p className="muted">Tasks, history and evidence are stored only on this computer in a local SQLite database, with a daily backup. Nothing is sent to Hydra's developers or any cloud database. Agent prompts go only to the providers you selected, using your own accounts.</p>
+        <p className="muted" style={{ marginTop: 12 }}>Removing a task clears its current records and logs, but the event journal, backups and earlier exports may retain its content. Archive only hides it. No secure-erasure or automatic restore guarantee is provided. Keep a known-good installer and test restoration using disposable data before relying on a backup.</p>
         {!isRemote && (
           <>
             <div className="row" style={{ marginTop: 12 }}>
               <Button busy={busy === 'backup'} onClick={() => void save('backup')}>Back up now</Button>
               <Button busy={busy === 'export'} onClick={() => void save('export')}>Export as JSON</Button>
+              <Button onClick={() => void run({ type: 'data.status' }).then(ack => { if (ack.ok) setDataStatus(ack.result as Record<string, unknown>) })}>Inspect local retention</Button>
+              <Button onClick={() => void run({ type: 'data.verify_backup' }).then(ack => { if (ack.ok) setBackupProof((ack.result as { scope: string }).scope) })}>Create and verify backup</Button>
             </div>
-            <p className="faint" style={{ marginTop: 8, fontSize: 12 }}>Backups are standard SQLite files. The JSON export contains your projects, tasks, runs, evidence and audit trail, and leaves out keys. Both are saved in Hydra's backups folder, readable only by your user account.</p>
+            {dataStatus && <p role="status" className="muted">{String(dataStatus.tasks)} tasks · {String(dataStatus.events)} journal records · {String(dataStatus.backups)} SQLite backups. {String(dataStatus.retention)}</p>}
+            {backupProof && <p role="status" className="muted">{backupProof}</p>}
+            <p className="faint" style={{ marginTop: 8, fontSize: 12 }}>SQLite backups include sensitive task data and phone-pairing credentials. JSON exports omit cryptographic keys but can contain private project content. Both are saved locally with owner-only permissions where supported. Protect copies you move elsewhere.</p>
             {saved && <p className="muted" role="status" style={{ marginTop: 8, wordBreak: 'break-all' }}>Saved to <code>{saved}</code></p>}
             {error && <p role="alert" style={{ marginTop: 8, color: 'var(--bad)' }}>{error}</p>}
           </>
         )}
       </Panel>
-      {!isRemote && <UpdatesPanel version={state.engineVersion} />}
+      {!isRemote && <DesktopUpdatesPanel />}
       {!isRemote && (
         <Panel title="Task history used for suggestions">
           <p className="muted">Hydra keeps a short local record of each finished task (kind of task, which agents, time, cost, whether checks passed and whether you accepted). It never contains your prompts, code or answers, and never leaves this computer. Suggestions use it only once there are at least 5 similar tasks.</p>
@@ -57,26 +75,23 @@ export function SettingsView() {
   )
 }
 
-/** Checks for a signed update only when asked. Installing is always the person's choice. */
-function UpdatesPanel({ version }: { version: string }) {
-  const { run } = useApp()
-  const [result, setResult] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const check = async () => {
-    setBusy(true)
-    const ack = await run({ type: 'update.check' })
-    setBusy(false)
-    if (!ack.ok) return
-    const r = ack.result as { state: string; version?: string; reason?: string }
-    setResult(r.state === 'available' ? `Version ${r.version} is available.` : r.state === 'up_to_date' ? 'You have the latest version.' : r.reason ?? 'Updates are not set up yet.')
-  }
+/** Visual quality: lower levels remove motion and per-tool marks, never information. */
+function DisplayPanel() {
+  const theme = useTheme()
+  const [choice, effective] = useQuality()
   return (
-    <Panel title="Updates">
-      <p className="muted">Hydra {version}. Hydra never checks for updates on its own and never installs anything without you. Updates must be signed by the Hydra publisher and match their published checksum.</p>
-      <div className="row" style={{ marginTop: 12 }}>
-        <Button size="sm" busy={busy} onClick={() => void check()}>Check for updates</Button>
-        {result && <span className="faint" role="status">{result}</span>}
+    <Panel title="Display">
+      <div className="spread" style={{ flexWrap: 'wrap', alignItems: 'flex-start', marginBottom: 16 }}>
+        <p className="muted" style={{ maxWidth: '62ch' }}>Night is drawn as light on a dark field: brightness shows what is happening now. Day uses the same marks in ink on paper.</p>
+        <Segmented<Theme> label="Theme" value={theme === 'light' ? 'light' : 'dark'} onChange={setTheme} options={[{ value: 'dark', label: 'Night' }, { value: 'light', label: 'Day' }]} />
       </div>
+      <div className="spread" style={{ flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <p className="muted" style={{ maxWidth: '62ch' }}>Motion on the map and timeline. Auto follows your system's reduced-motion setting and switches to Minimal if this computer starts missing frames. Reduced and Minimal make every transition instant; no information is removed.</p>
+        <Segmented<QualityChoice> label="Visual quality" value={choice} onChange={setChoice} options={[
+          { value: 'auto', label: 'Auto' }, { value: 'full', label: 'Full' }, { value: 'reduced', label: 'Reduced' }, { value: 'minimal', label: 'Minimal' }
+        ]} />
+      </div>
+      {choice === 'auto' && <p className="faint" style={{ marginTop: 8, fontSize: 12 }}>Now: {effective}.</p>}
     </Panel>
   )
 }

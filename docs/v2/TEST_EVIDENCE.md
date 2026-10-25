@@ -1,6 +1,85 @@
 # Test evidence — Hydra v2
 
+## 2026-10-21 — spatial mission canvas
+
+Final source/build/check outcomes and exact scopes are recorded in SPATIAL_CANVAS.md. Packaged spatial11 assertions pass, with zero reported renderer/driver errors; Flow/Network three-theme captures,1500/900/390 renderer widths, roving focus, fixed points, search, zoom/fit, replay, narrow reveal/return and failed-check refusal. Separate lab202nodes/190calls is explicitly SIMULATED FIXTURE transport, not a provider/engine trace. Known previous safety suite remains; no new paid workflow or cross-platform qualification. New pure graph tests cover membership, future-node isolation, bounded counts/unique IDs/endpoints, typed layouts and chronological cap across mixed run/evidence insertion order. Distinct default-profile smoke passes; original installation/data untouched. See SPATIAL_CANVAS.md for final full-suite counts and limitations.
+
+## 2026-10-20 — alpha.6 Experience Revolution
+
+- Final frozen-source full check: **46 files, 373 passed / 1 skipped, 349.18 seconds**, typecheck/lint/provenance passed. Windows skips the POSIX permission-mode test. Five new historical-projection tests cover bounded moments, actual repair edges and future completion/tool/check/apply-result isolation.
+- Final build and all seven packaged runtime files reconciled. Existing bundle-size warning remains. An extra sandboxed rebuild hit shared-cache EPERM; appropriately authorized rebuild passed. Artifact pattern scan154files passed; unsigned alpha, no broad security certification.
+- Actual packaged Windows product15/15, onboarding7/7, restart4/4 and final followup5/5 passed. Real engine/Git/checks with explicitly scripted adapters in disposable projects. Acceptance/duplicate/revert, failed/missing/stale/untrusted checks, reviewer objections, changed verification/review bindings and unsupported exceptions covered. No new paid provider workflow.
+- Three interactive fixture concepts passed capture/click tests. Separate labeled simulated live transport passed across six stations; this is renderer-only evidence. Real packaged captures include repair, execution failure, reviewer objections, exact checks, replay, timeline, settings/accounts/phone and persisted receipts.
+- 1360/900/390 renderer widths, three themes, 63 solid-token contrast pairs >=4.5:1, keyboard/focus/dialog/reduced-motion/Minimal, narrow inspector return and safe Markdown/main-only scroll passed. Native shell minimum900px; no physical phone/full screen-reader/WCAG certification. Short10-secondHome TaskDuration0.019157s; one warm21second process sample per build and a simulated flood sample are scoped observations, not soak/battery/statistical improvement claims.
+- Final direct-exe smoke: desktop/engine2.0.0-alpha.6; embedded separate LocalAppData profile; connected sandboxed renderer; installed/authenticated provider booleans. Visible fresh zero-project application inspected after correcting launcher window style. New distinct desktop shortcut; installed exe SHA unchanged. No personal data/Telekinesis modifications.
+- Delivered60.728second1360x1080edited screenshot walkthrough decoded at midpoint, labeled scripted agents / real engine-Git-checks. Before/after and score/matrix in EXPERIENCE_REVOLUTION.md. Main chat sole writer/tester; bounded read-only Codex reviewer. No new CI/provider/Docker/release/main/license operations. Signing/recovery/containment/remote/billing/commercial/Agensi gates remain.
+
+Local receipts: experience-release-check.log; experience-release-build-verified.log; experience-build-receipt.json; experience-download-receipt.json; experience-final-launch-smoke.json; experience-visible-launch.json; experience-delivery-packaged/report.json and followup-report.json; experience-final-onboarding/report.json; experience-delivery-restart/report.json; experience-demo-verification.json. Intermediate failures retained and corrected; see EXPERIENCE_REVOLUTION.md for limitations.
+
+## 2026-10-18 — alpha.5 production preparation
+
+### Final19October candidate
+
+**Final cross-platform result:** owner-approved run39177167557 at source448db2a passed all6check/installer jobs. Windows x64:368passed/1skip; macOS26ARM64 and Ubuntu24.04x64:364passed/5skips each;45files per platform, types/lint/provenance/build/scan/licenses/audit pass. Real NSIS install/uninstall/reinstall, DMG copy/remove/reinstall and Linux deb install/remove→extracted AppImage smoke passed;6smokes total and database file retained/reused. Linux deb reinstall/FUSE mounting, additional architectures, signing/notarization and failed-install recovery were not tested. Both earlier failures remain recorded; third run separately approved. See RELEASE_QUALIFICATION.md for exact scope. No further runs needed/dispatched.
+
+Final full check: **45files,368passed/1skipped,233.85seconds**, typecheck/lint/provenance pass; cached token accounting and20cold lease races/owner-process death included. Final targeted desktop typecheck/lint pass after choosing non-synced Local AppData. Build and90-file artifact scan pass. Final engine/UI packaged product13/13 and onboarding7/7 pass; final shell default-profile smoke and4restart assertions pass. Seven runtime files match final outputs; installed executable hash unchanged. Preview build flag `HYDRA_PREVIEW_PROFILE=Hydra-Production-Preparation-Data` makes direct .exe launch use `%LOCALAPPDATA%/HydraPreviews/Hydra-Production-Preparation-Data`; explicit test/user data overrides still win. No original folders moved. Earlier test-created Documents/OneDrive preview roots were empty (0projects/tasks/devices). Runtime/UI chunk now583.33kBraw/181.91kBgzip; warning retained.
+
+Two intermediate overlapping test executions observed stale budget transforms while source changed; a clean full run after the cached-token fix passed all368. The two failed cross-platform runs remain retained; neither reached installer qualification. Final corrected-source CI requires further explicit approval. No further live-provider evaluation. Read-only final consultation recommended bounded SQLite close/reopen retry for BUSY/LOCKED only; final stress keeps the winner alive, refuses a third contender and verifies acquisition after release/death.
+
+Edited actual-capture walkthrough generated:69.233seconds,1360×1080WebM; midpoint decode inspected. Scripted fixture agents and real engine/Git/checks are labeled throughout; no continuous live-provider delivery claim. No FFmpeg/download/external media service used; existing Electron MediaRecorder assembled captures. Short process samples remain scoped intermediate-build observations, not final cold-start/soak qualification.
+
+19October follow-up: first approved CI run39174528132 failed3tests each on macOS and hosted Windows (Linux passed); installers were skipped. Tests compared noncanonical temp-path spellings and two fault-injection tests held that wrong repository-lock key. Canonical-root test repairs retain the original refusal assertions. **Complete local check passed again:348passed/1skipped,45files,285.96seconds**, plus typecheck/lint/provenance. No production runtime change from9783f9f in this correction. Corrected-source CI requires one additional owner-approved run. RELEASE_QUALIFICATION.md records failed/blocked gates.
+
+**Usage reconciliation correction:**57,097 was Codex's uncached input/output metric, not its total reported usage. Its two runs additionally reported81,152+89,472=170,624cached input tokens: **227,721total reported Codex tokens**,177,721above the approved50,000target. The original raw receipt remains unchanged. The trial engine guard excluded cache; final alpha.5 fixes engine maxTokens/unpriced accounting and harness reservation to include cached input, with a cached-limit regression. Late reporting still prevents a hard billing cap. The harness is disabled by default behind an explicit fresh-approval flag and was not rerun. No further provider calls authorized/performed. Claude total remainsUSD0.104222. Earlier57,097-only summaries are incomplete and superseded by this paragraph. User informed explicitly.
+
+Actual prior alpha.4 disposable schema3 snapshot→4 passed:8projects/8tasks/22runs/18evidence/312events/19audit/2outcomes/1kv preserved; all task JSON identical, search index works. Final delivered executable smoke confirms packaged desktop/engine alpha.5, fresh separate profile, connected sandboxed renderer and both existing CLI authentications available. Original installed executable unchanged. Short empty-profile process samples: alpha.4 ready2.17s/CPU0.19%/working-set sum471MB; alpha.5 ready3.38s/CPU0.15%/471MB over~26–28seconds. One sample under other host load, shared pages double-counted; **no startup/memory improvement or soak claim**.
+
+- Branch `feat/production-preparation-20261018`, based on verified alpha.4 `0ed37a1`; fetched main `d18a690` unchanged. Main chat wrote/integrated/tested; bounded read-only consultants reviewed security, concepts and distribution. No personal-project mutation, main merge, release or license change.
+- Final full `npm run check`: **45 files passed, 348 tests passed, 1 skipped (349 total)**; 380.79 seconds tests. Typecheck, lint and provenance passed. Earlier full347pass/1skip was superseded after the cache-race regression. Focused hardening/updater26/26 passed. The platform-specific Windows permission-mode skip remains explicit.
+- New adversarial coverage: semantic/error redaction, reply/queue limits, real child-process instance race/corrupt marker, historical PID survival, Git filter/driver sentinels, purge/decision-ID retention/remote acknowledgment scrubbing/FTS cleanup, backup restored into disposable fresh profile, literal-search edits and byte-bounded replay; delayed-detail cache resurrection and expired/future signed metadata regressions. See PRODUCTION_AUDIT.md for20 areas and limits.
+- Build and unsigned Windows unpacked package passed;7 runtime files byte-match outputs. Artifact scan90files passed; runtime notices11packages MIT/ISC; npm audit --omit=dev found0vulnerabilities. This is not a full Electron/OS SBOM or certification. Existing UI chunk warning:583.29kBraw/181.89kBgzip.
+- Actual packaged product driver **13/13 passed**:3themes/63solid contrast pairs,1360/900/390px, keyboard/dialog/focus/Escape/tabs/reduced motion; actual proof-inspector focus; failed/missing/stale/untrusted/reviewer-rejected/changed-command/definitions/stale-review HTTP refusal, unsupported exceptions; passing apply/duplicate refusal/revert; plan rejection/typed purge; backup read-back; history/check editor and idle renderer. Scripted providers/fault injection explicitly labeled; real engine/Git/checks. Packaged onboarding **7/7 passed**, separate restart4assertions passed. No novice study, screen-reader certification, physical phone or long-soak claim.
+- Generated50k-task query medians before→after: initial100tasks720.44→1.49ms; unique substring search693.49→22.33ms; history page0.68→0.58ms.15samples; p95field is sampled maximum, not population estimate. DB433,115,136→512,552,960bytes (~18% increase); RSS difference is not causal improvement evidence. Before/afterJSON retained.
+- Live trial:1completed Claude question,2token-budget-stopped Codex-containing cases. Claude reported USD0.104222 under approved USD1. Codex reported57,097unpriced tokens, **7,097above approved50,000target**. Turn-end reporting overshot and the harness did not reserve actual first-turn usage before the second case. Acknowledged to owner; all further provider calls stopped. Harness now reserves against observed usage; not a hard billing cap. Real multi-agent delivery remains NOT VERIFIED by this trial; original failures retained.
+- Docker left stopped. Existing cross-platform Actions installer qualification owner-approved; record actual outcome separately. Signing/notarization, trusted phone client, hostile-code containment, failed-installer recovery and Agensi full-app eligibility/entitlements/payout/license/name clearance remain explicit gates. See COMMERCIAL_PREPARATION.md.
+
+Receipts/screenshots in chat outputs: production-packaged, production-onboarding, production-restart, production-build-receipt.json, production-live-evaluation.json, history-scale-before.json and history-scale-after.json. Original installed executable still matches prior alpha.3 hash; all new profiles are separate.
+
+## 2026-10-18 — alpha.4 engine approval safety and separate desktop launch
+
+- Source: feature branch `feat/engine-enforced-approval-20261018` from verified Mission Desk `fc1dccb`; freshly fetched origin/main `d18a690`. No main merge/public release.
+- Final `npm run check`: **44 files passed, 332 tests passed, 1 skipped (333 total)**, 226.38 seconds test duration. Typecheck, lint and provenance passed. No new macOS/Linux run. The platform-specific skip is retained.
+- Focused regression coverage: strict all-mode desktop/remote engine refusal of failed, absent, stale, mutated/timed-out/spawn-error/definition-changed evidence; command-definition binding; rejected/missing/stale reviews, blocking findings and unmet criteria; structured decision requirement; changed snapshot at same SHA; simultaneous duplicates; historic ID reuse; authenticated device actor; durable receipt after reopening. Two lock-held regressions prove changed evidence or a missing receipt prevents actual application without changing the fixture's user branch.
+- Packaged Electron `tools/product-acceptance.mjs`: **11/11 steps passed**. Actual UI and authenticated HTTP refuse failed/missing/stale/untrusted evidence and reviewer objections, and refuse unsupported exception commands. Passing fixture applied once with a durable receipt; duplicate refused; real fixture revert passed. Three themes/63 contrast pairs, 1360/900/390px reflow, keyboard/dialog/Escape/tabs/reduced-motion checks passed within the driver's documented scope. Screenshots inspected for the blocking reviewer decision; no whole-app accessibility certification claimed.
+- Packaged restart `tools/approval-restart.mjs`: passed all four assertions (restart, acceptance persisted, revert history persisted, denied task still unapplied). These fixtures are scripted agents with real Git/check execution; fault injection is confined to disposable fixture databases.
+- Final `npm run build` passed; Windows unpacked Electron package completed. UI/engine plus shell/preload (7 runtime files total) byte-match final build outputs. Existing >500kB UI chunk warning remains (577.87kB raw, 180.30kB gzip); no new dependencies.
+- Separate delivered preview startup: built-in Electron smoke confirms desktop/engine `2.0.0-alpha.4`, connected page, sandboxed renderer (no Node require/process), fresh preview data root, Claude/Codex installed/authenticated booleans. No model workflow/provider spend. A subsequent visible launch has a real Hydra window. Original installed executable SHA256 remains `ba05d916b8ee19a1861c9220b32198d0b544b1862cc08d18db2a1356a8d70cde`.
+- Preview is copied alongside the chat outputs, with `Launch-Hydra-Preview.ps1` and a distinct `Hydra Safety Preview` shortcut in the actual Windows Desktop known folder. It uses the explicitly selected fresh profile under Documents/Codex. Original installation, database, project history/settings and provider stores were not replaced, migrated or edited. Telekinesis was neither run, modified nor rolled back.
+- Ownership: current Codex authored/tested/integrated. A bounded read-only Codex consultant reviewed policy and final implementation. Its HTTP-phone randomUUID availability finding was fixed using cryptographic getRandomValues/v4 IDs and a test without randomUUID; requested lock-race and definition-change cases added. No separate Claude review or external certification. Passive engineering-debug and Emil interaction guidance only; no design runtime/hooks/downloaders executed.
+- Initial failures: test runner's linked cache needed scoped reviewed execution; early fault injection incorrectly attempted to overwrite immutable production Evidence rows (corrected to explicit disposable SQLite fault injection); old concurrent fixture relied on accepting a failing B revision (corrected so each accepted revision independently passes and merged revision gets fresh review); helper imports initially preceded executable shebangs (corrected); shared crypto typing needed an environment-independent declaration. Final runtime files were hash-compared after the typing correction and remain identical to the tested package.
+- Receipts in chat outputs: `approval-packaged/report.json`, `approval-restart/report.json`, `approval-build-receipt.json`, `preview-launch-smoke.json`, `preview-visible-launch.json`, screenshots in `approval-packaged/` and `approval-restart/`. Remaining release limitations: unsigned Windows preview, no new macOS/Linux/physical-phone qualification, trusted host check execution rather than container isolation, prior signing/feed/remote-page-integrity/retention/restore gates. No exception apply is supported; old clients/tasks fail closed and need upgrade/fresh review.
+
 Every entry records what was run, where, and the observed result. `VERIFIED` = observed; `UNVERIFIED` = not exercised; `BLOCKED` = cannot be exercised yet (reason given). Nothing here is inferred from code reading alone.
+
+## 2026-10-16 — Workbench trust and Windows update lifecycle
+
+This entry supersedes the older redesign entry's native-E2E limitation. Writer/integrator/tester: this Codex chat; two bounded fresh read-only consultant passes, centrally integrated. Base cc78c30; feature branch `feat/hydra-workbench-updates`. See WORKBENCH_ACCEPTANCE.md for the ten product questions and honest scope limits.
+
+| Check | Observed result |
+|---|---|
+| Full typecheck / lint / unit+integration / provenance | VERIFIED: `npm run check`, 35 files, 287 passed / 1 skipped. Includes late final-output/retry/cancel regression, draft/attachment/theme persistence, coalesced writes, signed update/controller/transport/helper tests and engine maintenance/backup refusal tests. |
+| Production build | VERIFIED: `npm run build`; JS 557.52 kB / 174.83 kB gzip; >500 kB chunk warning retained. No dependency added. |
+| Native Electron acceptance | VERIFIED: seven steps with providers hidden, onboarding, two project drafts/attachment retained through navigation/theme/reload, actual keyboard focus, readiness guard, check-error diagnostic, backup/export, engine stop and relaunch persistence. |
+| Genuine concurrent agents | VERIFIED: two disposable change tasks, Claude planning/review and Codex editing, both final approval, 74 s overlap / 103 s elapsed. Pre-review and verification passed; failing baseline demonstration retained as expected evidence. No change accepted into the user's projects. |
+| Three operation representations / three themes / narrow layout | VERIFIED: recorded same real runs in Workspaces, Timeline and Evidence path; Midnight/Light/Terracotta and 390 px renderer. Historical run is running until its actual end; current-output inspector hidden in replay; freeze does not leak between tasks; inspection changes no results. |
+| Event-load comparison | VERIFIED local experiment: alternating baseline/redesign five-sample blocks, ten/version, 13,518 simulated events/sample; median complete scenario 4,906 → 4,896 ms, average frame 10.10 → 9.55 ms, worst frame 71 → 71 ms; one median long task. Exploratory bootstrap difference interval −564 to +207 ms; no established speed difference or universal equivalence. |
+| Token contrast | VERIFIED arithmetic: 63 solid foreground/background pairs across three themes all ≥4.5:1. Alpha blends, chart marks and full WCAG/assistive-technology audit excluded. |
+| Startup, idle memory/CPU and profile | VERIFIED exploratory observations, five/version: rendered median 1,971 → 1,998 ms; working set 448.2 → 450.8 MiB; private 262.2 → 260.2 MiB. CPU 1.02 → 3.61% of one core with wide ranges; no statistical equivalence/regression claim, CPU acceptance OPEN. Paired renderer profile: zero DOM mutations, 99.603% / 99.587% JS idle; no repeating application render loop identified. Profiling adds overhead; native Chromium/OS CPU unresolved. |
+| Installed updater migration | VERIFIED read-only: installed unsigned 2.0.0-alpha.0 shell lacks this bridge/configuration; one trusted update-capable NSIS installation needed. No installed app/data modified. |
+| Real v1 → v2 installer, interrupted release download, failed NSIS install, post-install data/account survival, rollback | BLOCKED/UNVERIFIED: keys/certificate, protected trusted release and isolated installer environment not provisioned. Controller/helper tests are not real installation tests. |
+| Physical Mac/Linux/phone, screen reader, real usability participants, hour-long soak and large persisted history | UNVERIFIED. Native OS frame retained; no Mac drag test claimed. |
+
+Raw logs, native screenshots and JSON reports are delivered beside the task's local acceptance report. Windows release workflow was statically reviewed, not dispatched; no release/tag/publish/secret action occurred. Older evidence below describes earlier commits and must not be presented as newly rerun verification.
 
 Environment for all entries unless stated: Windows 11 Pro 10.0.26200 · Node 22.23.2 · npm 10.9.8 · git 2.51.2.windows.1 · Claude Code 2.1.282 · Codex CLI 0.154.0.
 
@@ -259,6 +338,284 @@ Findings from these runs:
 | Repo question | 5 ms | 5.9 s | 7.8 s | 8.5 s |
 
 No regression from job objects (previous: "hi" 2.1 s / 3.0 s warm).
+
+
+## 2026-10-16 — Relay interface redesign (branch redesign/live-operations)
+Hardware: Dell Vostro 15 3530, i7-1355U, Iris Xe, 24 GB, NVMe, 1920×1080 at 120 Hz (125 % scaling), Windows 11. Harnesses:  (Electron renderer, simulated fixtures, identical for old and new), {
+  "at": "2026-10-16T17:40:45.577Z",
+  "logicalCpus": 12,
+  "pageTargetMs": 2094,
+  "renderedMs": 2971,
+  "paint": {
+    "first-paint": 616
+  },
+  "navigation": {
+    "domContentLoaded": 499,
+    "load": 500
+  },
+  "idle": {
+    "seconds": 22.8,
+    "cpuPercentOfOneCore": {
+      "total": 0.14,
+      "renderer": 0,
+      "gpu": 0,
+      "main": 0.07,
+      "engine": 0.07
+    },
+    "memory": {
+      "main": {
+        "count": 1,
+        "wsMb": 99.4,
+        "privateMb": 34.3
+      },
+      "gpu-process": {
+        "count": 1,
+        "wsMb": 130.4,
+        "privateMb": 105
+      },
+      "utility": {
+        "count": 1,
+        "wsMb": 50.8,
+        "privateMb": 13.2
+      },
+      "engine": {
+        "count": 1,
+        "wsMb": 72.4,
+        "privateMb": 68.6
+      },
+      "renderer": {
+        "count": 1,
+        "wsMb": 103.9,
+        "privateMb": 40.5
+      }
+    },
+    "totalWsMb": 456.9,
+    "totalPrivateMb": 261.6
+  }
+} (real desktop app), {
+  "at": "2026-10-16T17:41:19.724Z",
+  "screenshots": [
+    {
+      "at": 5,
+      "view": "command center",
+      "running": [
+        "total() igno:planner",
+        "slugify() on:planner"
+      ]
+    },
+    {
+      "at": 10,
+      "view": "command center",
+      "running": [
+        "total() igno:planner",
+        "slugify() on:planner"
+      ]
+    },
+    {
+      "at": 15,
+      "view": "command center",
+      "running": [
+        "total() igno:implementer",
+        "slugify() on:planner"
+      ]
+    },
+    {
+      "at": 21,
+      "view": "task",
+      "stage": "implement",
+      "status": "running"
+    },
+    {
+      "at": 41,
+      "view": "task",
+      "stage": "implement",
+      "status": "running"
+    },
+    {
+      "at": 61,
+      "view": "task",
+      "stage": "review",
+      "status": "running"
+    },
+    {
+      "at": 81,
+      "view": "task",
+      "stage": "apply",
+      "status": "completed"
+    }
+  ],
+  "tasks": [
+    {
+      "title": "total() ignores item quantities, so the test fails. Fix total() in cart.js. Keep the change minimal.",
+      "status": "completed",
+      "waitReason": null,
+      "outcome": "applied",
+      "costUsd": 0.0724826,
+      "fixRounds": 0,
+      "selection": {
+        "basis": "suggested",
+        "reason": "Different providers write and review the change, so the review is more independent. Not enough history yet to compare setups.",
+        "suggested": null
+      },
+      "stages": [
+        "plan#1 succeeded: Plan: 2 steps",
+        "implement#1 succeeded: Commit dae699b0a7",
+        "review#1 succeeded: Approved with 1 note",
+        "verify#1 succeeded: Required checks passed",
+        "demo#1 succeeded: Before → after: 1/1 pass",
+        "apply#1 succeeded: Applied dae699b0a7"
+      ],
+      "runs": [
+        {
+          "role": "planner",
+          "provider": "claude",
+          "status": "succeeded",
+          "startedAt": "2026-10-16T17:41:23.552Z",
+          "endedAt": "2026-10-16T17:41:37.621Z",
+          "toolCalls": 4,
+          "kinds": [
+            "search",
+            "read",
+            "other"
+          ]
+        },
+        {
+          "role": "implementer",
+          "provider": "codex",
+          "status": "succeeded",
+          "startedAt": "2026-10-16T17:41:37.628Z",
+          "endedAt": "2026-10-16T17:42:08.290Z",
+          "toolCalls": 2,
+          "kinds": [
+            "command",
+            "edit"
+          ]
+        },
+        {
+          "role": "reviewer",
+          "provider": "claude",
+          "status": "succeeded",
+          "startedAt": "2026-10-16T17:42:16.201Z",
+          "endedAt": "2026-10-16T17:42:28.232Z",
+          "toolCalls": 2,
+          "kinds": [
+            "search",
+            "other"
+          ]
+        }
+      ],
+      "checks": [
+        "pre_review npm run test exit 0",
+        "verify npm run test exit 0",
+        "demo_base npm run test exit 1"
+      ]
+    },
+    {
+      "title": "slugify() only replaces the first space. Fix it so every space becomes a dash. Keep the change minimal.",
+      "status": "waiting_input",
+      "waitReason": "final_approval",
+      "outcome": null,
+      "costUsd": 0.0687574,
+      "fixRounds": 0,
+      "selection": {
+        "basis": "suggested",
+        "reason": "Different providers write and review the change, so the review is more independent. Not enough history yet to compare setups.",
+        "suggested": null
+      },
+      "stages": [
+        "plan#1 succeeded: Plan: 2 steps",
+        "implement#1 succeeded: Commit 3a3a6fd915",
+        "review#1 succeeded: Approved",
+        "verify#1 succeeded: Required checks passed",
+        "demo#1 succeeded: Before → after: 1/1 pass"
+      ],
+      "runs": [
+        {
+          "role": "planner",
+          "provider": "claude",
+          "status": "succeeded",
+          "startedAt": "2026-10-16T17:41:23.976Z",
+          "endedAt": "2026-10-16T17:41:42.513Z",
+          "toolCalls": 3,
+          "kinds": [
+            "search",
+            "read",
+            "other"
+          ]
+        },
+        {
+          "role": "implementer",
+          "provider": "codex",
+          "status": "succeeded",
+          "startedAt": "2026-10-16T17:41:42.518Z",
+          "endedAt": "2026-10-16T17:42:21.146Z",
+          "toolCalls": 2,
+          "kinds": [
+            "command",
+            "edit"
+          ]
+        },
+        {
+          "role": "reviewer",
+          "provider": "claude",
+          "status": "succeeded",
+          "startedAt": "2026-10-16T17:42:30.059Z",
+          "endedAt": "2026-10-16T17:42:41.578Z",
+          "toolCalls": 2,
+          "kinds": [
+            "read",
+            "other"
+          ]
+        }
+      ],
+      "checks": [
+        "pre_review npm run test exit 0",
+        "verify npm run test exit 0",
+        "demo_base npm run test exit 1"
+      ]
+    }
+  ],
+  "overlapSeconds": 49,
+  "totalSeconds": 86
+} (real agents). Full before/after table: REDESIGN.md §2 and §6.
+
+| Check | Result |
+|---|---|
+| Unit tests: trace model (lanes, handoffs, repair cycle, slot-wait inference, plan gate, scale), store (batching, duplicates, out-of-order, snapshot rollback, deletion, bounds), engine instrumentation (activity, redaction of credentials, selection, slots, stage notes) | VERIFIED (: 266 passed, 1 skipped) |
+| Idle with three silent running agents | VERIFIED: GPU 26 % → 0.3–0.6 %, renderer 9 % → 0.4–0.6 % of one core |
+| High-volume events (4,068 / 13,518) | VERIFIED: no long tasks; worst frame 17 ms / 17–25 ms (old 33 / 9–16 ms) |
+| Real app startup, idle, memory | VERIFIED (3 runs each): not slower; +10 MB working set |
+| Two real concurrent changes (Claude plans/reviews, Codex implements) | VERIFIED: both reached final approval in 67 s, 51 s of overlap, trace and command center from engine records; /usr/bin/bash.24 + Codex tokens |
+| WCAG AA contrast of text and state colours, both themes | VERIFIED by computation (one failure found and fixed: labels on red bars) |
+| Phone width (390 px) | VERIFIED in the browser pane: no overflow, list view by default |
+| Production bundle contains no fixtures | VERIFIED (grep of the built bundle) |
+| Desktop end-to-end with new labels | UNVERIFIED: script updated, not re-run (owner asked not to open more windows) |
+| Real failed review / real plan approval in the new view | UNVERIFIED with real agents (fixtures and engine tests only) |
+| Flaky test seen once: concurrent  race (reliability.test.ts), passed on rerun | KNOWN, pre-existing area, not caused by this change; follow-up suggested |
+
+## 17 October 2026 — installed alpha.1 continuation
+
+This entry supersedes older statements that the installed app was unchanged. `npm run check`: 35 files passed, 288 tests passed/1 skipped, typecheck/lint/provenance passed, 133.22 s. Full build and local Windows x64 NSIS package completed without publishing; no dependency added. `tools/scan-artifacts.mjs` scanned 84 packaged files without findings. Packaged executable desktop acceptance passed all seven steps, including three themes, drafts/attachments across navigation/reload, backup/export, engine shutdown and relaunch persistence.
+
+An independent test NSIS identity installed the actual previous alpha.0 payload, then the real helper installed alpha.1 and restarted after its caller naturally exited. Version and health verified; project/history/draft/attachment/terracotta theme/provider detection survived. An intentionally corrupted package failed the helper checksum check before execution; alpha.1 relaunched and the same disposable data survived. The test restart was terminated only in the disposable environment to attach a fresh inspection process; inspection then closed normally and released its engine lock. This is not proof of rollback after a partially applied NSIS package.
+
+Owner-authorized real in-place migration completed with NSIS exit 0. Installed shell and engine verified alpha.1; one project/four task IDs persisted and both providers reported installed/authenticated. Real database SHA-256 unchanged before/after installer, before launch. Projects, tasks, runs, evidence, devices, remote commands, outcomes and key/value rows matched the closed backup after launch. Native Settings/Updates screenshots and machine reports retained with local delivery. App reopened normally without inspection arguments.
+
+No approved release was published; Authenticode signing, installed UI discovery/download/restart from a real signed release, real network interruption and partially failed installer recovery remain unverified. OS launcher startup lacks a separate deadline; journal readiness polling is bounded after launcher startup. Reviewer performed read-only source review, not independent execution of these tests.
+
+## 17 October — alpha.2 opening correction
+
+Full check 35 files/288 passed/1 skipped, 92.54 s; final UI refinements re-typechecked/linted/built. Actual Electron before/after over recorded real-agent histories: three themes, 390px without document overflow, selected task/opening navigation, keyboard focus, failed detail HTTP request/unavailable state and successful recovery, zero idle home DOM mutations over 3s, unchanged final approvals. Seven packaged native acceptance steps passed, 85 packaged resource files scanned without findings. JS gzip 176.37 kB versus alpha.1 174.83 kB; existing >500 kB chunk warning remains. No claim of CPU/startup/memory equivalence from this pass.
+
+Owner-authorized alpha.2 in-place install exited 0, database hash unchanged immediately after installer. Installed shell/engine verified alpha.2 with original one project/four tasks and both providers authenticated. Actual installed opening screenshot shows the new selected saved-answer/project composition. App closed normally after inspection and was reopened without debugging/test-profile arguments. Full previous alpha.1 application/engine/profile backup retained locally. No release published, secret changed, main merge or platform claim.
+
+## 17 October — alpha.3 conversation, scroll and source-context correction
+
+Full check:35files/289passed/1skipped,123.54s; final types/lint pass. Focused context test proves actual adapter cwd/read access, host runtime/path prompt and persistence, plus retained answer/context after a deliberately failed retry. Native original long-answer geometry reproduced outer scroll1945px for754px viewport; after fix both754px and outer scrollTop0, with main content fully scrollable. Details, three themes,390px, Agents/Remote/Settings and recorded change workspaces/replay/freeze passed. Seven packaged native checks and84-file artifact scan passed. JS176.88kB gzip/CSS11.03kB gzip; existing chunk warning. No broad CPU/memory equivalence claim.
+
+Optional real-Claude test initially blocked by automatic approval for unspecified repository transmission. After explicit owner approval it ran read-only in copied application data, reported $0.0390898, distinguished host alpha.3 from selected repository0.2.61 and denied that checkout proved installed architecture. Original task records unchanged. This validates the observed reply, not universal model compliance.
+
+Installed alpha.3 NSIS exit0; database unchanged before first launch, one project/five tasks/providers and eight persisted tables retained. Installed UI and engine hashes exactly matched tested outputs. Installed executable re-inspected over copied history, including long-answer bottom; actual data health checked separately. Fresh restricted backup and normal reopen verified. No public release, secret change or main merge.
 # 2026-10-17 — SemVer updater regression
 
 `npm run check`: typecheck and lint passed; 247 tests passed, 2 skipped;
@@ -291,6 +648,24 @@ Even observation counts now average the central pair rather than underreporting 
 Paused budget failures now show budget recovery instructions instead of generic Resume guidance. Regression test plus npm run check passed: 247 passed, 2 skipped; typecheck, lint and provenance passed.
 
 
+## 2026-10-25 — Plain-English explanations of anything selected on a map
+- Commit d5c7a8f. New: `POST /api/explain` (engine `Explainer`, protocol `ExplainRequest`/`ExplainResult`), UI `AiExplanation`, `MapSelection`, record-based `explain.ts`. No change to orchestration, approval policy, persistence or schema; nothing about an explanation is stored server-side (the client caches per record in localStorage).
+- Safety: read access only (Claude Code `--restricted` with Read/Glob/Grep; Codex `--sandbox read-only`), in the mission's copy when it still exists, otherwise the project folder; 120 s timeout; $0.50 cap; at most two at once; aborted when the selection changes (request close). The record is fenced as data and the agent is told to ignore instructions inside it; file paths outside the project are dropped. Output is labelled AI-written with the provider.
+- Tests: `packages/engine/src/explain.test.ts` (4: read-only run in the project with the file named, record fenced as data, no task stored; unsafe paths refused; provider failure reported; unknown project/mission rejected). `packages/ui/src/ops/intel/explain.test.ts` (4: every record kind in all six recorded missions and at replay moments gets a complete record-based explanation without placeholders; facts match the record; project map missions and files). `npm run check`: 403 passed, 1 failed (the known cloud-only containment test, passed on rerun: 4 passed, 2 skipped); provenance passed.
+- Packaged Linux at 1536x764 CSS px, DPR 1.25: real mouse clicks on every record kind showed the sections in view; Home and project maps select on click and show an overlay card; no page errors. Automatic explanation was switched off for this run (no provider call from the cloud).
+- Owner's PC (installer `Hydra-Preview-Setup-2.0.0-alpha.6-ux.20261025b.exe`, sha256 8e5c2ac5…14d505, re-verified on the PC; installed after Home showed "Underway 0"): clicking `manipulation.py` on the telekinisis map produced an explanation written by his Claude Code from the file ("the interaction core of telekinisis… the Manipulator class lets you pinch-grab them…"); clicking the failed `pytest` check in the Vector mission produced a specific diagnosis (one of about 170 tests, `test_move_only_keeps_size`, x=297 instead of 296, likely inset rounding in `set_frame`). Two explanations were generated on the owner's account; nothing else was run.
+- UNVERIFIED: Codex as the explaining provider (Codex quota exhausted); the phone (explanations are desktop-only); behaviour while a mission is running.
+- Follow-up commit 230fd45: explanations capped at 4 short sentences / 90 words with the first sentence leading; font licence texts (SIL OFL 1.1) now ship in the app at `ui/licenses/` (present in the packaged Linux and Windows builds; artifact scan passed); `npm run licenses` keeps the hand-maintained section (idempotent). Installer `Hydra-Preview-Setup-2.0.0-alpha.6-ux.20261025c.exe` (sha256 18f77cf8…94e9b5ca), re-verified on the PC; installed after the database copy showed both missions completed (the one-click installer closed the running app and reopened it). On the owner's PC, clicking `README.md` in telekinisis produced a shorter explanation led by "README.md is the project's user guide for Telekinesis CV, a webcam app where you pinch real objects to lift and move them." `npm run check`: 404 passed, 1 failed (known cloud-only containment test); provenance passed.
+
+## 2026-10-23 — Living network: agents, handoffs, replay light, mission briefing (validated on the owner's PC)
+- Commits 92523a7, 97de077, 80d935e. UI only (read-only selectors over run, evidence, review and diff records); engine, providers, policy, persistence and protocols untouched.
+- Unit tests: `agents.test.ts` (one agent per role and provider; handoffs only where a recorded artifact links consecutive runs: repair fixture = the plan, revision dd0d9cb, 3 findings, revision b35d463; failure fixture = the plan only; no future leakage at the replay cursor; agents outside the clock; Windows worktree paths normalised), `tween.test.ts` (tween progress clamped; marks only move towards their places). `npm run check`: 396 passed, 5 skipped; typecheck and lint pass (one max-lines warning on renderer.ts); provenance passed. One earlier full run hit the known cloud-only containment flake (393 passed, 1 failed) and passed on rerun.
+- Packaged Linux build (electron-builder dir, recorded engine fixtures) under Xvfb with the renderer at 1536x764 CSS px, DPR 1.25 (the owner's maximized window on 1920x1080 at 125%): no console or page errors; replay frame pacing 181 frames in 3 s, p50 16.7 ms, p95 16.7 ms, max 16.8 ms. Found and fixed there: top/bottom agent labels clipped at 764 px (fit now reserves screen-pixel room for them) and revision labels colliding with check badges.
+- Windows installers `Hydra-Preview-Setup-2.0.0-alpha.6-ux.20261023c.exe` (sha256 0db3964a…febfc42) and `…20261023d.exe` (sha256 7c878f04…f6c2c13f9, commit 80d935e), hashes re-verified on the PC. Installed over the earlier preview only after Home showed "Underway 0"; the owner's data was kept.
+- Observed on the owner's PC with his real Claude Code and Codex CLI mission (view only; no decisions, starts or stops): Home shows repository-relative file names instead of absolute worktree paths; the mission map shows three agents labelled by provider, three handoffs taken from his records, and nothing clipped at his screen size; no menu bar.
+- Bug found only on Windows with real data: during replay playback marks scattered off the map (scrubbing to a point was correct). Cause: the tween started at performance.now() but was sampled with the earlier rAF frame timestamp, so progress went negative and a scene retargeted every frame diverged. Reproduced in Chromium by skewing frame timestamps 16 ms early (old build: every mark leaves the map; new build: marks stay on the clock). Fixed with per-mark clamped tweens; replay on his real mission then played with every mark in place (+8m19s observed).
+- UNVERIFIED: Day theme and reduced-motion replay on Windows (checked in the packaged Linux build and the browser harness only); a live (running) mission on Windows with the new build; screen readers.
+
 ## 2026-10-17 — provider HTTP timeout recovery
 Undici connect/header/body timeout codes now classify as transient network failures for the existing retry/pause flow. Three regression cases; npm run check passed: 250 passed, 2 skipped; typecheck, lint and provenance passed.
 
@@ -302,6 +677,61 @@ Reconciliation with concurrent main: retained both evidence sections and all cod
 Final `npm run check` passed: 267 tests passed, 2 skipped, typecheck, lint and
 provenance passed. Codex authored and verified these fixes; a separate Codex
 session reviewed the updater and approval-digest changes.
+
+## 2026-10-17 — Mission Desk final acceptance
+
+Branch: feat/hydra-product-milestone-20261017. Source reconciles assessed alpha.3 / 4d2a48b and remote main d18a690, plus the repository's 6e8c4a2 Git bookkeeping fix. Work stayed in the existing v2 worktree. Original Desktop source and installed application/data were not replaced.
+
+### Executed final evidence
+
+- `npm run check`: 43 files, **328 passed, 1 skipped**, 227.72 seconds for tests. TypeScript, ESLint and originality/provenance passed. The Windows permission-mode case remains skipped; no claim of new macOS/Linux CI execution.
+- Expanded final credential-format split-point tests: 3/3 passed; final acceptance-driver/test lint passed. Covered Anthropic/OpenAI/GitHub/AWS/Slack/Google/JWT, key blocks, generic assignments, HTTP credentials, flags, multiline labels, UTF-8, EOF and long lines. Pattern-based redaction is still not a universal secret detector. Raw output digest/byte counts describe observed process bytes; saved text is redacted and may conservatively suppress lines.
+- Real-Git reliability/admin-lock regressions: 7/7 passed. Bookkeeping invariant peak=1, actual checks stay concurrent, conflict refusal and dual-task delivery exercised. The original reviewed fix was ported from 6e8c4a2; external Git processes remain outside this engine's mutex.
+- Build and unsigned unpacked Windows Electron package passed. Final UI JavaScript 574.09 kB raw / about 179.14 kB gzip; CSS 58.36 kB / 12.40 kB gzip. Existing >500 kB chunk warning remains. No performance equivalence claim.
+- Artifact scanner: **87 files passed** across packaged UI/hydrad resources and desktop bundles. This is the configured pattern scan, not a supply-chain or vulnerability certification.
+- Packaged `product-acceptance.mjs`: **10/10 steps passed**. Captures include Workspace 1360×900, 900×760 and 390×844; accounts/settings/phone; dark/light passing, failed and no-check receipts; operations disclosure; plan/reject; deletion contract; actual fixture apply and revert; history summary API and check editor. Dialog title/focus/Escape, arrow-tab navigation, reduced motion and no horizontal/outer-document overflow checked. Contrast: **63 solid foreground/background token pairs ≥4.5:1** across three themes; excludes alpha, disabled, syntax and native surfaces. No screen-reader certification or novice user study.
+- Packaged `desktop-e2e.mjs --simulate-missing-providers`: **7/7 steps passed**. Fresh profile onboarding, typed project path, unavailable-provider keyboard guard, draft/attachment persistence across project navigation/reload/restart, three themes, 390px layout, visible keyboard focus, a real deliberately failing fixture check, backup/export files, shutdown/engine-lock release and relaunch.
+- Short idle sample: renderer TaskDuration **0.067621 seconds over 10 seconds**, with operations collapsed. This is not whole-process CPU or a soak result. Broad idle CPU, memory/battery and long-run qualification remain open.
+- `build-receipt.json` confirms packaged UI and engine files byte-match build outputs, and records ASAR/resource hashes. Program still reports alpha.3; no new release version/tag was created.
+
+Receipts and screenshots are in this chat's outputs: before/report.json (baseline development Electron, 7 steps), after/report.json (final packaged product, 10 steps), desktop-acceptance/report.json (final packaged fresh-profile, 7 steps), and build-receipt.json. Baseline uses the integrated pre-change source, not a fresh qualification of the original signed/installed artifact. Every new workflow fixture is explicitly labelled TEST FIXTURE and uses a scripted adapter with real engine/Git/check execution. No new paid Hydra provider workflow was run; prior real-Claude/Codex evidence retains its historical date and scope.
+
+### Review, failures and corrections
+
+Codex wrote/integrated and verified. A read-only Codex subagent challenged product direction and source risks. A fresh read-only installed Codex CLI review found multiline credential-label leakage and an independent late-helper installation risk. Parent fixed them; a bounded subagent follow-up found retry attempt-binding risk, addressed with unique journal paths plus UUID/PID checks. Tests include a real Windows helper refusing unapproved and stale attempts without executing an installer. No separate Claude or external security certification is claimed.
+
+Initial failures retained in the record: a linked dependency cache required reviewed filesystem access; first redactor/receipt fixtures had incorrect test assumptions; an export fixture timed out under broad worker contention (passed isolated, workers capped at four); a later concurrency run exposed the real commondir race (fixed with the existing branch patch); light success text measured 4.4839:1 against the new background (darkened and all 63 pairs rechecked). Test-driver issues included DOM-object readiness, obsolete screen labels, shortened CSS hex parsing and project labels containing status text; drivers were corrected before final passes. One intermediate package lacked the final dialog title; the final package passed title/focus/Escape checks.
+
+No public publishing, deployment, spending/purchases, tester invitations, main merge, license change, signing credential change or original-user-data migration occurred. Release blockers and exact approval-dependent work are in AGENSI_FULL_PRODUCT.md. This is a coherent product/trust milestone, not unrestricted commercial-release qualification.
+
+## 2026-10-22 — UX rebuild: research, evidence-graph adapter and three direction prototypes
+
+Branch: feat/jarvis-ux-alpha6-20261022, from verified alpha.6 spatial study b3f7464 (alpha.6 f227439 lineage). An earlier branch, feat/jarvis-ux-rebuild-20261022, merged main bf6fc10 and is left untouched: main's new usage-accounting test expects cache-exclusive unpriced tokens while alpha.6 is cache-inclusive. The owner chose a fresh branch without main; integrating main is a separate decision. Engine, protocol and apps are byte-identical to b3f7464.
+
+- New read-only adapter `packages/ui/src/ops/intel/graph.ts` (evidence graph with observed / derived / planned / unavailable basis, replay projection with no future leakage). `graph.test.ts`: **8/8 passed** on recorded fixtures.
+- Fixtures: `tools/record-ux-fixtures.ts` ran the real engine, Git worktrees and check processes on this branch's engine with the scripted test adapter (no provider called): 6 missions, 283 journal events. Tool-call reports and review text are scripted.
+- Prototypes (design research, not product code): `design/prototypes/{a,b,c}.html`, built with `design/prototypes/build.mjs`. Headless Chromium captures at 1440×900 and 390×844 (21 images) and a 72-second scripted walkthrough (`video/`). Inert decision controls.
+- `npm run check`: typecheck, lint passed; tests **381 passed, 1 failed, 5 skipped** (48 files). The failure is `process/containment.test.ts › cancelling ends the whole tree…`. It is pre-existing and environment-specific: a pristine worktree of b3f7464 with no changes failed the same test 3 of 4 runs in this Linux cloud container (PID 1 is not a conventional init). The alpha.6 Windows suite passed it. Not investigated further because engine/process code is out of scope for this UX branch; it should be checked on Windows CI before release.
+- Rendering benchmark harness `design/prototypes/bench.html` (Canvas 2D vs SVG vs Sigma.js/WebGL). Cloud Chromium uses SwiftShader software GL and throttles frames, so only main-thread script times from it are meaningful; real-GPU numbers are recorded separately.
+
+## 2026-10-22 — Command Network rebuild of the desktop UI (concept A, Timeline lens from B)
+
+Branch feat/jarvis-ux-alpha6-20261022, commits 0098579 → this entry. Owner's direction: "option A is the main priority, maybe option B isn't that bad, but forget totally about option C". Engine, providers, approval policy, worktrees, persistence, schema, verification, rollback, security, cost accounting and remote protocols are unchanged; `git diff b3f7464 -- packages/engine packages/protocol packages/secure-channel apps/hydrad` is empty. The only store change is a UI-side, bounded ledger of distinct reviews (`packages/ui/src/api/store.ts`). No provider was called by any test below.
+
+- `npm run check` equivalents: typecheck and lint passed; `vitest run` **389 passed, 5 skipped (49 files)** on the final code; provenance passed. One earlier full run in this session hit the known containment flake (381 passed, 1 failed), as recorded on 2026-10-22 above.
+- New tests: `ops/intel/layout.test.ts` (7) — every recorded node placed, deterministic, stages clockwise from twelve in recorded order, files inside the inner field, replay never moves an existing mark, ego focus puts inputs left and outputs right, project links only through files, every node named in words.
+- Real Electron (development build of this branch, Linux, Xvfb, Electron 44.7.0), isolated profile = a copy of the recorded-fixture engine data (`HYDRA_DATA_DIR`), no commands sent:
+  - Desktop smoke report: `live: true`, sandboxed page (no `require`/`process`), engine 2.0.0-alpha.6, database present. Provider detection in this container: Claude Code installed and signed in, Codex not installed. Because a real Claude account was reachable, the tests only navigated and inspected; no mission, approval or decision command was sent.
+  - Driven over CDP: Home, three waiting missions (accept allowed, acceptance blocked, plan gate), Timeline, Records, keyboard focus, replay, AI accounts, Phone, Settings, Day theme. Console errors: none.
+  - Measured (software rendering, Xvfb, so a floor not a GPU figure): open mission from Home to first inspector 279 ms; hover across the map 242 frames in 4 s, p50 16.7 ms, p95 16.8 ms, max 16.8 ms; wheel zoom 241 frames, p95 16.8 ms; 30 replay-cursor moves 1.09 s end to end through the driver; idle 3 s with nothing running: 41 ms script, 0.2 ms layout, JS heap 10.1 MB.
+  - Keyboard-only: arrows reach records, Enter opens the inspector, F enters focus, the live region announced "Agent run: Planner · Plan. Succeeded. 5 connections.", Esc leaves focus and selection.
+  - axe-core 4 (wcag2a/aa, 21aa, 22aa) in the real app: 0 violations on Mission and Home.
+  - First run: a fresh empty profile showed the setup checklist (captured in `audit/`).
+- Recorded-fixture review harness (`packages/ui/review.html`, read-only, not in the shipped bundle) drove the hone audit: 57 cells at 1440×900 and 390×844, Night and Day, plus the Electron first-run cell. Verdict POLISH; 0 P0, 3 P1, 6 P2, 1 P3 at f3406a6 (`audit/UI-SPEC.md`). P1 and P2 fixed in 3b6aeff and re-audited on the touched cells: axe 0, no console errors. Open: F-10 (P3, blocked delivery bar height) and a P3 note that a file label can be dropped when every slot collides (the list view and search still name it).
+- Before/after on identical recorded data: alpha.6 UI built at b3f7464 with the same harness and the rebuilt UI, four pairs (Home, repair mission, blocked mission, phone).
+- Windows preview: `Hydra-UX-Preview-2.0.0-alpha.6-ux.20261022-x64.zip` (sha256 dfc61015ba3cfd14133b9d48a735f69274740620121f28f8487c29ba1460340b) cross-built from Linux with electron-builder 26.15.3 (`--win zip`, `signAndEditExecutable=false`), isolated profile `HydraPreviews/JarvisUX-20261022`, Windows koffi binary 3.3.3 swapped into the build output. **UNVERIFIED on Windows**: no Windows machine or Wine was reachable from this session, so it has not been launched; Hydra.exe carries Electron's default icon and file metadata because resource editing needs Wine. Not signed, not released, not published.
+- Not measured: real-GPU frame times, a live running mission with a real provider (Codex out of quota; paid runs not allowed), screen-reader pass, long-run memory.
+- 2026-10-23 Windows installer: `Hydra-Preview-Setup-2.0.0-alpha.6-ux.20261023.exe` (sha256 8f8a432ffa9e51f4a645ddc0fef719f539227ab2342cfdb241502e0792cbd473), commit 5499749, NSIS one-click per-user, appId `dev.melekmoalla.hydra.preview`, product "Hydra Preview", data in `%LOCALAPPDATA%\HydraPreviews\HydraPreview`; cross-built with Wine 9.0 (icon and metadata applied, unsigned). Copied to the owner's PC (hash re-verified there) and started from File Explorer: the installer ran and a full-screen window opened that the remote session could not see (computer-use masks apps it has no grant for, and the new app was not yet in its app list). App start on Windows is therefore UNVERIFIED by this session; the owner confirms by looking.
 
 
 ## 2026-10-21 — honest outcome costs

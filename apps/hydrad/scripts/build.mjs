@@ -15,6 +15,7 @@ await build({
   format: 'esm',
   target: 'node22',
   conditions: ['source'],
+  alias: { '@hydra/engine': here('../../../packages/engine/src/index.ts'), '@hydra/protocol': here('../../../packages/protocol/src/index.ts'), '@hydra/secure-channel': here('../../../packages/secure-channel/src/index.ts') },
   sourcemap: true,
   legalComments: 'linked',
   banner: { js: "import { createRequire as __hydraCreateRequire } from 'node:module'; const require = __hydraCreateRequire(import.meta.url);" },

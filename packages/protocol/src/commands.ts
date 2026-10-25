@@ -41,6 +41,9 @@ export const Command = z.discriminatedUnion('type', [
   z.object({ type: z.literal('outcomes.clear') }),
   /** Asks the release server (only when the person presses the button). Desktop only. */
   z.object({ type: z.literal('update.check') }),
+  z.object({ type: z.literal('update.prepare') }),
+  z.object({ type: z.literal('update.release'), lease: Id }),
+  z.object({ type: z.literal('update.confirm'), lease: Id }),
   /** Starts an answering agent ahead of time for this project so the next question is faster. */
   z.object({ type: z.literal('agent.prewarm'), projectId: Id }),
   z.object({ type: z.literal('task.resume'), taskId: Id }),
@@ -48,10 +51,15 @@ export const Command = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('task.decide'), taskId: Id, decision: z.enum(['accept', 'request_changes', 'reject', 'keep_branch']), feedback: Feedback.optional(),
     /** The exact commit the person reviewed. Required to accept: stale decisions are refused. */
-    headSha: z.string().regex(/^[0-9a-f]{40}$/).optional()
+    headSha: z.string().regex(/^[0-9a-f]{40}$/).optional(),
+    /** Required by the engine for acceptance. No exception-to-apply command exists. */
+    acceptance: z.object({ decisionId: z.string().uuid(), snapshot: z.string().max(1_000_000) }).strict().optional()
   }),
   z.object({ type: z.literal('task.rollback'), taskId: Id }),
   z.object({ type: z.literal('task.delete'), taskId: Id }),
+  z.object({ type: z.literal('task.purge'), taskId: Id, confirm: z.literal('PURGE') }),
+  z.object({ type: z.literal('data.status') }),
+  z.object({ type: z.literal('data.verify_backup') }),
   /** Archives (or restores) a task and the rest of its conversation. */
   z.object({ type: z.literal('task.archive'), taskId: Id, archived: z.boolean() }),
   z.object({ type: z.literal('device.pair_start'), name: z.string().trim().min(1).max(80), scopes: z.array(DeviceScope).min(1), host: z.string().regex(/^\d{1,3}(\.\d{1,3}){3}$/).optional() }),

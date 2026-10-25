@@ -1,3 +1,5 @@
+import { approvalContext } from '@hydra/protocol'
+import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -61,26 +63,30 @@ async function until(engine: Engine, taskId: string, predicate: (t: Task) => boo
 }
 
 const ready = (t: Task) => t.status === 'waiting_input' && t.waitReason === 'final_approval'
-const accept = (engine: Engine, t: Task) => engine.execute({ type: 'task.decide', taskId: t.id, decision: 'accept', headSha: t.workspace!.headSha! })
+const accept = (engine: Engine, t: Task) => engine.execute({ type: 'task.decide', taskId: t.id, decision: 'accept', acceptance: acceptance(engine, t.id), headSha: t.workspace!.headSha! })
 
 describe('reliability', () => {
   it('runs two tasks on one project concurrently and applies both multi-file changes', async () => {
     const { engine, repo, projectId } = await setup(byMarker({
       A: { 'math.js': FIXED_MATH },
-      B: { 'docs/GUIDE.md': '# Guide\n', 'lib/helper.js': 'module.exports = () => 1\n', 'lib/nested/deep.js': 'module.exports = 2\n' }
+      // Each independently accepted revision must pass; B cannot rely on A landing first.
+      B: { 'math.js': FIXED_MATH, 'docs/GUIDE.md': '# Guide\n', 'lib/helper.js': 'module.exports = () => 1\n', 'lib/nested/deep.js': 'module.exports = 2\n' }
     }))
     const [a, b] = await Promise.all([create(engine, projectId, '[A] fix add'), create(engine, projectId, '[B] add docs and helpers')])
     const [readyA, readyB] = await Promise.all([until(engine, a.id, ready), until(engine, b.id, ready)])
-    expect((await engine.taskDiff(b.id)).files.map((f) => f.path).sort()).toEqual(['docs/GUIDE.md', 'lib/helper.js', 'lib/nested/deep.js'])
+    expect((await engine.taskDiff(b.id)).files.map((f) => f.path).sort()).toEqual(['docs/GUIDE.md', 'lib/helper.js', 'lib/nested/deep.js', 'math.js'])
 
     // Accept both at the same moment: the repository lock serialises them.
     const acks = await Promise.all([accept(engine, readyA), accept(engine, readyB)])
-    expect(acks.every((ack) => ack.ok)).toBe(true)
+    expect(acks, JSON.stringify(acks)).toEqual([expect.objectContaining({ ok: true }), expect.objectContaining({ ok: true })])
     // One applies directly; the other sees a moved branch, integrates, re-verifies and asks again.
     const settled = await Promise.all([a, b].map((t) => until(engine, t.id, (x) => x.status === 'completed' || (ready(x) && x.workspace!.headSha !== (t.id === a.id ? readyA : readyB).workspace!.headSha))))
     for (const t of settled.filter((x) => x.status !== 'completed')) {
       expect(t.error).toMatch(/integrated/)
-      await accept(engine, t)
+      expect(await accept(engine, t)).toMatchObject({ ok: false })
+      await engine.execute({ type: 'task.decide', taskId: t.id, decision: 'request_changes', feedback: 'Review the integrated revision before applying.' })
+      const refreshed = await until(engine, t.id, x => ready(x) && x.reviewedSha === x.workspace?.headSha)
+      expect(await accept(engine, refreshed)).toMatchObject({ ok: true })
       await until(engine, t.id, (x) => x.status === 'completed')
     }
     expect(readFileSync(join(repo, 'math.js'), 'utf8')).toContain('a + b')
@@ -136,3 +142,5 @@ describe('reliability', () => {
     expect((await engine.execute({ type: 'task.create', projectId, prompt: 'still alive?', intent: 'analyze', mode: 'safe', assignment: ALL })).ok).toBe(true)
   })
 })
+
+function acceptance(engine: Engine, taskId: string) { return { decisionId: randomUUID(), snapshot: approvalContext(engine.store.getTask(taskId)!, engine.store.listEvidence(taskId)).snapshot } }

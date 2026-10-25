@@ -5,7 +5,7 @@ import { policyFor } from './policy.js'
 
 const task = (over: Partial<Task> = {}): Task => ({
   id: 't1', projectId: 'p1', title: 't', prompt: 'p', intent: 'change', route: null, followUpOf: null, archivedAt: null, mode: 'developer',
-  assignment: { planner: 'claude', implementer: 'codex', reviewer: 'claude' },
+  assignment: { planner: 'claude', implementer: 'codex', reviewer: 'claude' }, selection: null,
   budget: { maxCostUsd: 5, maxTokens: 1e6, maxWallMinutes: 60, maxAgentRuns: 10, maxFixRounds: 2 },
   status: 'running', stage: 'plan', waitReason: null, outcome: null, fixRound: 0, plan: null, review: null, checks: [],
   checksApproved: true, checkDigest: null, applyIntent: null, demo: null, answer: null, workspace: null, applied: null, usage: emptyUsage(), stages: [], feedback: [],

@@ -52,12 +52,13 @@ describe('budgets', () => {
   it('counts unpriced runs as tokens instead of $0', () => {
     const usage = addUsage(emptyUsage(), { inputTokens: 600, outputTokens: 100, cachedTokens: 50, costUsd: null })
     expect(usage.costUsd).toBe(0)
-    expect(usage.unpricedTokens).toBe(700)
+    expect(usage.unpricedTokens).toBe(750)
   })
 
   it('limits are inclusive: a reached cap blocks the next run', () => {
     expect(() => assertCanStartRun(task({ ...emptyUsage(), costUsd: 1 }))).toThrow(/Cost limit reached/)
     expect(() => assertCanStartRun(task({ ...emptyUsage(), inputTokens: 1000 }))).toThrow(/Token limit reached/)
+    expect(() => assertCanStartRun(task({ ...emptyUsage(), inputTokens: 600, outputTokens: 100, cachedTokens: 300 }))).toThrow(/Token limit reached/)
     expect(() => assertCanStartRun(task({ ...emptyUsage(), agentRuns: 5 }))).toThrow(/run limit/)
     expect(() => assertCanStartRun(task())).not.toThrow()
   })

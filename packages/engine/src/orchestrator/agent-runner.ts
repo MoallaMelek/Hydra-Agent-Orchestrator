@@ -1,8 +1,8 @@
 import type { z } from 'zod'
-import { emptyUsage, type AgentRole, type AgentRunInfo, type ProviderId, type TaskStage } from '@hydra/protocol'
+import { emptyUsage, type AgentRole, type AgentRunInfo, type ProviderId, type RunActivity, type TaskStage } from '@hydra/protocol'
 import type { AccessLevel } from '../agents/types.js'
 import { addUsage, assertCanStartRun, assertWithinBudget, remainingActiveMs, remainingUsd } from '../workflow/budget.js'
-import { redact } from '../util/redact.js'
+import { redact, redactValue } from '../util/redact.js'
 import { policyFor } from '../workflow/policy.js'
 import { CanceledError, providerFailure, ProviderUnavailableError, TransientProviderError, type BudgetExceededError } from '../util/errors.js'
 import { isoNow, newId } from '../util/ids.js'
@@ -30,6 +30,19 @@ export interface AgentCallResult<T> {
 }
 
 const OUTPUT_FLUSH_MS = 400
+/** Tool calls kept on a run record (newest last). */
+const MAX_ACTIVITY = 200
+const MAX_REPLY_CHARS = 1_000_000
+
+/** How a provider tool call touches the project: inspected, modified, or a program run. */
+export function toolKind(name: string): RunActivity['kind'] {
+  if (/^(Read|NotebookRead)$/.test(name)) return 'read'
+  if (/^(Glob|Grep|LS)$/.test(name)) return 'search'
+  if (/^(Edit|Write|MultiEdit|NotebookEdit|edit)$/.test(name)) return 'edit'
+  if (/^(Bash|shell)$/.test(name)) return 'command'
+  return 'other'
+}
+
 /** Streamed replies are flushed faster so the user sees them appear. */
 const ANSWER_FLUSH_MS = 80
 const PEM_BEGIN = /-----BEGIN [A-Z0-9 ]*-----/g
@@ -115,7 +128,7 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
 
   let run: AgentRunInfo = {
     id: newId(), taskId: call.taskId, stage: call.stage, role: call.role, provider: call.provider, model: null,
-    status: 'running', startedAt: isoNow(), endedAt: null, usage: emptyUsage(), error: null, pid: null, tail: ''
+    status: 'running', startedAt: isoNow(), endedAt: null, usage: emptyUsage(), error: null, pid: null, tail: '', activity: []
   }
   ctx.store.putRun(run)
   updateTask(ctx, call.taskId, (t) => { t.usage.agentRuns += 1 })
@@ -125,6 +138,12 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
   let draft = ''
   let shown = ''
   let streamingStopped = false
+  let outputError: string | null = null
+  const bounded = (text: string, existing = 0): boolean => {
+    if (existing + text.length <= MAX_REPLY_CHARS) return true
+    outputError = 'Provider output exceeded the 1,000,000-character reply limit. The run was stopped; no complete result is claimed.'
+    runAbort.abort(); return false
+  }
   let answerTimer: ReturnType<typeof setTimeout> | null = null
   const flushAnswer = (final: boolean) => {
     answerTimer = null
@@ -140,6 +159,7 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
     ctx.store.publish({ type: 'run.output', runId: run.id, taskId: call.taskId, text: piece.slice(-16_000), stream: 'answer' })
   }
   const emitDelta = (text: string) => {
+    if (!bounded(text, draft.length)) return
     draft += text
     if (!answerTimer) answerTimer = setTimeout(() => flushAnswer(false), ANSWER_FLUSH_MS)
   }
@@ -155,7 +175,7 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
   const emitText = (raw: string) => {
     const text = redact(raw)
     run = { ...run, tail: (run.tail + text + '\n').slice(-8000) }
-    pending += `${text}\n`
+    pending = (pending + `${text}\n`).slice(-16_000)
     if (!flushTimer) flushTimer = setTimeout(flush, OUTPUT_FLUSH_MS)
   }
 
@@ -174,10 +194,19 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
           break
         case 'text': emitText(event.text); break
         case 'text_delta': emitDelta(event.text); break
-        case 'final_text': finalText = event.text; break
-        case 'tool': emitText(`› ${event.name} ${event.summary}`); break
+        case 'final_text': if (bounded(event.text)) finalText = event.text; break
+        case 'tool': {
+          // Redact the whole target first, then shorten it (shortening first could cut a secret's marker off).
+          const target = redact(event.summary).slice(0, 300)
+          emitText(`› ${event.name} ${target}`)
+          // Structured copy for the operations view: tool name and redacted target only.
+          const activity: RunActivity = { at: isoNow(), tool: redact(event.name).slice(0, 60), target, kind: toolKind(event.name) }
+          run = { ...run, activity: [...run.activity, activity].slice(-MAX_ACTIVITY) }
+          ctx.store.publish({ type: 'run.activity', runId: run.id, taskId: call.taskId, activity })
+          break
+        }
         case 'error': emitText(`⚠ ${event.message}`); break
-        case 'structured': structured = event.value; break
+        case 'structured': if (bounded(JSON.stringify(event.value) ?? '')) structured = redactValue(event.value); break
         case 'usage': {
           run = { ...run, model: event.model ?? run.model, usage: addUsage(run.usage, event) }
           const updated = updateTask(ctx, call.taskId, (t) => { t.usage = { ...addUsage(t.usage, event), agentRuns: t.usage.agentRuns } })
@@ -187,10 +216,12 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
           }
           break
         }
-        case 'finished': finished = { status: event.status, detail: event.detail }; break
+        case 'finished': finished = { status: event.status, detail: event.detail ? redact(event.detail).slice(0, 4000) : null }; break
         default: break
       }
     }
+  } catch (error) {
+    finished = { status: 'failed', detail: redact(error instanceof Error ? error.message : String(error)).slice(0, 4000) }
   } finally {
     if (flushTimer) clearTimeout(flushTimer)
     flush()
@@ -200,6 +231,7 @@ async function runOnce<T>(ctx: EngineContext, call: AgentCall<T>, prompt: string
     release()
   }
 
+  if (outputError) finished = { status: 'failed', detail: outputError }
   const status: AgentRunInfo['status'] = finished.status === 'succeeded' ? 'succeeded' : finished.status === 'canceled' ? 'canceled' : 'failed'
   run = { ...run, status, endedAt: isoNow(), error: budgetError?.message ?? (status === 'succeeded' ? null : finished.detail) }
   ctx.store.putRun(run)

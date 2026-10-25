@@ -50,9 +50,17 @@ const md = [
   '## Platform components (not npm runtime dependencies)',
   '- **Electron** (MIT) and the Chromium/Node.js components it bundles, under their own licences (see `LICENSES.chromium.html` in the packaged app).',
   '- **Claude Code** and **Codex CLI** are **not** shipped with Hydra. Customers install them and accept their own terms with their own accounts.',
+  '',
+  '## Fonts shipped in the desktop UI',
+  '- **Archivo** and **Azeret Mono**, SIL Open Font License 1.1, self-hosted (`packages/ui/src/design/fonts`). The licence texts ship with the app at `licenses/LICENSE-archivo.txt` and `licenses/LICENSE-azeret-mono.txt` (from `packages/ui/public/licenses`).',
   ''
 ].join('\n')
-writeFileSync(join(ROOT, 'docs', 'v2', 'THIRD_PARTY.md'), md)
+// Everything below the marker is maintained by hand and kept as it is.
+const MARKER = '<!-- Maintained by hand below this line; npm run licenses keeps it. -->'
+const target = join(ROOT, 'docs', 'v2', 'THIRD_PARTY.md')
+const previous = existsSync(target) ? readFileSync(target, 'utf8') : ''
+const kept = previous.includes(MARKER) ? previous.slice(previous.indexOf(MARKER)) : MARKER + '\n'
+writeFileSync(target, `${md}\n${kept}`)
 console.log(`${rows.length} shipped third-party packages; licences: ${[...new Set(rows.map((r) => r.license))].join(', ')}`)
 if (problems.length) {
   console.error(`Licences needing review:\n${problems.map((p) => `- ${p.name}@${p.version}: ${p.license}`).join('\n')}`)

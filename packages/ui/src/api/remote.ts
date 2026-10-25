@@ -1,4 +1,5 @@
 import { type CommandAck, type EngineSnapshot, type EventEnvelope, type TaskDetail, type TaskDiff } from '@hydra/protocol'
+import type { TaskHistoryQuery, TaskHistoryPage } from '@hydra/protocol'
 import { Channel, clientHandshake, fromHex, keyPairFromSecret, type Frame, type ServerHello } from '@hydra/secure-channel'
 import type { ConnectionStatus, Transport } from './transport'
 import { EventSequencer } from './sequencer'
@@ -130,6 +131,7 @@ export class RemoteTransport implements Transport {
   }
 
   snapshot() { return this.query<EngineSnapshot>('snapshot') }
+  taskHistory(options: TaskHistoryQuery) { return this.query<TaskHistoryPage>('history', undefined, { options }) }
   taskDetail(taskId: string) { return this.query<TaskDetail>('task', taskId) }
   taskDiff(taskId: string) { return this.query<TaskDiff>('diff', taskId) }
   async evidenceLog(): Promise<string> { throw new Error('Full logs are available on the desktop.') }

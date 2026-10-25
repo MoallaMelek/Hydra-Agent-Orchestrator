@@ -3,14 +3,14 @@ import qrcode from 'qrcode-generator'
 import { QrCode } from 'lucide-react'
 import type { DeviceScope } from '@hydra/protocol'
 import { Button, Callout, Field, Panel } from '../design/components'
-import { useApp } from '../app/context'
+import { useApp, useAppState } from '../app/context'
 
 interface PairingLink { url: string; expiresAt: string; engineFingerprint: string; host?: string }
 
 /** Creates a single-use, 5-minute pairing link and shows it as a QR code. */
 export function PairPhonePanel() {
-  const { run, state, store } = useApp()
-  const addresses = state.remote?.addresses ?? []
+  const { run, store } = useApp()
+  const addresses = useAppState((s) => s.remote?.addresses) ?? []
   const [host, setHost] = useState<string>('')
   const [name, setName] = useState('My phone')
   const [control, setControl] = useState(true)

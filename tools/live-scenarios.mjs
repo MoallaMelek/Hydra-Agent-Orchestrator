@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { approvalContext } from '@hydra/protocol'
 /**
  * Realistic engineering tasks with the real Claude Code and Codex CLIs, against
  * disposable repositories in the OS temp directory. Uses the operator's own accounts.
@@ -132,7 +133,7 @@ for (const name of names) {
     if (t.status === 'waiting_input' && t.waitReason === 'final_approval') {
       const diff = await engine.taskDiff(id)
       record.diff = diff.files.map((f) => `${f.status} ${f.path} +${f.additions}/-${f.deletions}`)
-      const accept = await engine.execute({ type: 'task.decide', taskId: id, decision: 'accept', headSha: t.workspace.headSha })
+      const accept = await engine.execute({ type: 'task.decide', taskId: id, decision: 'accept', headSha: t.workspace.headSha, acceptance: { decisionId: crypto.randomUUID(), snapshot: approvalContext(t, engine.store.listEvidence(id)).snapshot } })
       const done = await until(id, (x) => x.status === 'completed' || (x.status === 'waiting_input' && x.error) || x.status === 'failed', 5 * 60_000)
       record.accept = { ok: accept.ok, outcome: done.outcome, error: done.error, independent: fx.verify(root) }
       if (fx.rollback && done.outcome === 'applied') {

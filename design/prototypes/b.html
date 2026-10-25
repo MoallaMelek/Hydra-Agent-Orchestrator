@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hydra Concept B · Engineering Observatory</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="proto.css">
+<style>
+/* B · Engineering Observatory. Deep sea-glass ground; one luminance ramp (teal → pale lime) for
+   activity; position says who (a lane per role), light says how much, red says stop.
+   Type: Atkinson Hyperlegible Next + Mono — hashes and paths must never misread (0/O, 1/l/I). */
+:root{
+  --bg:#071217; --panel:#0b1a21; --panel-2:#10232c; --banner:#06100f; --code:#06141a;
+  --rule:#14303a; --rule-2:#1f4250; --ink:#e4f2ef; --ink-2:#93b8b5; --ink-3:#557a7c;
+  --lum-1:#1d4a53; --lum-2:#2c8a86; --lum-3:#7fd4a8; --lum-4:#e7f59b;
+  --human:#ffffff; --stop:#ff6b5b; --focus:#e7f59b;
+  --add:rgba(127,212,168,.12); --del:rgba(255,107,91,.12);
+  --sans:"Atkinson Hyperlegible Next","Segoe UI",system-ui,sans-serif; --display:"Atkinson Hyperlegible Next","Segoe UI",system-ui,sans-serif; --mono:"Atkinson Hyperlegible Mono","Cascadia Mono",Consolas,monospace;
+  --radius:3px; --radius-s:2px; color-scheme:dark;
+}
+body{display:flex;flex-direction:column;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100%;min-height:0}
+.top{display:flex;align-items:center;gap:12px;padding:10px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:8px}
+.brand b{font:700 17px/1 var(--display)}
+.mark{width:16px;height:16px;border:1.5px solid var(--lum-4);transform:rotate(45deg)}
+.grow{flex:1}
+select{background:var(--panel-2);border:1px solid var(--rule-2);border-radius:var(--radius);padding:6px 8px;min-width:0;max-width:440px}
+.room{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 380px}
+.deck{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:auto;padding:16px 20px 24px;gap:12px}
+.mhead{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.m-title{margin:0;font:700 24px/1.15 var(--display);letter-spacing:-.01em;text-wrap:balance}
+.m-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px}
+.pill{border:1px solid var(--rule-2);padding:3px 8px;border-radius:999px;color:var(--ink-2)}
+.overview{border:1px solid var(--rule);background:var(--panel);cursor:crosshair}
+.overview svg{display:block}
+.ov-bg{fill:var(--panel)}
+.ov-stage{fill:var(--lum-1)}
+.ov-stage.r-implementer{fill:var(--lum-2)} .ov-stage.r-reviewer{fill:var(--lum-3)} .ov-stage.r-human{fill:var(--human)} .ov-stage.failed{fill:var(--stop)}
+.ov-fail{fill:var(--stop)}
+.ov-win{fill:rgba(231,245,155,.05);stroke:var(--lum-4);stroke-width:1}
+.ov-label{fill:var(--ink-3);font:400 11px var(--mono)}
+.observatory{position:relative;perspective:1600px;min-height:0}
+.stack{display:grid;gap:10px;transform-origin:50% 0;transition:transform 520ms cubic-bezier(.2,.8,.2,1)}
+.plane{background:var(--panel);border:1px solid var(--rule);transition:transform 520ms cubic-bezier(.2,.8,.2,1),box-shadow 520ms}
+.plane:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.plane svg{display:block;width:100%}
+.observatory.depth{padding-top:24px;overflow:hidden}
+.observatory.depth .stack{transform:rotateX(56deg) rotateZ(-8deg) scale(.8);transform-origin:50% 8%;transform-style:preserve-3d;gap:2px}
+.observatory.depth .plane{transform:translateZ(calc((3 - var(--i)) * 44px));box-shadow:0 40px 80px rgba(0,0,0,.55);background:rgba(11,26,33,.9);border-color:var(--rule-2)}
+@media (prefers-reduced-motion: reduce){.stack,.plane{transition:none}}
+.plane-bg{fill:transparent}
+.plane-name{fill:var(--ink);font:700 13px var(--sans);letter-spacing:.02em}
+.plane-sub{fill:var(--ink-3);font:400 11px var(--mono)}
+.gutter-rule{stroke:var(--rule)}
+.lane-label{fill:var(--ink-2);font:400 12px var(--sans)}
+.lane-rule{stroke:var(--rule);stroke-width:1}
+.lane-rule.planned{stroke-dasharray:1 4}
+.file-label{fill:var(--ink-2);font:400 11.5px var(--mono);cursor:pointer}
+.file-label.changed{fill:var(--ink)}
+.file-label.planned{fill:var(--ink-3)}
+.row-hit{fill:transparent;cursor:pointer}
+.gate-line{stroke:var(--human);stroke-opacity:.18;stroke-width:1}
+.gate.head .gate-line,.gate.applied .gate-line{stroke-opacity:.45}
+.gate-tab{fill:var(--bg);stroke:var(--human);stroke-opacity:.5}
+.gate-label{fill:var(--ink);font:400 10.5px var(--mono)}
+.gate{cursor:pointer}
+.gate.sel .gate-line{stroke:var(--lum-4);stroke-opacity:1;stroke-width:2}
+.gate.sel .gate-tab{stroke:var(--lum-4);stroke-opacity:1}
+.beam{fill:var(--lum-1);stroke:var(--lum-2)}
+.beam.running{fill:var(--lum-2)}
+.beam.failed{stroke:var(--stop)}
+.beam-label{fill:var(--ink-3);font:400 10.5px var(--mono)}
+.tick-read{fill:var(--lum-3)}
+.tick-edit{fill:var(--lum-4)}
+.tick-cmd{fill:none;stroke:var(--ink-2)}
+.baton{fill:none;stroke:var(--ink-3);stroke-dasharray:2 3}
+.finding{fill:none;stroke:var(--ink-2);stroke-width:1.4}
+.finding.blocker{fill:var(--stop);stroke:var(--stop)} .finding.major{stroke:var(--stop)}
+.proof{fill:var(--lum-3)} .proof.failed{fill:var(--stop)} .proof.running{fill:none;stroke:var(--lum-3)}
+.proof.baseline{fill:transparent;stroke:var(--ink-3);stroke-dasharray:2 2}
+.baseline-label{fill:var(--ink-3);font:400 10px var(--mono)}
+.proof-x{fill:var(--bg);font:700 10px var(--mono)}
+.athead{font:400 11px var(--mono);fill:var(--ink-3)} .athead.ok{fill:var(--lum-4)} .athead.failed{fill:var(--stop)}
+.diff-add{fill:var(--lum-4)} .diff-del{fill:var(--ink-3)}
+.diff-num{fill:var(--ink-2);font:400 10.5px var(--mono)}
+.m-human{fill:var(--human)} .m-human-ring{fill:none;stroke:var(--human);stroke-width:1.5} .m-stop-ring{fill:none;stroke:var(--stop);stroke-width:1.5}
+.mk{cursor:pointer}
+.mk-label{fill:var(--ink);font:400 12px var(--sans)}
+.cursor{stroke:var(--lum-4);stroke-width:1.5}
+/* Selection: everything unrelated recedes */
+.stack.has-sel [data-id]:not(.rel){opacity:.22}
+.stack [data-id]{transition:opacity 160ms}
+.stack .sel .beam,.stack .sel .proof{stroke:var(--human);stroke-width:2}
+.xsect{overflow:auto;padding:18px 20px 28px;background:var(--panel);border-left:1px solid var(--rule);display:grid;gap:22px;align-content:start}
+.xs{display:grid;gap:8px;padding-bottom:16px;border-bottom:1px solid var(--rule)}
+.xs-rows{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:8px}
+.xs-rows li{display:grid;grid-template-columns:80px 1fr;gap:10px;font-size:13px}
+.xs-k{color:var(--ink-3);font:400 11px/1.8 var(--mono);text-transform:uppercase;letter-spacing:.06em}
+.narrow{display:none;gap:8px}
+.plane-note{margin:0;color:var(--ink-2)}
+@media (max-width: 700px){.observatory{display:none}.narrow{display:grid}.narrow .btn{text-align:left;white-space:normal}}
+@media (max-width: 960px){body{overflow:auto}.room{grid-template-columns:1fr}.xsect{border-left:0;border-top:1px solid var(--rule)}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="data/missions.js"></script>
+<script src="dist/b-observatory.js"></script>
+</body>
+</html>

@@ -16,6 +16,7 @@ export default defineConfig({
     exclude: ['**/node_modules/**'],
     testTimeout: 180_000, // engine tests run real git and npm test; allow slow or busy machines
     hookTimeout: 60_000,
-    pool: 'forks'
+    pool: 'forks',
+    maxWorkers: 4 // Each worker starts real Git/check processes; bound host contention.
   }
 })

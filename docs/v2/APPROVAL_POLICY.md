@@ -1,0 +1,17 @@
+# Engine-enforced acceptance — alpha.4 preview
+
+Ordinary acceptance is a strict engine policy in every autonomy mode, including Safe. There is no exception-to-apply command. Plan/check approval authorizes the work and commands; it does not authorize applying an unresolved result.
+
+Acceptance requires a nonempty check list, all checks passing at the exact proposed revision, trusted results from the latest completed verification stage, matching original check definitions, and a completed reviewer approval bound to that revision. Missing/stale results, timeouts, execution/log errors, tracked-tree mutation, changed definitions, rejected reviews, major/blocker findings and unmet reviewed acceptance criteria refuse acceptance. Optional checks also must pass in this preview's strict policy.
+
+Clients send `task.decide` with `decision: accept`, exact `headSha`, and structured `acceptance: {decisionId: UUID, snapshot}`. `approvalContext(task,evidence)` produces the canonical snapshot over task identity, mode, revision/base, checks, definition digest, review, revision-bound review metadata, review/verification stages and current evidence facts/output digests. The large redacted display tail is excluded. This binding is not a secret, not authentication, and not proof that a human understood the result. The engine compares it with its own records. Stale clients without this structure fail closed; upgrade/reload the client.
+
+The engine atomically persists the receipt and audit record before scheduling apply: decision ID, authenticated actor/device identity, source, revision, complete snapshot, evidence IDs, unresolved conditions (empty for new acceptance), exception reason (null because unsupported) and timestamp. Decision IDs cannot be reused across recorded acceptance history. Concurrent duplicates are refused while the task is busy or no longer waiting. Receipt and audit survive restart. Apply revalidates the stored binding under the repository lock; missing or changed receipts cannot authorize a new apply after recovery.
+
+If integration changes the proposed revision, verification is rerun but the earlier reviewer approval is stale. A fresh review and acceptance are required; Request changes triggers another reviewed repair subject to remaining resource limits. Automatic repair rounds remain bounded. Keep branch preserves the isolated work for deliberate manual work outside Hydra; it does not apply through Hydra. Reject discards it. Safe does not mean host/container isolation: checks still execute trusted project code with the user's privileges.
+
+Historical applied tasks are preserved. Their UI explicitly labels the absence of an enforced receipt and displays current unresolved conditions. A historical failed application is not retroactively certified, changed or rolled back.
+
+The engine is the shared boundary for desktop HTTP and encrypted remote commands. Remote scope/device authorization remains in the host and Engine.execute. Same-user malicious processes/disk modification are outside this approval gate's guarantee. No new exception workflow is supported; adding one requires a separately named structured command, deliberate reason, bound conditions and an explicit product-policy decision.
+
+Local alpha.4 is a separate unsigned Windows preview, not a published release or installed replacement. See TEST_EVIDENCE.md for observed checks and remaining platform/signing limitations.
