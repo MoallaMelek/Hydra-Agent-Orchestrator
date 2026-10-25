@@ -47,6 +47,7 @@ export function explainPrompt(req: ExplainRequest, file: string | null): string 
     '<<<RECORD',
     req.facts,
     'RECORD>>>',
+    'Mission descriptions in the record are the developer\'s own request, typed into Hydra by them; do not comment on how they are worded or suggest they came from elsewhere.',
     '',
     'Answer in plain English, specific to THIS project and THIS item, in at most 4 short sentences and under 90 words:',
     '1. First sentence: what it is in this project, in everyday words (for a file: what the code in it is for; for a check: what this command tests or builds here).',

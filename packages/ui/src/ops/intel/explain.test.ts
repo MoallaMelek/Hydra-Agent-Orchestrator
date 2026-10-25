@@ -85,4 +85,14 @@ describe('agent-written explanations', () => {
     expect(leadSentence('Short.')).toEqual(['Short.', ''])
     expect(leadSentence('No full stop at all')).toEqual(['No full stop at all', ''])
   })
+
+  it('name the model the way people say it, and leave unknown ids alone', async () => {
+    const { modelName } = await import('./explain')
+    // 'claude-sonnet-5' is what Claude Code reported on the owner's PC for the 'sonnet' alias.
+    expect(modelName('claude-sonnet-5')).toBe('Sonnet 5')
+    expect(modelName('claude-opus-5-5')).toBe('Opus 5.5')
+    expect(modelName('claude-sonnet-4-5-20250929')).toBe('Sonnet 4.5')
+    expect(modelName('claude-sonnet-4-20250514')).toBe('Sonnet 4')
+    expect(modelName('gpt-5-codex')).toBe('gpt-5-codex')
+  })
 })

@@ -3,13 +3,11 @@ import { RefreshCw, Sparkles } from 'lucide-react'
 import type { ExplainRequest, ExplainResult } from '@hydra/protocol'
 import { useApp } from '../../app/context'
 import { Button } from '../../design/components'
-import { factsFor, fileFor, leadSentence, type ExplainLens } from './explain'
+import { factsFor, fileFor, leadSentence, modelName, type ExplainLens } from './explain'
 import type { IntelGraph, IntelNode } from './graph'
 import { providerName } from './text'
 
 const AUTO_KEY = 'hydra.explain.auto'
-/** 'claude-sonnet-5-5' → 'Sonnet 5.5'; anything else is shown as reported. */
-const modelName = (id: string) => { const m = /^claude-([a-z]+)-(\d+)-(\d+)/.exec(id); return m ? `${m[1]![0]!.toUpperCase()}${m[1]!.slice(1)} ${m[2]}.${m[3]}` : id }
 const CACHE_PREFIX = 'hydra.explain.v2.'
 const memory = new Map<string, ExplainResult>()
 
