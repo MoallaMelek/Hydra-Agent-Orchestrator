@@ -153,3 +153,22 @@ Agents (a role on a provider) are drawn around the mission clock and linked to t
 ## 2026-10-25 — Explanations on click
 Anything selected on a mission map or a project map now explains itself: 'In your project' is written on the spot by the user's own Claude Code or Codex from that project's files and the record (read-only, cached per record, labelled AI-written, can be switched off), and 'From Hydra's records' states the recorded facts in plain sentences. Project maps select on click; double-click or Enter opens a mission. Verified on the owner's PC with his own projects.
 
+## 2026-10-21 — honest outcome costs
+fix(outcomes): distinguish measured free work from unpriced usage. Full checks passed; see TEST_EVIDENCE.md.
+
+
+## 2026-10-21 — no-agent recommendations
+fix(recommendations): report when no ready agent is available. Full checks passed; see TEST_EVIDENCE.md.
+
+
+## 2026-10-21 — precise release precedence
+fix(updater): preserve large integer version precedence. Full checks passed; see TEST_EVIDENCE.md.
+
+
+## 2026-10-21 — complete installer writes
+fix(updater): complete partial installer file writes. Full checks passed; see TEST_EVIDENCE.md.
+
+
+## 2026-10-21 — Engine utility regression coverage
+
+Added credential-format redaction, timestamp/entropy ID boundary, and priced/unpriced usage-accounting regression tests. No application visuals or runtime behavior changed. `npm run check` passed: typecheck, lint, 283 tests passed, 1 Windows-specific skip, and originality check passed. A fresh independent read-only reviewer inspected the tests. Codex wrote and verified them.

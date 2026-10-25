@@ -732,3 +732,24 @@ Branch feat/jarvis-ux-alpha6-20261022, commits 0098579 → this entry. Owner's d
 - Windows preview: `Hydra-UX-Preview-2.0.0-alpha.6-ux.20261022-x64.zip` (sha256 dfc61015ba3cfd14133b9d48a735f69274740620121f28f8487c29ba1460340b) cross-built from Linux with electron-builder 26.15.3 (`--win zip`, `signAndEditExecutable=false`), isolated profile `HydraPreviews/JarvisUX-20261022`, Windows koffi binary 3.3.3 swapped into the build output. **UNVERIFIED on Windows**: no Windows machine or Wine was reachable from this session, so it has not been launched; Hydra.exe carries Electron's default icon and file metadata because resource editing needs Wine. Not signed, not released, not published.
 - Not measured: real-GPU frame times, a live running mission with a real provider (Codex out of quota; paid runs not allowed), screen-reader pass, long-run memory.
 - 2026-10-23 Windows installer: `Hydra-Preview-Setup-2.0.0-alpha.6-ux.20261023.exe` (sha256 8f8a432ffa9e51f4a645ddc0fef719f539227ab2342cfdb241502e0792cbd473), commit 5499749, NSIS one-click per-user, appId `dev.melekmoalla.hydra.preview`, product "Hydra Preview", data in `%LOCALAPPDATA%\HydraPreviews\HydraPreview`; cross-built with Wine 9.0 (icon and metadata applied, unsigned). Copied to the owner's PC (hash re-verified there) and started from File Explorer: the installer ran and a full-screen window opened that the remote session could not see (computer-use masks apps it has no grant for, and the new app was not yet in its app list). App start on Windows is therefore UNVERIFIED by this session; the owner confirms by looking.
+
+
+## 2026-10-21 — honest outcome costs
+Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.
+
+
+## 2026-10-21 — no-agent recommendations
+Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.
+
+
+## 2026-10-21 — precise release precedence
+Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.
+
+
+## 2026-10-21 — complete installer writes
+Full `npm run check` passed on the four-fix working tree: 275 tests passed, 1 skipped; typecheck, lint and provenance passed. New regression tests cover this behavior. Codex authored and tested the change; independent read-only review is recorded separately.
+
+
+## 2026-10-21 — Engine utility regression coverage
+
+Added credential-format redaction, timestamp/entropy ID boundary, and priced/unpriced usage-accounting regression tests. No application visuals or runtime behavior changed. `npm run check` passed: typecheck, lint, 283 tests passed, 1 Windows-specific skip, and originality check passed. A fresh independent read-only reviewer inspected the tests. Codex wrote and verified them.

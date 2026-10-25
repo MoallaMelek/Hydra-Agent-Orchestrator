@@ -23,7 +23,7 @@ export function outcomeFor(task: Task, evidence: readonly Evidence[]): Outcome |
   return {
     taskId: task.id, at: task.updatedAt, category: categoryOf(task), strategy: strategyOf(task.assignment, task.intent),
     durationMs: Math.max(0, Date.parse(task.updatedAt) - Date.parse(task.createdAt)),
-    tokens: task.usage.inputTokens + task.usage.outputTokens, costUsd: task.usage.costUsd || null,
+    tokens: task.usage.inputTokens + task.usage.outputTokens, costUsd: task.usage.unpricedTokens > 0 ? null : task.usage.costUsd,
     verified, fixRounds: task.fixRound, decision,
     failure: task.status === 'failed' && task.error ? providerFailure(task.error) : null
   }
@@ -62,6 +62,7 @@ function parse(strategy: string): Assignment {
  * the best observed success, with the counts shown. Never a confidence score.
  */
 export function recommend(category: string, available: readonly ProviderId[], history: readonly Outcome[]): Recommendation {
+  if (!available.length) throw new Error('No ready agent is available for a recommendation.')
   const answer = category.startsWith('answer')
   const real = available.filter((p) => p !== 'scripted')
   const pool = real.length ? real : available
